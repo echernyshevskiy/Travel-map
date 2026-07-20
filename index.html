@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.13
+  Версия: v1.18
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -20,8 +20,14 @@
 <script>
 function showFatalErrorBanner(message){
   var banner = document.createElement('div');
-  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#9C3B2E;color:#fff;padding:10px 14px;font-family:sans-serif;font-size:12px;z-index:99999;line-height:1.5;';
-  banner.textContent = message + ' Сфотографируйте это сообщение и отправьте Claude.';
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#9C3B2E;color:#fff;padding:10px 40px 10px 14px;font-family:sans-serif;font-size:12px;z-index:99999;line-height:1.5;';
+  banner.textContent = message + ' Если приложение продолжает работать нормально — можно закрыть это сообщение. Если что-то не работает — сфотографируйте это сообщение и отправьте Claude.';
+  var closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.setAttribute('aria-label', 'Закрыть сообщение об ошибке');
+  closeBtn.style.cssText = 'position:absolute;top:6px;right:8px;background:none;border:none;color:#fff;font-size:16px;cursor:pointer;padding:4px 8px;';
+  closeBtn.onclick = function(){ banner.remove(); };
+  banner.appendChild(closeBtn);
   if(document.body) document.body.prepend(banner);
   else window.addEventListener('DOMContentLoaded', function(){ document.body.prepend(banner); });
 }
@@ -36,9 +42,9 @@ window.addEventListener('unhandledrejection', function(e){
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -56,6 +62,23 @@ window.addEventListener('unhandledrejection', function(e){
     --danger: #9C3B2E;
     --on-accent: #F3ECD8;
     --radius: 4px;
+  }
+  [data-theme="dark"]{
+    --bg: #14150F;
+    --panel: #1C1D15;
+    --panel-raised: #262819;
+    --line: #3A3B2C;
+    --text: #E8E0C8;
+    --text-dim: #93906E;
+    --amber: #D9944F;
+    --amber-dim: #B87538;
+    --sage: #7A9686;
+    --sage-dim: #4A6156;
+    --danger: #C1543E;
+    --on-accent: #14150F;
+  }
+  [data-theme="dark"] .leaflet-tile-pane{
+    filter:sepia(0.25) saturate(0.6) brightness(0.75) contrast(1.05);
   }
   *{box-sizing:border-box;}
   html,body{height:100%;margin:0;}
@@ -307,11 +330,11 @@ window.addEventListener('unhandledrejection', function(e){
   .legend div:first-child{margin-top:0;}
   .legend .dot{margin:0;}
   .toast{
-    position:absolute;top:16px;left:50%;transform:translateX(-50%);
+    position:fixed;top:16px;left:50%;transform:translateX(-50%);
     background:var(--sage-dim);color:var(--on-accent);
     padding:8px 16px;border-radius:20px;font-size:13px;
     font-family:'EB Garamond',serif;
-    z-index:600;display:none;
+    z-index:3000;display:none;
     max-width:80%;
     text-align:center;
   }
@@ -850,6 +873,7 @@ window.addEventListener('unhandledrejection', function(e){
     <button id="openTableBtn" class="header-btn">Таблица отметок</button>
     <button id="exportSnapshotBtn" class="header-btn">Снимок (Stories)</button>
     <button id="openPassportBtn" class="header-btn">Паспорт</button>
+    <button id="themeToggleBtn" class="header-btn" title="Переключить тему" aria-label="Переключить тёмную/светлую тему">🌙</button>
   </div>
 </header>
 
@@ -1075,7 +1099,7 @@ window.addEventListener('unhandledrejection', function(e){
       <p class="section-title">Поиск</p>
       <div class="search-wrap">
         <input type="text" id="globalSearch" placeholder="По названию, поездке, заметке…" autocomplete="off" style="padding-right:32px;">
-        <button id="clearSearchBtn" title="Очистить поиск" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;display:none;">✕</button>
+        <button id="clearSearchBtn" title="Очистить поиск" aria-label="Очистить поиск" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;display:none;">✕</button>
       </div>
     </div>
 
@@ -1086,21 +1110,22 @@ window.addEventListener('unhandledrejection', function(e){
     <div id="map"></div>
     <div class="compass-rose"><span>N</span></div>
     <div class="service-status" id="serviceStatus" style="display:none;"></div>
-    <button id="topoToggleBtn" class="topo-toggle-btn" title="Переключить на рельефную карту">🏔 Рельеф</button>
+    <button id="topoToggleBtn" class="topo-toggle-btn" title="Переключить на рельефную карту" aria-label="Переключить на рельефную карту">🏔 Рельеф</button>
     <div class="legend">
       <div><span class="dot country"></span> Страна (заливка)</div>
       <div><span class="dot city"></span> Город (точка)</div>
       <div><span class="dot route"></span> Маршрут</div>
       <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-style:italic;">пунктир — план / маршрут по прямой</div>
       <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
-      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;">v1.13</div>
+      <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
+      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;">v1.18</div>
     </div>
     <div class="toast" id="toast"></div>
     <div class="timeline-bar" id="timelineBar" style="display:none;">
-      <button id="timelinePlayBtn" title="Воспроизвести по годам">▶</button>
+      <button id="timelinePlayBtn" title="Воспроизвести по годам" aria-label="Воспроизвести по годам">▶</button>
       <div class="timeline-year" id="timelineYearLabel">—</div>
       <input type="range" id="timelineSlider" min="0" max="0" value="0" step="1">
-      <button id="timelineModeBtn" title="Переключить режим">Накопительно</button>
+      <button id="timelineModeBtn" title="Переключить режим" aria-label="Переключить режим">Накопительно</button>
     </div>
   </div>
 </div>
@@ -1109,9 +1134,12 @@ window.addEventListener('unhandledrejection', function(e){
   <div class="modal-panel">
     <div class="modal-header">
       <h2>Все отметки</h2>
-      <button id="closeTableModal" title="Закрыть">✕</button>
+      <button id="closeTableModal" title="Закрыть" aria-label="Закрыть">✕</button>
     </div>
     <div class="modal-sub" id="modalCount"></div>
+    <div style="padding:0 20px 12px;">
+      <input type="text" id="tableSearchInput" placeholder="Поиск по названию, поездке, заметке…" style="max-width:320px;">
+    </div>
     <div class="bulk-bar" id="bulkBar" style="display:none;">
       <span class="bulk-count" id="bulkCount">Выбрано: 0</span>
       <select id="bulkSeasonValue">
@@ -1162,9 +1190,12 @@ window.addEventListener('unhandledrejection', function(e){
   <div class="modal-panel">
     <div class="modal-header">
       <h2>Паспорт путешественника</h2>
-      <button id="closePassportModal" title="Закрыть">✕</button>
+      <button id="closePassportModal" title="Закрыть" aria-label="Закрыть">✕</button>
     </div>
     <div class="modal-sub" id="passportCount"></div>
+    <div style="padding:0 20px 12px;">
+      <input type="text" id="passportSearchInput" placeholder="Поиск по названию страны…" style="max-width:320px;">
+    </div>
     <div class="table-wrap">
       <div class="passport-grid" id="passportGrid"></div>
     </div>
@@ -1189,6 +1220,7 @@ const COUNTRIES_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Featu
 const COUNTRY_RU = {"Afghanistan":"Афганистан","Albania":"Албания","Algeria":"Алжир","Angola":"Ангола","Antarctica":"Антарктида","Argentina":"Аргентина","Armenia":"Армения","Australia":"Австралия","Austria":"Австрия","Azerbaijan":"Азербайджан","Bangladesh":"Бангладеш","Belarus":"Беларусь","Belgium":"Бельгия","Belize":"Белиз","Benin":"Бенин","Bermuda":"Бермудские острова","Bhutan":"Бутан","Bolivia":"Боливия","Bosnia and Herzegovina":"Босния и Герцеговина","Botswana":"Ботсвана","Brazil":"Бразилия","Brunei":"Бруней","Bulgaria":"Болгария","Burkina Faso":"Буркина-Фасо","Burundi":"Бурунди","Cambodia":"Камбоджа","Cameroon":"Камерун","Canada":"Канада","Central African Republic":"Центральноафриканская Республика","Chad":"Чад","Chile":"Чили","China":"Китай","Colombia":"Колумбия","Costa Rica":"Коста-Рика","Croatia":"Хорватия","Cuba":"Куба","Cyprus":"Кипр","Czech Republic":"Чехия","Democratic Republic of the Congo":"Демократическая Республика Конго","Denmark":"Дания","Djibouti":"Джибути","Dominican Republic":"Доминиканская Республика","East Timor":"Восточный Тимор","Ecuador":"Эквадор","Egypt":"Египет","El Salvador":"Сальвадор","Equatorial Guinea":"Экваториальная Гвинея","Eritrea":"Эритрея","Estonia":"Эстония","Ethiopia":"Эфиопия","Falkland Islands":"Фолклендские острова","Fiji":"Фиджи","Finland":"Финляндия","France":"Франция","French Guiana":"Французская Гвиана","French Southern and Antarctic Lands":"Французские Южные и Антарктические территории","Gabon":"Габон","Gambia":"Гамбия","Georgia":"Грузия","Germany":"Германия","Ghana":"Гана","Greece":"Греция","Greenland":"Гренландия","Guatemala":"Гватемала","Guinea":"Гвинея","Guinea Bissau":"Гвинея-Бисау","Guyana":"Гайана","Haiti":"Гаити","Honduras":"Гондурас","Hungary":"Венгрия","Iceland":"Исландия","India":"Индия","Indonesia":"Индонезия","Iran":"Иран","Iraq":"Ирак","Ireland":"Ирландия","Israel":"Израиль","Italy":"Италия","Ivory Coast":"Кот-д'Ивуар","Jamaica":"Ямайка","Japan":"Япония","Jordan":"Иордания","Kazakhstan":"Казахстан","Kenya":"Кения","Kosovo":"Косово","Kuwait":"Кувейт","Kyrgyzstan":"Киргизия","Laos":"Лаос","Latvia":"Латвия","Lebanon":"Ливан","Lesotho":"Лесото","Liberia":"Либерия","Libya":"Ливия","Lithuania":"Литва","Luxembourg":"Люксембург","Macedonia":"Северная Македония","Madagascar":"Мадагаскар","Malawi":"Малави","Malaysia":"Малайзия","Mali":"Мали","Malta":"Мальта","Mauritania":"Мавритания","Mexico":"Мексика","Moldova":"Молдова","Mongolia":"Монголия","Montenegro":"Черногория","Morocco":"Марокко","Mozambique":"Мозамбик","Myanmar":"Мьянма","Namibia":"Намибия","Nepal":"Непал","Netherlands":"Нидерланды","New Caledonia":"Новая Каледония","New Zealand":"Новая Зеландия","Nicaragua":"Никарагуа","Niger":"Нигер","Nigeria":"Нигерия","North Korea":"Северная Корея","Northern Cyprus":"Северный Кипр","Norway":"Норвегия","Oman":"Оман","Pakistan":"Пакистан","Panama":"Панама","Papua New Guinea":"Папуа — Новая Гвинея","Paraguay":"Парагвай","Peru":"Перу","Philippines":"Филиппины","Poland":"Польша","Portugal":"Португалия","Puerto Rico":"Пуэрто-Рико","Qatar":"Катар","Republic of Serbia":"Сербия","Republic of the Congo":"Республика Конго","Romania":"Румыния","Russia":"Россия","Rwanda":"Руанда","Saudi Arabia":"Саудовская Аравия","Senegal":"Сенегал","Sierra Leone":"Сьерра-Леоне","Slovakia":"Словакия","Slovenia":"Словения","Solomon Islands":"Соломоновы острова","Somalia":"Сомали","Somaliland":"Сомалиленд","South Africa":"ЮАР","South Korea":"Южная Корея","South Sudan":"Южный Судан","Spain":"Испания","Sri Lanka":"Шри-Ланка","Sudan":"Судан","Suriname":"Суринам","Swaziland":"Эсватини","Sweden":"Швеция","Switzerland":"Швейцария","Syria":"Сирия","Taiwan":"Тайвань","Tajikistan":"Таджикистан","Thailand":"Таиланд","The Bahamas":"Багамы","Togo":"Того","Trinidad and Tobago":"Тринидад и Тобаго","Tunisia":"Тунис","Turkey":"Турция","Turkmenistan":"Туркменистан","Uganda":"Уганда","Ukraine":"Украина","United Arab Emirates":"ОАЭ","United Kingdom":"Великобритания","United Republic of Tanzania":"Танзания","United States of America":"США","Uruguay":"Уругвай","Uzbekistan":"Узбекистан","Vanuatu":"Вануату","Venezuela":"Венесуэла","Vietnam":"Вьетнам","West Bank":"Западный берег реки Иордан","Western Sahara":"Западная Сахара","Yemen":"Йемен","Zambia":"Замбия","Zimbabwe":"Зимбабве"};
 const COUNTRY_CONTINENT = {"Albania":"Европа","Austria":"Европа","Belarus":"Европа","Belgium":"Европа","Bosnia and Herzegovina":"Европа","Bulgaria":"Европа","Croatia":"Европа","Cyprus":"Европа","Czech Republic":"Европа","Denmark":"Европа","Estonia":"Европа","Finland":"Европа","France":"Европа","Germany":"Европа","Greece":"Европа","Hungary":"Европа","Iceland":"Европа","Ireland":"Европа","Italy":"Европа","Kosovo":"Европа","Latvia":"Европа","Lithuania":"Европа","Luxembourg":"Европа","Macedonia":"Европа","Malta":"Европа","Moldova":"Европа","Montenegro":"Европа","Netherlands":"Европа","Northern Cyprus":"Европа","Norway":"Европа","Poland":"Европа","Portugal":"Европа","Republic of Serbia":"Европа","Romania":"Европа","Russia":"Европа","Slovakia":"Европа","Slovenia":"Европа","Spain":"Европа","Sweden":"Европа","Switzerland":"Европа","Ukraine":"Европа","United Kingdom":"Европа","Afghanistan":"Азия","Armenia":"Азия","Azerbaijan":"Азия","Bangladesh":"Азия","Bhutan":"Азия","Brunei":"Азия","Cambodia":"Азия","China":"Азия","East Timor":"Азия","Georgia":"Азия","India":"Азия","Indonesia":"Азия","Iran":"Азия","Iraq":"Азия","Israel":"Азия","Japan":"Азия","Jordan":"Азия","Kazakhstan":"Азия","Kuwait":"Азия","Kyrgyzstan":"Азия","Laos":"Азия","Lebanon":"Азия","Malaysia":"Азия","Mongolia":"Азия","Myanmar":"Азия","Nepal":"Азия","North Korea":"Азия","Oman":"Азия","Pakistan":"Азия","Philippines":"Азия","Qatar":"Азия","Saudi Arabia":"Азия","South Korea":"Азия","Sri Lanka":"Азия","Syria":"Азия","Taiwan":"Азия","Tajikistan":"Азия","Thailand":"Азия","Turkey":"Азия","Turkmenistan":"Азия","United Arab Emirates":"Азия","Uzbekistan":"Азия","Vietnam":"Азия","Yemen":"Азия","West Bank":"Азия","Algeria":"Африка","Angola":"Африка","Benin":"Африка","Botswana":"Африка","Burkina Faso":"Африка","Burundi":"Африка","Cameroon":"Африка","Central African Republic":"Африка","Chad":"Африка","Democratic Republic of the Congo":"Африка","Djibouti":"Африка","Egypt":"Африка","Equatorial Guinea":"Африка","Eritrea":"Африка","Ethiopia":"Африка","Gabon":"Африка","Gambia":"Африка","Ghana":"Африка","Guinea":"Африка","Guinea Bissau":"Африка","Ivory Coast":"Африка","Togo":"Африка","Kenya":"Африка","Lesotho":"Африка","Liberia":"Африка","Libya":"Африка","Madagascar":"Африка","Malawi":"Африка","Mali":"Африка","Mauritania":"Африка","Morocco":"Африка","Mozambique":"Африка","Namibia":"Африка","Niger":"Африка","Nigeria":"Африка","Republic of the Congo":"Африка","Rwanda":"Африка","Senegal":"Африка","Sierra Leone":"Африка","Somalia":"Африка","Somaliland":"Африка","South Africa":"Африка","South Sudan":"Африка","Sudan":"Африка","Swaziland":"Африка","Tunisia":"Африка","Uganda":"Африка","United Republic of Tanzania":"Африка","Western Sahara":"Африка","Zambia":"Африка","Zimbabwe":"Африка","Belize":"Северная Америка","Bermuda":"Северная Америка","Canada":"Северная Америка","Costa Rica":"Северная Америка","Cuba":"Северная Америка","Dominican Republic":"Северная Америка","El Salvador":"Северная Америка","Greenland":"Северная Америка","Guatemala":"Северная Америка","Haiti":"Северная Америка","Honduras":"Северная Америка","Jamaica":"Северная Америка","Mexico":"Северная Америка","Nicaragua":"Северная Америка","Panama":"Северная Америка","Puerto Rico":"Северная Америка","The Bahamas":"Северная Америка","Trinidad and Tobago":"Северная Америка","United States of America":"Северная Америка","Argentina":"Южная Америка","Bolivia":"Южная Америка","Brazil":"Южная Америка","Chile":"Южная Америка","Colombia":"Южная Америка","Ecuador":"Южная Америка","Falkland Islands":"Южная Америка","French Guiana":"Южная Америка","Guyana":"Южная Америка","Paraguay":"Южная Америка","Peru":"Южная Америка","Suriname":"Южная Америка","Uruguay":"Южная Америка","Venezuela":"Южная Америка","Australia":"Австралия и Океания","Fiji":"Австралия и Океания","New Caledonia":"Австралия и Океания","New Zealand":"Австралия и Океания","Papua New Guinea":"Австралия и Океания","Solomon Islands":"Австралия и Океания","Vanuatu":"Австралия и Океания","Antarctica":"Антарктида","French Southern and Antarctic Lands":"Антарктида"};
 const COUNTRY_ISO = {"Afghanistan":"AF","Albania":"AL","Algeria":"DZ","Angola":"AO","Antarctica":"AQ","Argentina":"AR","Armenia":"AM","Australia":"AU","Austria":"AT","Azerbaijan":"AZ","Bangladesh":"BD","Belarus":"BY","Belgium":"BE","Belize":"BZ","Benin":"BJ","Bermuda":"BM","Bhutan":"BT","Bolivia":"BO","Bosnia and Herzegovina":"BA","Botswana":"BW","Brazil":"BR","Brunei":"BN","Bulgaria":"BG","Burkina Faso":"BF","Burundi":"BI","Cambodia":"KH","Cameroon":"CM","Canada":"CA","Central African Republic":"CF","Chad":"TD","Chile":"CL","China":"CN","Colombia":"CO","Costa Rica":"CR","Croatia":"HR","Cuba":"CU","Cyprus":"CY","Czech Republic":"CZ","Democratic Republic of the Congo":"CD","Denmark":"DK","Djibouti":"DJ","Dominican Republic":"DO","East Timor":"TL","Ecuador":"EC","Egypt":"EG","El Salvador":"SV","Equatorial Guinea":"GQ","Eritrea":"ER","Estonia":"EE","Ethiopia":"ET","Falkland Islands":"FK","Fiji":"FJ","Finland":"FI","France":"FR","French Guiana":"GF","French Southern and Antarctic Lands":"TF","Gabon":"GA","Gambia":"GM","Georgia":"GE","Germany":"DE","Ghana":"GH","Greece":"GR","Greenland":"GL","Guatemala":"GT","Guinea":"GN","Guinea Bissau":"GW","Guyana":"GY","Haiti":"HT","Honduras":"HN","Hungary":"HU","Iceland":"IS","India":"IN","Indonesia":"ID","Iran":"IR","Iraq":"IQ","Ireland":"IE","Israel":"IL","Italy":"IT","Ivory Coast":"CI","Jamaica":"JM","Japan":"JP","Jordan":"JO","Kazakhstan":"KZ","Kenya":"KE","Kosovo":"XK","Kuwait":"KW","Kyrgyzstan":"KG","Laos":"LA","Latvia":"LV","Lebanon":"LB","Lesotho":"LS","Liberia":"LR","Libya":"LY","Lithuania":"LT","Luxembourg":"LU","Macedonia":"MK","Madagascar":"MG","Malawi":"MW","Malaysia":"MY","Mali":"ML","Malta":"MT","Mauritania":"MR","Mexico":"MX","Moldova":"MD","Mongolia":"MN","Montenegro":"ME","Morocco":"MA","Mozambique":"MZ","Myanmar":"MM","Namibia":"NA","Nepal":"NP","Netherlands":"NL","New Caledonia":"NC","New Zealand":"NZ","Nicaragua":"NI","Niger":"NE","Nigeria":"NG","North Korea":"KP","Northern Cyprus":"CY","Norway":"NO","Oman":"OM","Pakistan":"PK","Panama":"PA","Papua New Guinea":"PG","Paraguay":"PY","Peru":"PE","Philippines":"PH","Poland":"PL","Portugal":"PT","Puerto Rico":"PR","Qatar":"QA","Republic of Serbia":"RS","Republic of the Congo":"CG","Romania":"RO","Russia":"RU","Rwanda":"RW","Saudi Arabia":"SA","Senegal":"SN","Sierra Leone":"SL","Slovakia":"SK","Slovenia":"SI","Solomon Islands":"SB","Somalia":"SO","Somaliland":"SO","South Africa":"ZA","South Korea":"KR","South Sudan":"SS","Spain":"ES","Sri Lanka":"LK","Sudan":"SD","Suriname":"SR","Swaziland":"SZ","Sweden":"SE","Switzerland":"CH","Syria":"SY","Taiwan":"TW","Tajikistan":"TJ","Thailand":"TH","The Bahamas":"BS","Togo":"TG","Trinidad and Tobago":"TT","Tunisia":"TN","Turkey":"TR","Turkmenistan":"TM","Uganda":"UG","Ukraine":"UA","United Arab Emirates":"AE","United Kingdom":"GB","United Republic of Tanzania":"TZ","United States of America":"US","Uruguay":"UY","Uzbekistan":"UZ","Vanuatu":"VU","Venezuela":"VE","Vietnam":"VN","West Bank":"PS","Western Sahara":"EH","Yemen":"YE","Zambia":"ZM","Zimbabwe":"ZW"};
+const COUNTRY_INFO = {"Afghanistan":{"capital":"Кабул","tz":"Asia/Kabul","lang":"пушту, дари","currency":"афгани"},"Albania":{"capital":"Тирана","tz":"Europe/Tirane","lang":"албанский","currency":"лек"},"Algeria":{"capital":"Алжир","tz":"Africa/Algiers","lang":"арабский","currency":"алжирский динар"},"Angola":{"capital":"Луанда","tz":"Africa/Luanda","lang":"португальский","currency":"кванза"},"Argentina":{"capital":"Буэнос-Айрес","tz":"America/Argentina/Buenos_Aires","lang":"испанский","currency":"аргентинское песо"},"Armenia":{"capital":"Ереван","tz":"Asia/Yerevan","lang":"армянский","currency":"армянский драм"},"Australia":{"capital":"Канберра","tz":"Australia/Sydney","lang":"английский","currency":"австралийский доллар"},"Austria":{"capital":"Вена","tz":"Europe/Vienna","lang":"немецкий","currency":"евро"},"Azerbaijan":{"capital":"Баку","tz":"Asia/Baku","lang":"азербайджанский","currency":"азербайджанский манат"},"Bangladesh":{"capital":"Дакка","tz":"Asia/Dhaka","lang":"бенгальский","currency":"така"},"Belarus":{"capital":"Минск","tz":"Europe/Minsk","lang":"белорусский, русский","currency":"белорусский рубль"},"Belgium":{"capital":"Брюссель","tz":"Europe/Brussels","lang":"нидерландский, французский, немецкий","currency":"евро"},"Belize":{"capital":"Бельмопан","tz":"America/Belize","lang":"английский","currency":"белизский доллар"},"Benin":{"capital":"Порто-Ново","tz":"Africa/Porto-Novo","lang":"французский","currency":"франк КФА (BCEAO)"},"Bermuda":{"capital":"Гамильтон","tz":"Atlantic/Bermuda","lang":"английский","currency":"бермудский доллар"},"Bhutan":{"capital":"Тхимпху","tz":"Asia/Thimphu","lang":"дзонг-кэ","currency":"нгултрум"},"Bolivia":{"capital":"Сукре","tz":"America/La_Paz","lang":"испанский","currency":"боливиано"},"Bosnia and Herzegovina":{"capital":"Сараево","tz":"Europe/Sarajevo","lang":"боснийский, сербский, хорватский","currency":"конвертируемая марка"},"Botswana":{"capital":"Габороне","tz":"Africa/Gaborone","lang":"английский, тсвана","currency":"пула"},"Brazil":{"capital":"Бразилиа","tz":"America/Sao_Paulo","lang":"португальский","currency":"бразильский реал"},"Brunei":{"capital":"Бандар-Сери-Бегаван","tz":"Asia/Brunei","lang":"малайский","currency":"брунейский доллар"},"Bulgaria":{"capital":"София","tz":"Europe/Sofia","lang":"болгарский","currency":"евро"},"Burkina Faso":{"capital":"Уагадугу","tz":"Africa/Ouagadougou","lang":"французский","currency":"франк КФА (BCEAO)"},"Burundi":{"capital":"Гитега","tz":"Africa/Gitega","lang":"кирунди, французский","currency":"бурундийский франк"},"Cambodia":{"capital":"Пномпень","tz":"Asia/Phnom_Penh","lang":"кхмерский","currency":"риель"},"Cameroon":{"capital":"Яунде","tz":"Africa/Douala","lang":"французский, английский","currency":"франк КФА (BEAC)"},"Canada":{"capital":"Оттава","tz":"America/Toronto","lang":"английский, французский","currency":"канадский доллар"},"Central African Republic":{"capital":"Банги","tz":"Africa/Bangui","lang":"французский, санго","currency":"франк КФА (BEAC)"},"Chad":{"capital":"Нджамена","tz":"Africa/Ndjamena","lang":"французский, арабский","currency":"франк КФА (BEAC)"},"Chile":{"capital":"Сантьяго","tz":"America/Santiago","lang":"испанский","currency":"чилийское песо"},"China":{"capital":"Пекин","tz":"Asia/Shanghai","lang":"китайский","currency":"юань"},"Colombia":{"capital":"Богота","tz":"America/Bogota","lang":"испанский","currency":"колумбийское песо"},"Costa Rica":{"capital":"Сан-Хосе","tz":"America/Costa_Rica","lang":"испанский","currency":"костариканский колон"},"Croatia":{"capital":"Загреб","tz":"Europe/Zagreb","lang":"хорватский","currency":"евро"},"Cuba":{"capital":"Гавана","tz":"America/Havana","lang":"испанский","currency":"кубинское песо"},"Cyprus":{"capital":"Никосия","tz":"Asia/Nicosia","lang":"греческий, турецкий","currency":"евро"},"Czech Republic":{"capital":"Прага","tz":"Europe/Prague","lang":"чешский","currency":"чешская крона"},"Democratic Republic of the Congo":{"capital":"Киншаса","tz":"Africa/Kinshasa","lang":"французский","currency":"конголезский франк"},"Denmark":{"capital":"Копенгаген","tz":"Europe/Copenhagen","lang":"датский","currency":"датская крона"},"Djibouti":{"capital":"Джибути","tz":"Africa/Djibouti","lang":"французский, арабский","currency":"франк Джибути"},"Dominican Republic":{"capital":"Санто-Доминго","tz":"America/Santo_Domingo","lang":"испанский","currency":"доминиканское песо"},"East Timor":{"capital":"Дили","tz":"Asia/Dili","lang":"тетум, португальский","currency":"доллар США"},"Ecuador":{"capital":"Кито","tz":"America/Guayaquil","lang":"испанский","currency":"доллар США"},"Egypt":{"capital":"Каир","tz":"Africa/Cairo","lang":"арабский","currency":"египетский фунт"},"El Salvador":{"capital":"Сан-Сальвадор","tz":"America/El_Salvador","lang":"испанский","currency":"доллар США"},"Equatorial Guinea":{"capital":"Малабо","tz":"Africa/Malabo","lang":"испанский, французский","currency":"франк КФА (BEAC)"},"Eritrea":{"capital":"Асмэра","tz":"Africa/Asmara","lang":"тигринья, арабский","currency":"накфа"},"Estonia":{"capital":"Таллин","tz":"Europe/Tallinn","lang":"эстонский","currency":"евро"},"Ethiopia":{"capital":"Аддис-Абеба","tz":"Africa/Addis_Ababa","lang":"амхарский","currency":"быр"},"Falkland Islands":{"capital":"Стэнли","tz":"Atlantic/Stanley","lang":"английский","currency":"фунт Фолклендских островов"},"Fiji":{"capital":"Сува","tz":"Pacific/Fiji","lang":"английский","currency":"фиджийский доллар"},"Finland":{"capital":"Хельсинки","tz":"Europe/Helsinki","lang":"финский, шведский","currency":"евро"},"France":{"capital":"Париж","tz":"Europe/Paris","lang":"французский","currency":"евро"},"French Guiana":{"capital":"Кайенна","tz":"America/Cayenne","lang":"французский","currency":"евро"},"Gabon":{"capital":"Либревиль","tz":"Africa/Libreville","lang":"французский","currency":"франк КФА (BEAC)"},"Gambia":{"capital":"Банжул","tz":"Africa/Banjul","lang":"английский","currency":"даласи"},"Georgia":{"capital":"Тбилиси","tz":"Asia/Tbilisi","lang":"грузинский","currency":"лари"},"Germany":{"capital":"Берлин","tz":"Europe/Berlin","lang":"немецкий","currency":"евро"},"Ghana":{"capital":"Аккра","tz":"Africa/Accra","lang":"английский","currency":"ганский седи"},"Greece":{"capital":"Афины","tz":"Europe/Athens","lang":"греческий","currency":"евро"},"Greenland":{"capital":"Нуук","tz":"America/Nuuk","lang":"гренландский, датский","currency":"датская крона"},"Guatemala":{"capital":"Гватемала","tz":"America/Guatemala","lang":"испанский","currency":"кетсаль"},"Guinea":{"capital":"Конакри","tz":"Africa/Conakry","lang":"французский","currency":"гвинейский франк"},"Guinea Bissau":{"capital":"Бисау","tz":"Africa/Bissau","lang":"португальский","currency":"франк КФА (BCEAO)"},"Guyana":{"capital":"Джорджтаун","tz":"America/Guyana","lang":"английский","currency":"гайанский доллар"},"Haiti":{"capital":"Порт-о-Пренс","tz":"America/Port-au-Prince","lang":"французский, гаитянский креольский","currency":"гурд"},"Honduras":{"capital":"Тегусигальпа","tz":"America/Tegucigalpa","lang":"испанский","currency":"лемпира"},"Hungary":{"capital":"Будапешт","tz":"Europe/Budapest","lang":"венгерский","currency":"форинт"},"Iceland":{"capital":"Рейкьявик","tz":"Atlantic/Reykjavik","lang":"исландский","currency":"исландская крона"},"India":{"capital":"Нью-Дели","tz":"Asia/Kolkata","lang":"хинди, английский","currency":"индийская рупия"},"Indonesia":{"capital":"Джакарта","tz":"Asia/Jakarta","lang":"индонезийский","currency":"индонезийская рупия"},"Iran":{"capital":"Тегеран","tz":"Asia/Tehran","lang":"персидский","currency":"иранский риал"},"Iraq":{"capital":"Багдад","tz":"Asia/Baghdad","lang":"арабский, курдский","currency":"иракский динар"},"Ireland":{"capital":"Дублин","tz":"Europe/Dublin","lang":"ирландский, английский","currency":"евро"},"Israel":{"capital":"Иерусалим","tz":"Asia/Jerusalem","lang":"иврит, арабский","currency":"новый израильский шекель"},"Italy":{"capital":"Рим","tz":"Europe/Rome","lang":"итальянский","currency":"евро"},"Ivory Coast":{"capital":"Ямусукро","tz":"Africa/Abidjan","lang":"французский","currency":"франк КФА (BCEAO)"},"Jamaica":{"capital":"Кингстон","tz":"America/Jamaica","lang":"английский","currency":"ямайский доллар"},"Japan":{"capital":"Токио","tz":"Asia/Tokyo","lang":"японский","currency":"иена"},"Jordan":{"capital":"Амман","tz":"Asia/Amman","lang":"арабский","currency":"иорданский динар"},"Kazakhstan":{"capital":"Астана","tz":"Asia/Almaty","lang":"казахский, русский","currency":"тенге"},"Kenya":{"capital":"Найроби","tz":"Africa/Nairobi","lang":"суахили, английский","currency":"кенийский шиллинг"},"Kosovo":{"capital":"Приштина","tz":"Europe/Belgrade","lang":"албанский, сербский","currency":"евро"},"Kuwait":{"capital":"Эль-Кувейт","tz":"Asia/Kuwait","lang":"арабский","currency":"кувейтский динар"},"Kyrgyzstan":{"capital":"Бишкек","tz":"Asia/Bishkek","lang":"киргизский, русский","currency":"сом"},"Laos":{"capital":"Вьентьян","tz":"Asia/Vientiane","lang":"лаосский","currency":"кип"},"Latvia":{"capital":"Рига","tz":"Europe/Riga","lang":"латышский","currency":"евро"},"Lebanon":{"capital":"Бейрут","tz":"Asia/Beirut","lang":"арабский","currency":"ливанский фунт"},"Lesotho":{"capital":"Масеру","tz":"Africa/Maseru","lang":"сесото, английский","currency":"лоти"},"Liberia":{"capital":"Монровия","tz":"Africa/Monrovia","lang":"английский","currency":"либерийский доллар"},"Libya":{"capital":"Триполи","tz":"Africa/Tripoli","lang":"арабский","currency":"ливийский динар"},"Lithuania":{"capital":"Вильнюс","tz":"Europe/Vilnius","lang":"литовский","currency":"евро"},"Luxembourg":{"capital":"Люксембург","tz":"Europe/Luxembourg","lang":"люксембургский, французский, немецкий","currency":"евро"},"Macedonia":{"capital":"Скопье","tz":"Europe/Skopje","lang":"македонский","currency":"денар"},"Madagascar":{"capital":"Антананариву","tz":"Indian/Antananarivo","lang":"малагасийский, французский","currency":"малагасийский ариари"},"Malawi":{"capital":"Лилонгве","tz":"Africa/Blantyre","lang":"чичева, английский","currency":"малавийская квача"},"Malaysia":{"capital":"Куала-Лумпур","tz":"Asia/Kuala_Lumpur","lang":"малайский","currency":"малайзийский ринггит"},"Mali":{"capital":"Бамако","tz":"Africa/Bamako","lang":"французский","currency":"франк КФА (BCEAO)"},"Malta":{"capital":"Валлетта","tz":"Europe/Malta","lang":"мальтийский, английский","currency":"евро"},"Mauritania":{"capital":"Нуакшот","tz":"Africa/Nouakchott","lang":"арабский","currency":"угия"},"Mexico":{"capital":"Мехико","tz":"America/Mexico_City","lang":"испанский","currency":"мексиканское песо"},"Moldova":{"capital":"Кишинёв","tz":"Europe/Chisinau","lang":"румынский","currency":"молдавский лей"},"Mongolia":{"capital":"Улан-Батор","tz":"Asia/Ulaanbaatar","lang":"монгольский","currency":"тугрик"},"Montenegro":{"capital":"Подгорица","tz":"Europe/Podgorica","lang":"черногорский","currency":"евро"},"Morocco":{"capital":"Рабат","tz":"Africa/Casablanca","lang":"арабский","currency":"марокканский дирхам"},"Mozambique":{"capital":"Мапуту","tz":"Africa/Maputo","lang":"португальский","currency":"мозамбикский метикал"},"Myanmar":{"capital":"Нейпьидо","tz":"Asia/Yangon","lang":"бирманский","currency":"кьят"},"Namibia":{"capital":"Виндхук","tz":"Africa/Windhoek","lang":"английский","currency":"намибийский доллар"},"Nepal":{"capital":"Катманду","tz":"Asia/Kathmandu","lang":"непальский","currency":"непальская рупия"},"Netherlands":{"capital":"Амстердам","tz":"Europe/Amsterdam","lang":"нидерландский","currency":"евро"},"New Caledonia":{"capital":"Нумеа","tz":"Pacific/Noumea","lang":"французский","currency":"франк КФП"},"New Zealand":{"capital":"Веллингтон","tz":"Pacific/Auckland","lang":"английский, маори","currency":"новозеландский доллар"},"Nicaragua":{"capital":"Манагуа","tz":"America/Managua","lang":"испанский","currency":"кордоба"},"Niger":{"capital":"Ниамей","tz":"Africa/Niamey","lang":"французский","currency":"франк КФА (BCEAO)"},"Nigeria":{"capital":"Абуджа","tz":"Africa/Lagos","lang":"английский","currency":"найра"},"North Korea":{"capital":"Пхеньян","tz":"Asia/Pyongyang","lang":"корейский","currency":"северокорейская вона"},"Northern Cyprus":{"capital":"Северная Никосия","tz":"Europe/Istanbul","lang":"турецкий","currency":"турецкая лира"},"Norway":{"capital":"Осло","tz":"Europe/Oslo","lang":"норвежский","currency":"норвежская крона"},"Oman":{"capital":"Маскат","tz":"Asia/Muscat","lang":"арабский","currency":"оманский риал"},"Pakistan":{"capital":"Исламабад","tz":"Asia/Karachi","lang":"урду, английский","currency":"пакистанская рупия"},"Panama":{"capital":"Панама","tz":"America/Panama","lang":"испанский","currency":"бальбоа / доллар США"},"Papua New Guinea":{"capital":"Порт-Морсби","tz":"Pacific/Port_Moresby","lang":"английский, ток-писин","currency":"кина"},"Paraguay":{"capital":"Асунсьон","tz":"America/Asuncion","lang":"испанский, гуарани","currency":"гуарани"},"Peru":{"capital":"Лима","tz":"America/Lima","lang":"испанский","currency":"соль"},"Philippines":{"capital":"Манила","tz":"Asia/Manila","lang":"филиппинский, английский","currency":"филиппинское песо"},"Poland":{"capital":"Варшава","tz":"Europe/Warsaw","lang":"польский","currency":"злотый"},"Portugal":{"capital":"Лиссабон","tz":"Europe/Lisbon","lang":"португальский","currency":"евро"},"Puerto Rico":{"capital":"Сан-Хуан","tz":"America/Puerto_Rico","lang":"испанский, английский","currency":"доллар США"},"Qatar":{"capital":"Доха","tz":"Asia/Qatar","lang":"арабский","currency":"катарский риал"},"Republic of Serbia":{"capital":"Белград","tz":"Europe/Belgrade","lang":"сербский","currency":"сербский динар"},"Republic of the Congo":{"capital":"Браззавиль","tz":"Africa/Brazzaville","lang":"французский","currency":"франк КФА (BEAC)"},"Romania":{"capital":"Бухарест","tz":"Europe/Bucharest","lang":"румынский","currency":"румынский лей"},"Russia":{"capital":"Москва","tz":"Europe/Moscow","lang":"русский","currency":"российский рубль"},"Rwanda":{"capital":"Кигали","tz":"Africa/Kigali","lang":"киньяруанда, французский, английский","currency":"руандийский франк"},"Saudi Arabia":{"capital":"Эр-Рияд","tz":"Asia/Riyadh","lang":"арабский","currency":"саудовский риял"},"Senegal":{"capital":"Дакар","tz":"Africa/Dakar","lang":"французский","currency":"франк КФА (BCEAO)"},"Sierra Leone":{"capital":"Фритаун","tz":"Africa/Freetown","lang":"английский","currency":"леоне"},"Slovakia":{"capital":"Братислава","tz":"Europe/Bratislava","lang":"словацкий","currency":"евро"},"Slovenia":{"capital":"Любляна","tz":"Europe/Ljubljana","lang":"словенский","currency":"евро"},"Solomon Islands":{"capital":"Хониара","tz":"Pacific/Guadalcanal","lang":"английский","currency":"доллар Соломоновых Островов"},"Somalia":{"capital":"Могадишо","tz":"Africa/Mogadishu","lang":"сомалийский, арабский","currency":"сомалийский шиллинг"},"Somaliland":{"capital":"Харгейса","tz":"Africa/Mogadishu","lang":"сомалийский, арабский","currency":"сомалилендский шиллинг"},"South Africa":{"capital":"Претория","tz":"Africa/Johannesburg","lang":"английский и ещё 10","currency":"ранд"},"South Korea":{"capital":"Сеул","tz":"Asia/Seoul","lang":"корейский","currency":"южнокорейская вона"},"South Sudan":{"capital":"Джуба","tz":"Africa/Juba","lang":"английский","currency":"южносуданский фунт"},"Spain":{"capital":"Мадрид","tz":"Europe/Madrid","lang":"испанский","currency":"евро"},"Sri Lanka":{"capital":"Шри-Джаяварденепура-Котте","tz":"Asia/Colombo","lang":"сингальский, тамильский","currency":"шри-ланкийская рупия"},"Sudan":{"capital":"Хартум","tz":"Africa/Khartoum","lang":"арабский","currency":"суданский фунт"},"Suriname":{"capital":"Парамарибо","tz":"America/Paramaribo","lang":"нидерландский","currency":"суринамский доллар"},"Swaziland":{"capital":"Мбабане","tz":"Africa/Mbabane","lang":"свати, английский","currency":"лилангени"},"Sweden":{"capital":"Стокгольм","tz":"Europe/Stockholm","lang":"шведский","currency":"шведская крона"},"Switzerland":{"capital":"Берн","tz":"Europe/Zurich","lang":"немецкий, французский, итальянский","currency":"швейцарский франк"},"Syria":{"capital":"Дамаск","tz":"Asia/Damascus","lang":"арабский","currency":"сирийский фунт"},"Taiwan":{"capital":"Тайбэй","tz":"Asia/Taipei","lang":"китайский","currency":"новый тайваньский доллар"},"Tajikistan":{"capital":"Душанбе","tz":"Asia/Dushanbe","lang":"таджикский","currency":"сомони"},"Thailand":{"capital":"Бангкок","tz":"Asia/Bangkok","lang":"тайский","currency":"бат"},"The Bahamas":{"capital":"Нассау","tz":"America/Nassau","lang":"английский","currency":"багамский доллар"},"Togo":{"capital":"Ломе","tz":"Africa/Lome","lang":"французский","currency":"франк КФА (BCEAO)"},"Trinidad and Tobago":{"capital":"Порт-оф-Спейн","tz":"America/Port_of_Spain","lang":"английский","currency":"доллар Тринидада и Тобаго"},"Tunisia":{"capital":"Тунис","tz":"Africa/Tunis","lang":"арабский","currency":"тунисский динар"},"Turkey":{"capital":"Анкара","tz":"Europe/Istanbul","lang":"турецкий","currency":"турецкая лира"},"Turkmenistan":{"capital":"Ашхабад","tz":"Asia/Ashgabat","lang":"туркменский","currency":"манат"},"Uganda":{"capital":"Кампала","tz":"Africa/Kampala","lang":"английский, суахили","currency":"угандийский шиллинг"},"Ukraine":{"capital":"Киев","tz":"Europe/Kyiv","lang":"украинский","currency":"гривна"},"United Arab Emirates":{"capital":"Абу-Даби","tz":"Asia/Dubai","lang":"арабский","currency":"дирхам ОАЭ"},"United Kingdom":{"capital":"Лондон","tz":"Europe/London","lang":"английский","currency":"фунт стерлингов"},"United Republic of Tanzania":{"capital":"Додома","tz":"Africa/Dar_es_Salaam","lang":"суахили, английский","currency":"танзанийский шиллинг"},"United States of America":{"capital":"Вашингтон","tz":"America/New_York","lang":"английский","currency":"доллар США"},"Uruguay":{"capital":"Монтевидео","tz":"America/Montevideo","lang":"испанский","currency":"уругвайское песо"},"Uzbekistan":{"capital":"Ташкент","tz":"Asia/Tashkent","lang":"узбекский","currency":"сум"},"Vanuatu":{"capital":"Порт-Вила","tz":"Pacific/Efate","lang":"бислама, английский, французский","currency":"вату"},"Venezuela":{"capital":"Каракас","tz":"America/Caracas","lang":"испанский","currency":"боливар"},"Vietnam":{"capital":"Ханой","tz":"Asia/Ho_Chi_Minh","lang":"вьетнамский","currency":"донг"},"West Bank":{"capital":"Рамалла","tz":"Asia/Hebron","lang":"арабский","currency":"новый израильский шекель"},"Western Sahara":{"capital":"Эль-Аюн","tz":"Africa/El_Aaiun","lang":"арабский","currency":"марокканский дирхам"},"Yemen":{"capital":"Сана","tz":"Asia/Aden","lang":"арабский","currency":"йеменский риал"},"Zambia":{"capital":"Лусака","tz":"Africa/Lusaka","lang":"английский","currency":"замбийская квача"},"Zimbabwe":{"capital":"Хараре","tz":"Africa/Harare","lang":"английский и др.","currency":"зимбабвийский голд (ZiG)"}};
 </script>
 <script>
 if (typeof L === 'undefined') {
@@ -1271,6 +1303,7 @@ try{
   }, 0);
 }
 cityCluster.addTo(map);
+cityCluster.on('clusterclick', (e) => L.DomEvent.stopPropagation(e));
 
 let allEntries = [];
 let layers = {}; // id -> leaflet layer
@@ -1346,6 +1379,29 @@ const COUNTRY_FLAG_INDEX = (()=>{
 })();
 function countryFlag(key){
   return COUNTRY_FLAG_INDEX[key] || '';
+}
+
+function formatCapitalTime(tz){
+  try{
+    const now = new Date();
+    const timeStr = new Intl.DateTimeFormat('ru-RU', { timeZone: tz, hour: '2-digit', minute: '2-digit' }).format(now);
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'shortOffset' }).formatToParts(now);
+    const offset = parts.find(p => p.type === 'timeZoneName');
+    return offset ? `${timeStr}, ${offset.value}` : timeStr;
+  }catch(e){
+    return '';
+  }
+}
+
+function buildCountryInfoHtml(key){
+  const info = COUNTRY_INFO[key];
+  if(!info) return '';
+  const timeStr = formatCapitalTime(info.tz);
+  return `<div style="margin-top:7px;padding-top:7px;border-top:1px solid rgba(43,59,46,0.15);font-size:11.5px;color:#6E6547;text-align:left;line-height:1.7;">
+    <div>Столица: <b style="color:#2B3B2E;">${escapeHtml(info.capital)}</b>${timeStr ? `<br>Сейчас там: ${timeStr}` : ''}</div>
+    <div>Язык: ${escapeHtml(info.lang)}</div>
+    <div>Валюта: ${escapeHtml(info.currency)}</div>
+  </div>`;
 }
 
 function debounce(fn, delay){
@@ -1724,9 +1780,9 @@ function renderRouteWaypoints(){
       <span class="waypoint-index">${i+1}</span>
       <span class="waypoint-name">${escapeHtml(w.name)}</span>
       <div class="waypoint-actions">
-        <button data-act="up" ${i===0 ? 'disabled' : ''} title="Выше">↑</button>
-        <button data-act="down" ${i===routeWaypoints.length-1 ? 'disabled' : ''} title="Ниже">↓</button>
-        <button data-act="remove" title="Убрать">✕</button>
+        <button data-act="up" ${i===0 ? 'disabled' : ''} title="Выше" aria-label="Выше">↑</button>
+        <button data-act="down" ${i===routeWaypoints.length-1 ? 'disabled' : ''} title="Ниже" aria-label="Ниже">↓</button>
+        <button data-act="remove" title="Убрать" aria-label="Убрать">✕</button>
       </div>
     </div>
   `).join('');
@@ -1839,6 +1895,22 @@ map.on('click', (e)=>{
     document.getElementById('placeCountryBtn').classList.remove('active');
     document.getElementById('map').style.cursor = '';
     return;
+  }
+  // no placing mode active and the click didn't land on one of our own entry
+  // layers (those stop propagation) — identify whatever country is here,
+  // visited or not, purely informational
+  const feature = findCountryFeature(e.latlng);
+  if(feature){
+    const ruName = COUNTRY_RU[feature.properties.name] || feature.properties.name;
+    const flag = countryFlag(feature.properties.name);
+    L.popup({closeButton:true, minWidth: 170})
+      .setLatLng(e.latlng)
+      .setContent(`<div style="font-family:'EB Garamond',serif;text-align:center;min-width:150px;">
+        <div style="font-size:24px;line-height:1.3;">${flag}</div>
+        <b style="font-family:'Playfair Display',serif;font-style:italic;font-size:15px;color:#2B3B2E;">${escapeHtml(ruName)}</b>
+        ${buildCountryInfoHtml(feature.properties.name)}
+      </div>`)
+      .openOn(map);
   }
 });
 
@@ -2132,6 +2204,9 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
   if(editingId){
     const entry = allEntries.find(x => x.id === editingId);
     if(entry){
+      const snapshot = { name: entry.name, year: entry.year, photos: entry.photos, instagramUrl: entry.instagramUrl,
+        notes: entry.notes, purpose: entry.purpose, company: entry.company, season: entry.season, color: entry.color,
+        trip: entry.trip, tripOrder: entry.tripOrder, status: entry.status, activity: entry.activity, favorite: entry.favorite };
       entry.name = name || entry.name; entry.year = year; entry.photos = photos; entry.instagramUrl = instagramUrl; entry.notes = notes;
       entry.purpose = purpose; entry.company = company; entry.season = season; entry.color = color;
       const oldTrip = entry.trip;
@@ -2141,11 +2216,12 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
       if(entry.type !== 'route') entry.status = status;
       if(entry.type === 'route') entry.activity = document.getElementById('fieldActivity').value;
       if(entry.type === 'city') entry.favorite = document.getElementById('fieldFavorite').checked;
+      lastAction = { type: 'edit', id: entry.id, snapshot };
     }
     const saved = await saveData();
     exitEditMode();
     rebuildAll();
-    if(saved) toast('Изменения сохранены');
+    if(saved) showUndoToast('Изменения сохранены');
     return;
   }
 
@@ -2365,6 +2441,7 @@ function syncLayers(){
         });
       }
       layers[entry.id] = layer;
+      layer.on('click', L.DomEvent.stopPropagation);
     } else {
       if(entry.type === 'route'){
         layer.setStyle({ color: entry.color, weight:3, opacity:0.85, dashArray: entry.isEstimated ? '8,5' : null });
@@ -2440,6 +2517,7 @@ function buildPopup(entry){
   let html = `<div style="font-family:'EB Garamond',serif;min-width:170px;">
     <b>${flagPrefix}${heart}${escapeHtml(entry.name)}</b>${wishTag}<br><span style="color:var(--text-dim);">${entry.year} · ${purposeLabel(entry.purpose)}</span>`;
   if(entry.type === 'city' && entry.countryKey && flag) html += `<br><span style="color:var(--text-dim);">${flag} ${escapeHtml(COUNTRY_RU[entry.countryKey] || entry.countryKey)}</span>`;
+  if(entry.type === 'country') html += buildCountryInfoHtml(entry.countryKey);
   if(entry.trip) html += `<br><span style="color:var(--amber);font-style:italic;">${escapeHtml(entry.trip)}</span>`;
   const extras = [seasonLabel(entry.season), companyLabel(entry.company), entry.type === 'route' ? activityLabel(entry.activity) : null].filter(Boolean);
   if(extras.length) html += `<br><span style="color:var(--text-dim);">${extras.join(' · ')}</span>`;
@@ -2622,8 +2700,8 @@ function renderTripCard(tripName){
               <span class="waypoint-index">${i+1}</span>
               <span class="waypoint-name">${escapeHtml(e.name)}</span>
               <div class="waypoint-actions">
-                <button data-act="up" ${i===0 ? 'disabled' : ''} title="Выше">↑</button>
-                <button data-act="down" ${i===orderedEntries.length-1 ? 'disabled' : ''} title="Ниже">↓</button>
+                <button data-act="up" ${i===0 ? 'disabled' : ''} title="Выше" aria-label="Выше">↑</button>
+                <button data-act="down" ${i===orderedEntries.length-1 ? 'disabled' : ''} title="Ниже" aria-label="Ниже">↓</button>
               </div>
             </div>
           `).join('')}
@@ -2694,6 +2772,9 @@ let storyObserver = null;
 function ensureStoryMap(){
   if(storyMap) return storyMap;
   storyMap = L.map('storyMap', {zoomControl:false, attributionControl:false, worldCopyJump:true});
+  storyMap.setView([20, 0], 2); // establish a valid view immediately — vector layers/invalidateSize
+                                 // throw "Set map center and zoom first" otherwise; fitBounds() below
+                                 // overrides this placeholder as soon as real points are known
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:18}).addTo(storyMap);
   return storyMap;
 }
@@ -2736,16 +2817,20 @@ function openTripStory(tripName){
   ensureStoryMap();
 
   setTimeout(()=>{
-    storyMap.invalidateSize();
-    const points = entries.map(getEntryRepresentativePoint).filter(Boolean);
-    if(storyPathLayer){ storyMap.removeLayer(storyPathLayer); storyPathLayer = null; }
-    if(storyMarkersLayer){ storyMap.removeLayer(storyMarkersLayer); storyMarkersLayer = null; }
-    if(points.length){
-      storyPathLayer = L.polyline(points, {color:'#A6592E', weight:2, dashArray:'6,7', opacity:0.8}).addTo(storyMap);
-      storyMarkersLayer = L.layerGroup(points.map(p =>
-        L.circleMarker(p, {radius:5, color:'#2B3B2E', weight:1.5, fillColor:'#A6592E', fillOpacity:1})
-      )).addTo(storyMap);
-      storyMap.fitBounds(L.latLngBounds(points), {padding:[40,40]});
+    try{
+      storyMap.invalidateSize();
+      const points = entries.map(getEntryRepresentativePoint).filter(Boolean);
+      if(storyPathLayer){ storyMap.removeLayer(storyPathLayer); storyPathLayer = null; }
+      if(storyMarkersLayer){ storyMap.removeLayer(storyMarkersLayer); storyMarkersLayer = null; }
+      if(points.length){
+        storyPathLayer = L.polyline(points, {color:'#A6592E', weight:2, dashArray:'6,7', opacity:0.8}).addTo(storyMap);
+        storyMarkersLayer = L.layerGroup(points.map(p =>
+          L.circleMarker(p, {radius:5, color:'#2B3B2E', weight:1.5, fillColor:'#A6592E', fillOpacity:1})
+        )).addTo(storyMap);
+        storyMap.fitBounds(L.latLngBounds(points), {padding:[40,40]});
+      }
+    }catch(err){
+      console.error('story map render failed', err);
     }
   }, 60);
 
@@ -3109,12 +3194,12 @@ function renderList(precomputedVisible){
         <div class="entry-meta mono">${meta}</div>
       </div>
       <div class="entry-actions">
-        ${heart !== null ? `<button title="${heart ? 'Убрать из любимых' : 'В любимые'}" data-act="fav" style="color:${heart ? '#d9704f' : 'var(--text-dim)'};">${heart ? '❤' : '♡'}</button>` : ''}
-        ${entry.status === 'wishlist' ? `<button title="Отметить как посещённое" data-act="visit" style="color:var(--amber);">✓</button>` : ''}
-        ${entry.photos && entry.photos.length ? `<a href="${escapeAttr(entry.photos[0])}" target="_blank" rel="noopener" title="Фото${entry.photos.length>1 ? ' ('+entry.photos.length+')' : ''}">🖼</a>` : ''}
-        ${entry.instagramUrl ? `<a href="${escapeAttr(entry.instagramUrl)}" target="_blank" rel="noopener" title="Instagram">📷</a>` : ''}
-        <button title="Редактировать" data-act="edit">✎</button>
-        <button title="Удалить" data-act="del">✕</button>
+        ${heart !== null ? `<button title="${heart ? 'Убрать из любимых' : 'В любимые'}" aria-label="${heart ? 'Убрать из любимых' : 'В любимые'}" data-act="fav" style="color:${heart ? '#d9704f' : 'var(--text-dim)'};">${heart ? '❤' : '♡'}</button>` : ''}
+        ${entry.status === 'wishlist' ? `<button title="Отметить как посещённое" aria-label="Отметить как посещённое" data-act="visit" style="color:var(--amber);">✓</button>` : ''}
+        ${entry.photos && entry.photos.length ? `<a href="${escapeAttr(entry.photos[0])}" target="_blank" rel="noopener" title="Фото${entry.photos.length>1 ? ' ('+entry.photos.length+')' : ''}" aria-label="Открыть фото">🖼</a>` : ''}
+        ${entry.instagramUrl ? `<a href="${escapeAttr(entry.instagramUrl)}" target="_blank" rel="noopener" title="Instagram" aria-label="Instagram">📷</a>` : ''}
+        <button title="Редактировать" aria-label="Редактировать" data-act="edit">✎</button>
+        <button title="Удалить" aria-label="Удалить" data-act="del">✕</button>
       </div>
     `;
     const visitBtn = row.querySelector('[data-act="visit"]');
@@ -3177,7 +3262,7 @@ function startEdit(entry){
   toast('Правки не затрагивают геометрию/трек — остальное можно менять');
 }
 
-let lastDeleted = null;
+let lastAction = null; // { type:'delete', items:[{entry,index}], tripsToCleanup:Set } | { type:'edit', id, snapshot }
 
 async function deleteEntry(id){
   const entry = allEntries.find(e => e.id === id);
@@ -3188,10 +3273,10 @@ async function deleteEntry(id){
   const removed = allEntries[index];
   allEntries = allEntries.filter(e => e.id !== id);
   decodedCoordsCache.delete(id);
-  lastDeleted = { entry: removed, index };
+  lastAction = { type: 'delete', items: [{ entry: removed, index }], tripsToCleanup: removed.trip ? new Set([removed.trip]) : new Set() };
   const saved = await saveData();
   rebuildAll();
-  if(saved) showUndoToast(`Удалено: ${removed.name}`, removed.trip);
+  if(saved) showUndoToast(`Удалено: ${removed.name}`);
 }
 window.deleteEntry = deleteEntry;
 
@@ -3206,29 +3291,45 @@ async function upgradeToVisited(id){
 }
 window.upgradeToVisited = upgradeToVisited;
 
-function showUndoToast(message, tripToCleanup){
+function showUndoToast(message){
   const t = document.getElementById('toast');
   t.innerHTML = `${escapeHtml(message)} <button id="undoDeleteBtn" style="margin-left:8px;background:none;border:none;color:var(--on-accent);text-decoration:underline;text-underline-offset:2px;cursor:pointer;font-family:inherit;font-size:inherit;">Отменить</button>`;
   t.style.display = 'block';
-  document.getElementById('undoDeleteBtn').addEventListener('click', undoLastDelete);
+  document.getElementById('undoDeleteBtn').addEventListener('click', undoLastAction);
   clearTimeout(t._timer);
   t._timer = setTimeout(()=>{
     t.style.display = 'none';
-    lastDeleted = null;
-    if(tripToCleanup){ cleanupTripMetaIfOrphaned(tripToCleanup); saveData(); }
+    if(lastAction && lastAction.type === 'delete' && lastAction.tripsToCleanup){
+      lastAction.tripsToCleanup.forEach(cleanupTripMetaIfOrphaned);
+      saveData();
+    }
+    lastAction = null;
   }, 7000);
 }
 
-async function undoLastDelete(){
-  if(!lastDeleted) return;
-  const { entry, index } = lastDeleted;
-  const insertAt = Math.min(index, allEntries.length);
-  allEntries.splice(insertAt, 0, entry);
-  lastDeleted = null;
+async function undoLastAction(){
+  if(!lastAction) return;
   document.getElementById('toast').style.display = 'none';
-  const saved = await saveData();
-  rebuildAll();
-  if(saved) toast('Восстановлено');
+  if(lastAction.type === 'delete'){
+    const items = [...lastAction.items].sort((a,b) => a.index - b.index);
+    items.forEach(({entry, index}) => {
+      allEntries.splice(Math.min(index, allEntries.length), 0, entry);
+    });
+    const count = items.length;
+    lastAction = null;
+    const saved = await saveData();
+    rebuildAll();
+    renderTable();
+    if(saved) toast(count > 1 ? `Восстановлено записей: ${count}` : 'Восстановлено');
+  } else if(lastAction.type === 'edit'){
+    const entry = allEntries.find(e => e.id === lastAction.id);
+    if(entry) Object.keys(lastAction.snapshot).forEach(k => { entry[k] = lastAction.snapshot[k]; });
+    lastAction = null;
+    const saved = await saveData();
+    rebuildAll();
+    renderTable();
+    if(saved) toast('Правки отменены');
+  }
 }
 
 function updateStats(){
@@ -3264,6 +3365,7 @@ function entriesToRows(){
     'Название': e.name,
     'Год': e.year,
     'Поездка': e.trip || '',
+    'Порядок_в_поездке': (e.trip && e.tripOrder != null) ? e.tripOrder : '',
     'Статус': e.status === 'wishlist' ? 'План' : 'Посещено',
     'Цель': purposeLabel(e.purpose),
     'Компания': companyLabel(e.company) || '',
@@ -3434,19 +3536,23 @@ document.getElementById('bulkApplyVisited').addEventListener('click', async ()=>
 
 document.getElementById('bulkDelete').addEventListener('click', async ()=>{
   const n = selectedIds.size;
-  if(!confirm(`Удалить ${n} выбранных записей? Это действие нельзя отменить.`)) return;
+  if(!confirm(`Удалить ${n} выбранных записей?`)) return;
   const affectedTrips = new Set(allEntries.filter(e => selectedIds.has(e.id) && e.trip).map(e => e.trip));
-  selectedIds.forEach(id => decodedCoordsCache.delete(id));
+  const removedItems = [];
+  allEntries.forEach((e, idx) => {
+    if(selectedIds.has(e.id)){ removedItems.push({ entry: e, index: idx }); decodedCoordsCache.delete(e.id); }
+  });
   allEntries = allEntries.filter(e => !selectedIds.has(e.id));
   selectedIds.clear();
-  affectedTrips.forEach(cleanupTripMetaIfOrphaned);
+  lastAction = { type: 'delete', items: removedItems, tripsToCleanup: affectedTrips };
   const saved = await saveData();
   rebuildAll();
   renderTable();
-  if(saved) toast(`Удалено записей: ${n}`);
+  if(saved) showUndoToast(`Удалено записей: ${n}`);
 });
 
 document.getElementById('openTableBtn').addEventListener('click', ()=>{
+  document.getElementById('tableSearchInput').value = searchQuery;
   renderTable();
   document.getElementById('tableModal').style.display = 'flex';
 });
@@ -3498,9 +3604,9 @@ function renderTable(){
         entry.instagramUrl ? `<a href="${escapeAttr(entry.instagramUrl)}" target="_blank" rel="noopener">📷 Instagram</a>` : null
       ].filter(Boolean).join(' · ') || '—'}</td>
       <td class="table-actions">
-        ${entry.status === 'wishlist' ? `<button title="Отметить как посещённое" data-act="visit" style="color:var(--amber);">✓</button>` : ''}
-        <button title="Редактировать" data-act="edit">✎</button>
-        <button title="Удалить" data-act="del">✕</button>
+        ${entry.status === 'wishlist' ? `<button title="Отметить как посещённое" aria-label="Отметить как посещённое" data-act="visit" style="color:var(--amber);">✓</button>` : ''}
+        <button title="Редактировать" aria-label="Редактировать" data-act="edit">✎</button>
+        <button title="Удалить" aria-label="Удалить" data-act="del">✕</button>
       </td>
     `;
     tr.querySelector('.row-checkbox').addEventListener('change', (e)=>{
@@ -3826,7 +3932,16 @@ const debouncedApplyFilters = debounce(applyFilters, 150);
 globalSearchInput.addEventListener('input', ()=>{
   searchQuery = globalSearchInput.value.trim().toLowerCase();
   clearSearchBtn.style.display = searchQuery ? 'block' : 'none';
+  document.getElementById('tableSearchInput').value = globalSearchInput.value;
   debouncedApplyFilters();
+});
+
+const debouncedTableFilter = debounce(()=>{ applyFilters(); renderTable(); }, 150);
+document.getElementById('tableSearchInput').addEventListener('input', (e)=>{
+  searchQuery = e.target.value.trim().toLowerCase();
+  globalSearchInput.value = e.target.value;
+  clearSearchBtn.style.display = searchQuery ? 'block' : 'none';
+  debouncedTableFilter();
 });
 
 clearSearchBtn.addEventListener('click', ()=>{
@@ -3845,9 +3960,15 @@ globalSearchInput.addEventListener('keydown', (e)=>{
 
 // ---------- passport modal ----------
 document.getElementById('openPassportBtn').addEventListener('click', ()=>{
+  passportSearchQuery = '';
+  document.getElementById('passportSearchInput').value = '';
   renderPassport();
   document.getElementById('passportModal').style.display = 'flex';
 });
+document.getElementById('passportSearchInput').addEventListener('input', debounce((e)=>{
+  passportSearchQuery = e.target.value.trim().toLowerCase();
+  renderPassport();
+}, 150));
 document.getElementById('closePassportModal').addEventListener('click', closePassportModal);
 document.getElementById('passportModal').addEventListener('click', (e)=>{
   if(e.target.id === 'passportModal') closePassportModal();
@@ -3862,6 +3983,8 @@ function stampHash(str){
   return h;
 }
 
+let passportSearchQuery = '';
+
 function renderPassport(){
   const countries = allEntries.filter(e => e.type === 'country' && e.status !== 'wishlist');
   const byKey = {};
@@ -3870,14 +3993,20 @@ function renderPassport(){
     byKey[e.countryKey].years.push(e.year);
     byKey[e.countryKey].count++;
   });
-  const stamps = Object.values(byKey).sort((a,b) => a.name.localeCompare(b.name, 'ru'));
+  const allStamps = Object.values(byKey).sort((a,b) => a.name.localeCompare(b.name, 'ru'));
+  const stamps = passportSearchQuery ? allStamps.filter(s => s.name.toLowerCase().includes(passportSearchQuery)) : allStamps;
 
   document.getElementById('passportCount').textContent =
-    `Собрано печатей: ${stamps.length} из ${COUNTRY_LIST.length} (${Math.round((stamps.length/COUNTRY_LIST.length)*100)}% карты мира)`;
+    `Собрано печатей: ${allStamps.length} из ${COUNTRY_LIST.length} (${Math.round((allStamps.length/COUNTRY_LIST.length)*100)}% карты мира)` +
+    (passportSearchQuery ? ` · показано: ${stamps.length}` : '');
 
   const grid = document.getElementById('passportGrid');
-  if(stamps.length === 0){
+  if(allStamps.length === 0){
     grid.innerHTML = `<div class="hint">Пока нет посещённых стран — первая печать появится здесь, как только вы отметите первую страну на карте.</div>`;
+    return;
+  }
+  if(stamps.length === 0){
+    grid.innerHTML = `<div class="hint">Ничего не найдено по запросу «${escapeHtml(passportSearchQuery)}».</div>`;
     return;
   }
   grid.innerHTML = stamps.map(s=>{
@@ -3904,7 +4033,9 @@ function renderHomeRegion(){
   layer.bindPopup(`<div style="font-family:'EB Garamond',serif;min-width:170px;">
     <b>🏠 ${escapeHtml(COUNTRY_RU[HOME_COUNTRY_KEY] || HOME_COUNTRY_KEY)}</b><br>
     <span style="color:var(--text-dim);">Домашний регион — не отмечается как посещённый.<br>Здесь имеет смысл отмечать города и маршруты.</span>
+    ${buildCountryInfoHtml(HOME_COUNTRY_KEY)}
   </div>`);
+  layer.on('click', L.DomEvent.stopPropagation);
 
   const homeIcon = L.divIcon({
     className: '',
@@ -3914,7 +4045,8 @@ function renderHomeRegion(){
   });
   L.marker([HOME_LOCATION.lat, HOME_LOCATION.lng], {icon: homeIcon, zIndexOffset: -1000})
     .addTo(map)
-    .bindPopup(`<div style="font-family:'EB Garamond',serif;"><b>🏠 ${escapeHtml(HOME_LOCATION.name)}</b><br><span style="color:var(--text-dim);">Точка отсчёта для «самой дальней точки» в статистике.</span></div>`);
+    .bindPopup(`<div style="font-family:'EB Garamond',serif;"><b>🏠 ${escapeHtml(HOME_LOCATION.name)}</b><br><span style="color:var(--text-dim);">Точка отсчёта для «самой дальней точки» в статистике.</span></div>`)
+    .on('click', L.DomEvent.stopPropagation);
 }
 
 // ---------- PWA service worker (only active when hosted over http/https with sw.js present) ----------
@@ -3923,6 +4055,29 @@ if('serviceWorker' in navigator && (location.protocol === 'https:' || location.h
     navigator.serviceWorker.register('sw.js').catch(()=>{ /* sw.js not present — fine, app still works */ });
   });
 }
+
+// ---------- dark/light theme ----------
+const THEME_STORAGE_KEY = 'travel-map-theme';
+function applyTheme(theme){
+  if(theme === 'dark'){
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.getElementById('themeToggleBtn').textContent = '☀️';
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    document.getElementById('themeToggleBtn').textContent = '🌙';
+  }
+}
+(function initTheme(){
+  let saved = null;
+  try{ saved = localStorage.getItem(THEME_STORAGE_KEY); }catch(e){}
+  applyTheme(saved === 'dark' ? 'dark' : 'light');
+})();
+document.getElementById('themeToggleBtn').addEventListener('click', ()=>{
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const next = isDark ? 'light' : 'dark';
+  applyTheme(next);
+  try{ localStorage.setItem(THEME_STORAGE_KEY, next); }catch(e){}
+});
 
 // ---------- init ----------
 (async function init(){
