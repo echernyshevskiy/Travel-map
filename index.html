@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.39
+  Версия: v1.40
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -1236,7 +1236,7 @@ window.addEventListener('unhandledrejection', function(e){
       <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-style:italic;">пунктир — план / маршрут по прямой</div>
       <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
       <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;">v1.39</div>
+      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;">v1.40</div>
     </div>
     <div class="toast" id="toast"></div>
     <div class="timeline-bar" id="timelineBar" style="display:none;">
@@ -3443,12 +3443,21 @@ function applyTimelineOpacity(){
   if(currentYear === undefined) return;
   allEntries.forEach(entry=>{
     const layer = layers[entry.id];
-    if(!layer || !isEntryOnMap(entry, layer)) return;
+    if(!layer) return;
     const included = timelineMode === 'cumulative' ? entry.year <= currentYear : entry.year === currentYear;
     if(entry.type === 'city'){
-      layer.setOpacity(included ? 1 : 0);
-      if(layer._icon) layer._icon.style.pointerEvents = included ? 'auto' : 'none';
+      // маркеры городов сгруппированы в кластеры — .setOpacity() на отдельном
+      // маркере кластер игнорирует (сам кружок с числом не меняется), поэтому
+      // временная невидимость реализована через добавление/удаление из кластера.
+      // Пересчитывается заново из фильтров+таймлайна каждый раз — не зависит
+      // от того, был ли город спрятан раньше, поэтому корректно работает
+      // при перемотке в обе стороны.
+      const shouldShow = passesFilter(entry) && included;
+      const onMap = cityCluster.hasLayer(layer);
+      if(shouldShow && !onMap) cityCluster.addLayer(layer);
+      else if(!shouldShow && onMap) cityCluster.removeLayer(layer);
     } else {
+      if(!map.hasLayer(layer)) return;
       const style = timelineTargetStyle(entry, included);
       if(style) layer.setStyle(style);
     }
