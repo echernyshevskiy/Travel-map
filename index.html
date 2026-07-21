@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.32
+  Версия: v1.39
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -540,6 +540,7 @@ window.addEventListener('unhandledrejection', function(e){
   #entriesTable th, #entriesTable td{
     text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);
     white-space:nowrap;
+    vertical-align:middle;
   }
   #entriesTable th{
     color:var(--text-dim);font-weight:600;
@@ -549,7 +550,7 @@ window.addEventListener('unhandledrejection', function(e){
   #entriesTable td.name-cell{white-space:normal;max-width:220px;color:var(--text);font-weight:500;}
   #entriesTable a{color:var(--sage);text-decoration:none;}
   #entriesTable a:hover{text-decoration:underline;}
-  .table-actions{display:flex;gap:2px;}
+  .table-actions{display:flex;align-items:center;gap:2px;}
   .table-actions button{
     background:none;border:none;color:var(--text-dim);cursor:pointer;
     font-size:13px;padding:3px 6px;border-radius:4px;
@@ -1001,6 +1002,11 @@ window.addEventListener('unhandledrejection', function(e){
           <input type="number" id="fieldTrackDays" min="1" max="365" step="1">
         </div>
 
+        <div id="refreshWaypointsField" style="display:none;">
+          <button type="button" class="cancel-edit" id="refreshWaypointsBtn" style="margin-top:0;">Обновить координаты точек маршрута</button>
+          <div class="hint">Заново найдёт сохранённые названия городов и подставит координаты — нужно, чтобы эти города учитывались в статистике и на PNG-снимке.</div>
+        </div>
+
         <label>Источник маршрута</label>
         <div class="type-toggle">
           <div class="type-btn active" data-source="gpx">GPX-файл</div>
@@ -1021,6 +1027,7 @@ window.addEventListener('unhandledrejection', function(e){
             <div class="suggest-box" id="routeCitySuggest" style="display:none;"></div>
           </div>
           <div id="routeWaypointsList"></div>
+          <div id="routeCountrySuggest"></div>
           <div class="hint">При сохранении маршрут попробует построить путь по реальным дорогам между городами. Если сервис маршрутизации недоступен — точки соединятся прямой линией, об этом сообщит подсказка. Название необязательно — по умолчанию возьмётся «Первый город — Последний город».</div>
         </div>
       </div>
@@ -1064,6 +1071,16 @@ window.addEventListener('unhandledrejection', function(e){
         <option value="friends">Друзья</option>
         <option value="parents">Родители</option>
       </select>
+
+      <div id="communityField" style="display:none;">
+        <label>Сообщество</label>
+        <select id="fieldCommunity">
+          <option value="">Не указано</option>
+          <option value="sila_territorii">Сила Территории</option>
+          <option value="power_of_running">Power of Running</option>
+          <option value="route_community">Route Community</option>
+        </select>
+      </div>
 
       <label>Сезон</label>
       <select id="fieldSeason">
@@ -1118,6 +1135,11 @@ window.addEventListener('unhandledrejection', function(e){
     <div class="section">
       <p class="section-title">Компания</p>
       <div class="chips" id="companyChips"></div>
+    </div>
+
+    <div class="section">
+      <p class="section-title">Сообщество</p>
+      <div class="chips" id="communityChips"></div>
     </div>
 
     <div class="section">
@@ -1214,7 +1236,7 @@ window.addEventListener('unhandledrejection', function(e){
       <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-style:italic;">пунктир — план / маршрут по прямой</div>
       <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
       <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;">v1.32</div>
+      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;">v1.39</div>
     </div>
     <div class="toast" id="toast"></div>
     <div class="timeline-bar" id="timelineBar" style="display:none;">
@@ -1448,6 +1470,11 @@ const COMPANIES = [
   { key: 'friends', ru: 'Друзья' },
   { key: 'parents', ru: 'Родители' }
 ];
+const COMMUNITIES = [
+  { key: 'sila_territorii', ru: 'Сила Территории' },
+  { key: 'power_of_running', ru: 'Power of Running' },
+  { key: 'route_community', ru: 'Route Community' }
+];
 const SEASONS = [
   { key: 'winter', ru: 'Зима' },
   { key: 'spring', ru: 'Весна' },
@@ -1560,6 +1587,7 @@ let editingId = null;
 let activeYears = new Set(); // empty = all
 let activePurposes = new Set(); // empty = all
 let activeCompanies = new Set(); // empty = all
+let activeCommunities = new Set(); // empty = all
 let activeSeasons = new Set(); // empty = all
 let activeMonths = new Set(); // empty = all
 let activeActivities = new Set(); // empty = all (routes only)
@@ -1712,6 +1740,26 @@ function haversine(a,b){
   const h = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
 }
+
+// Каждое посещение города — как отдельная запись «Город», так и каждая
+// именованная точка ручного маршрута (например, автотрип через несколько
+// городов). Не схлопывает дубликаты — это делает вызывающий код там, где нужно.
+function getAllCityVisits(entries){
+  const visits = [];
+  entries.forEach(e=>{
+    if(e.type === 'city'){
+      visits.push({ name: e.name, lat: e.lat, lng: e.lng, color: e.color, favorite: !!e.favorite, status: e.status, fromRoute: false });
+    } else if(e.type === 'route' && e.waypointNames){
+      e.waypointNames.forEach((name, i)=>{
+        const coord = e.waypointCoords && e.waypointCoords[i];
+        // точки маршрута не бывают избранными/вишлистом — берут цвет своего маршрута
+        visits.push({ name, lat: coord ? coord[0] : null, lng: coord ? coord[1] : null, color: e.color, favorite: false, status: 'visited', fromRoute: true });
+      });
+    }
+  });
+  return visits;
+}
+
 function countDistinctDays(times){
   if(!times || times.length === 0) return { days: 1, hasTimeData: false };
   const daySet = new Set();
@@ -1799,6 +1847,11 @@ function updateHikingDaysVisibility(){
   const activity = document.getElementById('fieldActivity').value;
   document.getElementById('hikingDaysField').style.display = activity === 'hiking' ? 'block' : 'none';
 }
+function updateCommunityVisibility(){
+  const company = document.getElementById('fieldCompany').value;
+  document.getElementById('communityField').style.display = company === 'group' ? 'block' : 'none';
+  if(company !== 'group') document.getElementById('fieldCommunity').value = '';
+}
 document.querySelectorAll('.type-btn[data-type]').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.type-btn[data-type]').forEach(b=>b.classList.remove('active'));
@@ -1808,6 +1861,7 @@ document.querySelectorAll('.type-btn[data-type]').forEach(btn=>{
     document.getElementById('cityFields').style.display = currentType === 'city' ? 'block' : 'none';
     document.getElementById('routeFields').style.display = currentType === 'route' ? 'block' : 'none';
     updateHikingDaysVisibility();
+    document.getElementById('refreshWaypointsField').style.display = 'none';
     const statusToggle = document.getElementById('statusToggle');
     const statusLabel = document.getElementById('statusLabel');
     const isRoute = currentType === 'route';
@@ -1876,6 +1930,46 @@ async function queryNominatimSettlements(q){
   });
 }
 
+async function refreshWaypointCoords(){
+  const entry = allEntries.find(e => e.id === editingId);
+  if(!entry || entry.type !== 'route' || !entry.waypointNames || entry.waypointNames.length === 0) return;
+  const btn = document.getElementById('refreshWaypointsBtn');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  const newCoords = [];
+  let failCount = 0;
+  for(let i = 0; i < entry.waypointNames.length; i++){
+    btn.textContent = `Ищу точку ${i+1} из ${entry.waypointNames.length}…`;
+    try{
+      const matches = await queryNominatimSettlements(entry.waypointNames[i]);
+      if(matches.length > 0){
+        newCoords.push([matches[0].lat, matches[0].lng]);
+      } else {
+        newCoords.push(null);
+        failCount++;
+      }
+      clearServiceIssue('поиск городов');
+    }catch(err){
+      newCoords.push(null);
+      failCount++;
+      reportServiceIssue('поиск городов');
+    }
+    // пауза между запросами — не заваливаем бесплатный сервис геокодирования пачкой запросов подряд
+    if(i < entry.waypointNames.length - 1) await new Promise(r => setTimeout(r, 350));
+  }
+  entry.waypointCoords = newCoords;
+  btn.disabled = false;
+  btn.textContent = originalText;
+  const saved = await saveData();
+  rebuildAll();
+  if(saved){
+    toast(failCount === 0
+      ? 'Координаты точек маршрута обновлены'
+      : `Обновлено, не найдено: ${failCount} из ${entry.waypointNames.length}`);
+  }
+}
+document.getElementById('refreshWaypointsBtn').addEventListener('click', refreshWaypointCoords);
+
 async function fetchRouteCitySuggestions(q){
   try{
     routeCityMatches = await queryNominatimSettlements(q);
@@ -1905,7 +1999,7 @@ function renderRouteCitySuggestions(){
 }
 
 function addRouteWaypoint(m){
-  routeWaypoints.push({ name: m.name, lat: m.lat, lng: m.lng });
+  routeWaypoints.push({ name: m.name, lat: m.lat, lng: m.lng, countryKey: m.country ? findAnyCountryKeyByRuName(m.country) : null });
   routeCitySearchInput.value = '';
   routeCitySuggestBox.style.display = 'none';
   renderRouteWaypoints();
@@ -2210,6 +2304,46 @@ function findAnyCountryKeyByRuName(ruName){
   return match ? match.key : null;
 }
 
+function suggestMissingCountriesForWaypoints(waypoints){
+  const container = document.getElementById('routeCountrySuggest');
+  container.innerHTML = '';
+  const keys = [...new Set(waypoints.map(w => w.countryKey).filter(k => k && k !== HOME_COUNTRY_KEY))];
+  const missing = keys.filter(key => !allEntries.some(e => e.type === 'country' && e.countryKey === key && e.status !== 'wishlist'));
+  if(missing.length === 0) return;
+
+  const names = missing.map(key => COUNTRY_RU[key] || key);
+  const banner = document.createElement('div');
+  banner.className = 'selected-tag';
+  banner.style.borderColor = 'var(--amber-dim)';
+  banner.innerHTML = `<span>Также отметить как посещённые страны маршрута: ${names.map(escapeHtml).join(', ')}?</span>`;
+  const btn = document.createElement('button');
+  btn.textContent = missing.length > 1 ? 'Отметить все' : 'Отметить';
+  btn.style.color = 'var(--amber)';
+  btn.style.fontWeight = '600';
+  btn.addEventListener('click', async ()=>{
+    const year = parseInt(document.getElementById('fieldYear').value) || new Date().getFullYear();
+    const month = parseInt(document.getElementById('fieldMonth').value) || undefined;
+    const purpose = document.getElementById('fieldPurpose').value;
+    const company = document.getElementById('fieldCompany').value;
+    const community = company === 'group' ? (document.getElementById('fieldCommunity').value || undefined) : undefined;
+    const season = document.getElementById('fieldSeason').value;
+    const trip = document.getElementById('fieldTrip').value.trim();
+    missing.forEach(key=>{
+      allEntries.push({
+        id: genId(), type: 'country', name: COUNTRY_RU[key] || key, year, month, photos: [], notes: '',
+        purpose, company, community, season, color: DEFAULT_COLOR.country, status: 'visited', trip, tripOrder: nextTripOrder(trip),
+        countryKey: key
+      });
+    });
+    const saved = await saveData();
+    rebuildAll();
+    if(saved) toast(`Добавлено стран: ${missing.length}`);
+    container.innerHTML = '';
+  });
+  banner.appendChild(btn);
+  container.appendChild(banner);
+}
+
 function renderCityCountrySuggest(){
   const container = document.getElementById('cityCountrySuggest');
   container.innerHTML = '';
@@ -2247,9 +2381,14 @@ function renderCityCountrySuggest(){
     btn.addEventListener('click', async ()=>{
       const year = parseInt(document.getElementById('fieldYear').value) || new Date().getFullYear();
       const month = parseInt(document.getElementById('fieldMonth').value) || undefined;
+      const purpose = document.getElementById('fieldPurpose').value;
+      const company = document.getElementById('fieldCompany').value;
+      const community = company === 'group' ? (document.getElementById('fieldCommunity').value || undefined) : undefined;
+      const season = document.getElementById('fieldSeason').value;
+      const trip = document.getElementById('fieldTrip').value.trim();
       allEntries.push({
         id: genId(), type: 'country', name: ruName, year, month, photos: [], notes: '',
-        purpose: 'tourism', company: 'alone', season: 'summer', color: DEFAULT_COLOR.country, status: 'visited',
+        purpose, company, community, season, color: DEFAULT_COLOR.country, status: 'visited', trip, tripOrder: nextTripOrder(trip),
         countryKey: key
       });
       const saved = await saveData();
@@ -2325,6 +2464,20 @@ function updateFileDropSummary(failedCount){
   if(failedCount > 0) summary += ` (${failedCount} не удалось прочитать)`;
   drop.textContent = summary;
   drop.classList.add('has-file');
+
+  // если у загруженных треков есть собственная дата и она у всех одна и та же —
+  // отражаем это в самой форме (месяц/сезон/год), а не только в сохраняемых данных,
+  // иначе на экране остаётся то, что было выставлено раньше вручную
+  const detectedMonths = pendingGpxList.map(g => g.startMonth).filter(Boolean);
+  const detectedYears = pendingGpxList.map(g => g.startYear).filter(Boolean);
+  if(detectedMonths.length > 0 && detectedMonths.every(m => m === detectedMonths[0])){
+    document.getElementById('fieldMonth').value = detectedMonths[0];
+    const season = seasonForMonth(detectedMonths[0]);
+    if(season) document.getElementById('fieldSeason').value = season;
+  }
+  if(detectedYears.length > 0 && detectedYears.every(y => y === detectedYears[0])){
+    document.getElementById('fieldYear').value = detectedYears[0];
+  }
 }
 
 function formatDuration(min){
@@ -2383,6 +2536,7 @@ function buildActivityBreakdownHtml(byActivity){
 document.getElementById('fieldYear').value = new Date().getFullYear();
 
 document.getElementById('fieldActivity').addEventListener('change', updateHikingDaysVisibility);
+document.getElementById('fieldCompany').addEventListener('change', updateCommunityVisibility);
 
 document.getElementById('fieldMonth').addEventListener('change', ()=>{
   const month = parseInt(document.getElementById('fieldMonth').value);
@@ -2401,6 +2555,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
   const notes = document.getElementById('fieldNotes').value.trim();
   const purpose = document.getElementById('fieldPurpose').value;
   const company = document.getElementById('fieldCompany').value;
+  const community = company === 'group' ? (document.getElementById('fieldCommunity').value || undefined) : undefined;
   const season = document.getElementById('fieldSeason').value;
   const color = document.getElementById('fieldColor').value;
   const status = currentType === 'route' ? 'visited' : currentStatus;
@@ -2411,11 +2566,11 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     if(entry){
       const snapshot = { name: entry.name, year: entry.year, month: entry.month, photos: entry.photos, instagramUrl: entry.instagramUrl,
         mapLinkUrl: entry.mapLinkUrl, docLinkUrl: entry.docLinkUrl,
-        notes: entry.notes, purpose: entry.purpose, company: entry.company, season: entry.season, color: entry.color,
+        notes: entry.notes, purpose: entry.purpose, company: entry.company, community: entry.community, season: entry.season, color: entry.color,
         trip: entry.trip, tripOrder: entry.tripOrder, status: entry.status, activity: entry.activity, favorite: entry.favorite, trackDays: entry.trackDays };
       entry.name = name || entry.name; entry.year = year; entry.month = month; entry.photos = photos; entry.instagramUrl = instagramUrl; entry.notes = notes;
       entry.mapLinkUrl = mapLinkUrl; entry.docLinkUrl = docLinkUrl;
-      entry.purpose = purpose; entry.company = company; entry.season = season; entry.color = color;
+      entry.purpose = purpose; entry.company = company; entry.community = community; entry.season = season; entry.color = color;
       const oldTrip = entry.trip;
       if(entry.trip !== trip) entry.tripOrder = trip ? nextTripOrder(trip) : undefined;
       entry.trip = trip;
@@ -2461,10 +2616,11 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
       }
 
       const autoName = `${routeWaypoints[0].name} — ${routeWaypoints[routeWaypoints.length-1].name}`;
+      const routeWaypointsForSuggest = routeWaypoints.slice();
       allEntries.push({
-        id: genId(), type:'route', name: name || autoName, year, month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, season, color, activity, status: 'visited', trip, tripOrder: nextTripOrder(trip),
+        id: genId(), type:'route', name: name || autoName, year, month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, community, season, color, activity, status: 'visited', trip, tripOrder: nextTripOrder(trip),
         coordsEncoded: encodePolyline(coords), distanceKm, elevationGain: null, maxElevation: null, durationMin: null, profile: null,
-        waypointNames: routeWaypoints.map(w => w.name), isEstimated
+        waypointNames: routeWaypoints.map(w => w.name), waypointCoords: routeWaypoints.map(w => [w.lat, w.lng]), isEstimated
       });
       routeWaypoints = [];
       renderRouteWaypoints();
@@ -2472,6 +2628,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
       const saved = await saveData();
       rebuildAll();
       if(saved) toast(isEstimated ? 'Маршрут добавлен: сервис дорог недоступен, использована прямая линия' : 'Маршрут добавлен по дорогам');
+      suggestMissingCountriesForWaypoints(routeWaypointsForSuggest);
       return;
     }
 
@@ -2479,7 +2636,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     pendingGpxList.forEach(g=>{
       const routeName = name ? `${name} — ${g.baseName}` : g.baseName;
       allEntries.push({
-        id: genId(), type:'route', name: routeName, year: g.startYear || year, month: g.startMonth || month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, season: (g.startMonth && seasonForMonth(g.startMonth)) || season, color, activity, status: 'visited', trip, tripOrder: nextTripOrder(trip),
+        id: genId(), type:'route', name: routeName, year: g.startYear || year, month: g.startMonth || month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, community, season: (g.startMonth && seasonForMonth(g.startMonth)) || season, color, activity, status: 'visited', trip, tripOrder: nextTripOrder(trip),
         coordsEncoded: encodePolyline(g.coords), distanceKm: g.distanceKm,
         elevationGain: g.elevationGain, maxElevation: g.maxElevation,
         durationMin: g.durationMin, profile: g.profile,
@@ -2502,7 +2659,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     const finalName = name || pendingCityName || 'Без названия';
     const favorite = document.getElementById('fieldFavorite').checked;
     allEntries.push({
-      id: genId(), type: 'city', name: finalName, year, month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, season, color, favorite, status, trip, tripOrder: nextTripOrder(trip),
+      id: genId(), type: 'city', name: finalName, year, month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, community, season, color, favorite, status, trip, tripOrder: nextTripOrder(trip),
       lat: pendingLatLng.lat, lng: pendingLatLng.lng, countryKey: pendingCityCountryKey
     });
     clearCitySelection();
@@ -2511,7 +2668,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     if(!pendingCountryKey){ toast('Выберите страну из подсказок или на карте'); return; }
     const ruName = COUNTRY_RU[pendingCountryKey] || pendingCountryKey;
     allEntries.push({
-      id: genId(), type: 'country', name: name || ruName, year, month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, season, color, status, trip, tripOrder: nextTripOrder(trip),
+      id: genId(), type: 'country', name: name || ruName, year, month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, community, season, color, status, trip, tripOrder: nextTripOrder(trip),
       countryKey: pendingCountryKey
     });
     clearCountrySelection();
@@ -2534,10 +2691,13 @@ function exitEditMode(){
   document.getElementById('fieldYear').value = new Date().getFullYear();
   document.getElementById('fieldPurpose').value = 'tourism';
   document.getElementById('fieldCompany').value = 'alone';
+  document.getElementById('fieldCommunity').value = '';
+  updateCommunityVisibility();
   document.getElementById('fieldSeason').value = 'summer';
   document.getElementById('fieldActivity').value = 'hiking';
   document.getElementById('fieldTrackDays').value = 1;
   updateHikingDaysVisibility();
+  document.getElementById('refreshWaypointsField').style.display = 'none';
   document.getElementById('fieldFavorite').checked = false;
   document.getElementById('fieldColor').value = DEFAULT_COLOR[currentType];
   currentStatus = 'visited';
@@ -2667,6 +2827,7 @@ function rebuildAll(){
   buildFixedChips('monthChips', MONTHS, activeMonths);
   buildFixedChips('purposeChips', PURPOSES, activePurposes);
   buildFixedChips('companyChips', COMPANIES, activeCompanies);
+  buildFixedChips('communityChips', COMMUNITIES, activeCommunities);
   buildFixedChips('seasonChips', SEASONS, activeSeasons);
   buildFixedChips('activityChips', ACTIVITIES, activeActivities);
   buildFixedChips('statusChips', STATUSES, activeStatuses);
@@ -2679,6 +2840,7 @@ function rebuildAll(){
 
 function purposeLabel(key){ const p = PURPOSES.find(p => p.key === key); return p ? p.ru : '—'; }
 function companyLabel(key){ const p = COMPANIES.find(p => p.key === key); return p ? p.ru : null; }
+function communityLabel(key){ const c = COMMUNITIES.find(c => c.key === key); return c ? c.ru : null; }
 function seasonLabel(key){ const p = SEASONS.find(p => p.key === key); return p ? p.ru : null; }
 function monthLabel(key){ const m = MONTHS.find(m => m.key === key); return m ? m.short : null; }
 function seasonForMonth(month){
@@ -2734,7 +2896,7 @@ function buildPopup(entry){
   if(entry.type === 'city' && entry.countryKey && flag) html += `<br><span style="color:var(--text-dim);">${flag} ${escapeHtml(COUNTRY_RU[entry.countryKey] || entry.countryKey)}</span>`;
   if(entry.type === 'country') html += buildCountryInfoHtml(entry.countryKey);
   if(entry.trip) html += `<br><span style="color:var(--amber);font-style:italic;">${escapeHtml(entry.trip)}</span>`;
-  const extras = [seasonLabel(entry.season), companyLabel(entry.company), entry.type === 'route' ? activityLabel(entry.activity) : null].filter(Boolean);
+  const extras = [seasonLabel(entry.season), companyLabel(entry.company), communityLabel(entry.community), entry.type === 'route' ? activityLabel(entry.activity) : null].filter(Boolean);
   if(extras.length) html += `<br><span style="color:var(--text-dim);">${extras.join(' · ')}</span>`;
   if(entry.type === 'route'){
     html += `<br>${entry.distanceKm.toFixed(1)} км${entry.isEstimated ? ' <span style="color:var(--text-dim);font-style:italic;">(по прямой)</span>' : ''}`;
@@ -2873,7 +3035,7 @@ function computeTripSummary(tripName){
   const visited = entries.filter(e => e.status !== 'wishlist');
   const years = [...new Set(visited.map(e => e.year))].sort((a,b) => a-b);
   const countries = new Set(visited.filter(e => e.type === 'country').map(e => e.countryKey)).size;
-  const cities = new Set(visited.filter(e => e.type === 'city').map(e => e.name.trim().toLowerCase())).size;
+  const cities = new Set(getAllCityVisits(visited).map(c => c.name.trim().toLowerCase())).size;
   const routes = visited.filter(e => e.type === 'route');
   const totalKm = routes.reduce((s,r) => s + r.distanceKm, 0);
   const totalElevation = routes.reduce((s,r) => s + (r.elevationGain || 0), 0);
@@ -2919,7 +3081,7 @@ function renderTripCard(tripName){
   s.entries.forEach(e => (e.photos || []).forEach(p => { if(!availablePhotos.includes(p)) availablePhotos.push(p); }));
   const cover = (meta.coverPhoto && availablePhotos.includes(meta.coverPhoto)) ? meta.coverPhoto : availablePhotos[0];
 
-  const orderedEntries = s.entries.slice().sort((a,b) => (a.tripOrder||0) - (b.tripOrder||0));
+  const orderedEntries = s.entries.filter(e => e.type !== 'country').sort((a,b) => (a.tripOrder||0) - (b.tripOrder||0));
 
   container.innerHTML = `
     <div class="trip-card">
@@ -3000,7 +3162,7 @@ function renderTripCard(tripName){
 }
 
 async function moveTripEntry(tripName, entryId, direction){
-  const entries = allEntries.filter(e => e.trip === tripName).sort((a,b) => (a.tripOrder||0) - (b.tripOrder||0));
+  const entries = allEntries.filter(e => e.trip === tripName && e.type !== 'country').sort((a,b) => (a.tripOrder||0) - (b.tripOrder||0));
   const idx = entries.findIndex(e => e.id === entryId);
   const swapIdx = idx + direction;
   if(idx === -1 || swapIdx < 0 || swapIdx >= entries.length) return;
@@ -3179,7 +3341,7 @@ function focusTrip(tripName){
   map.fitBounds(group.getBounds(), {padding:[50,50]});
 
   clearTripPath();
-  const points = tripEntries.map(getEntryRepresentativePoint).filter(Boolean);
+  const points = tripEntries.filter(e => e.type !== 'country').map(getEntryRepresentativePoint).filter(Boolean);
   if(points.length >= 2){
     tripPathLayer = L.polyline(points, {color:'#A6592E', weight:2, opacity:0.75, dashArray:'6,7'}).addTo(map);
   }
@@ -3196,6 +3358,7 @@ function passesFilter(entry){
   if(activeYears.size > 0 && !activeYears.has(entry.year)) return false;
   if(activePurposes.size > 0 && !activePurposes.has(entry.purpose)) return false;
   if(activeCompanies.size > 0 && entry.company && !activeCompanies.has(entry.company)) return false;
+  if(activeCommunities.size > 0 && entry.community && !activeCommunities.has(entry.community)) return false;
   if(activeSeasons.size > 0 && entry.season && !activeSeasons.has(entry.season)) return false;
   if(activeMonths.size > 0 && entry.month && !activeMonths.has(entry.month)) return false;
   if(activeActivities.size > 0 && entry.type === 'route' && entry.activity && !activeActivities.has(entry.activity)) return false;
@@ -3352,7 +3515,8 @@ function updateFilteredStats(precomputedVisible){
   }
 
   const countryKeys = new Set(visited.filter(e => e.type === 'country').map(e => e.countryKey));
-  const cityKeys = new Set(visited.filter(e => e.type === 'city').map(e => e.name.trim().toLowerCase()));
+  const cityVisits = getAllCityVisits(visited);
+  const cityKeys = new Set(cityVisits.map(c => c.name.trim().toLowerCase()));
   const routes = visited.filter(e => e.type === 'route');
   const running = routes.filter(e => e.activity === 'running').length;
   const hiking = routes.filter(e => e.activity === 'hiking').length;
@@ -3360,9 +3524,9 @@ function updateFilteredStats(precomputedVisible){
   const totalElevation = routes.reduce((s,r) => s + (r.elevationGain || 0), 0);
   const longest = routes.slice().sort((a,b) => b.distanceKm - a.distanceKm)[0];
 
-  const cities = visited.filter(e => e.type === 'city');
   let farthest = null, farthestDist = -1;
-  cities.forEach(c=>{
+  cityVisits.forEach(c=>{
+    if(c.lat == null || c.lng == null) return;
     const d = haversine([HOME_LOCATION.lat, HOME_LOCATION.lng], [c.lat, c.lng]);
     if(d > farthestDist){ farthestDist = d; farthest = c; }
   });
@@ -3391,8 +3555,8 @@ function updateFilteredStats(precomputedVisible){
   const topCountries = Object.entries(countryCounts).sort((a,b) => b[1]-a[1]).slice(0,5);
 
   const cityCounts = {};
-  visited.filter(e => e.type === 'city').forEach(e=>{
-    const key = e.name.trim();
+  cityVisits.forEach(c=>{
+    const key = c.name.trim();
     cityCounts[key] = (cityCounts[key] || 0) + 1;
   });
   const topCities = Object.entries(cityCounts).sort((a,b) => b[1]-a[1]).slice(0,5);
@@ -3475,7 +3639,7 @@ function renderList(precomputedVisible){
   visible.forEach(entry=>{
     const row = document.createElement('div');
     row.className = 'entry-row';
-    const extras = [seasonLabel(entry.season), companyLabel(entry.company), entry.type === 'route' ? activityLabel(entry.activity) : null].filter(Boolean);
+    const extras = [seasonLabel(entry.season), companyLabel(entry.company), communityLabel(entry.community), entry.type === 'route' ? activityLabel(entry.activity) : null].filter(Boolean);
     let meta = `${monthLabel(entry.month) ? monthLabel(entry.month) + ' ' : ''}${entry.year} · ${purposeLabel(entry.purpose)}`;
     if(entry.type === 'route'){
       meta += ` · ${entry.distanceKm.toFixed(1)} км${entry.isEstimated ? ' (по прямой)' : ''}`;
@@ -3552,12 +3716,15 @@ function startEdit(entry){
   document.getElementById('fieldTrip').value = entry.trip || '';
   document.getElementById('fieldPurpose').value = entry.purpose || 'tourism';
   document.getElementById('fieldCompany').value = entry.company || 'alone';
+  document.getElementById('fieldCommunity').value = entry.community || '';
+  updateCommunityVisibility();
   document.getElementById('fieldSeason').value = entry.season || 'summer';
   document.getElementById('fieldColor').value = entry.color || DEFAULT_COLOR[entry.type];
   if(entry.type === 'route'){
     document.getElementById('fieldActivity').value = entry.activity || 'hiking';
     document.getElementById('fieldTrackDays').value = entry.trackDays || 1;
     updateHikingDaysVisibility();
+    document.getElementById('refreshWaypointsField').style.display = (entry.waypointNames && entry.waypointNames.length) ? 'block' : 'none';
   }
   if(entry.type === 'city') document.getElementById('fieldFavorite').checked = !!entry.favorite;
   if(entry.type !== 'route'){
@@ -3671,12 +3838,13 @@ function entriesToRows(){
     'Тип': e.type === 'country' ? 'Страна' : e.type === 'city' ? 'Город' : 'Маршрут',
     'Название': e.name,
     'Год': e.year,
-    'Месяц': e.month ? MONTHS.find(m => m.key === e.month).ru : '',
+    'Месяц': MONTHS.find(m => m.key === e.month)?.ru || '',
     'Поездка': e.trip || '',
     'Порядок_в_поездке': (e.trip && e.tripOrder != null) ? e.tripOrder : '',
     'Статус': e.status === 'wishlist' ? 'План' : 'Посещено',
     'Цель': purposeLabel(e.purpose),
     'Компания': companyLabel(e.company) || '',
+    'Сообщество': communityLabel(e.community) || '',
     'Сезон': seasonLabel(e.season) || '',
     'Активность': e.type === 'route' ? (activityLabel(e.activity) || '') : '',
     'Дистанция_км': e.type === 'route' ? Number(e.distanceKm.toFixed(2)) : '',
@@ -3876,7 +4044,7 @@ function closeTableModal(){
 
 function renderTable(){
   const visible = allEntries.filter(passesFilter).sort((a,b)=> b.year - a.year || a.name.localeCompare(b.name, 'ru'));
-  const countText = (activeYears.size || activeMonths.size || activePurposes.size || activeCompanies.size || activeSeasons.size || activeActivities.size || activeStatuses.size || activeTrips.size || searchQuery || activeLayerTypes.size < 3)
+  const countText = (activeYears.size || activeMonths.size || activePurposes.size || activeCompanies.size || activeCommunities.size || activeSeasons.size || activeActivities.size || activeStatuses.size || activeTrips.size || searchQuery || activeLayerTypes.size < 3)
     ? `Показано ${visible.length} из ${allEntries.length} — с учётом фильтров в панели слева`
     : `Всего записей: ${allEntries.length}`;
   document.getElementById('modalCount').textContent = countText;
@@ -3904,7 +4072,7 @@ function renderTable(){
       <td class="name-cell">${((entry.type === 'country' || entry.type === 'city') && countryFlag(entry.countryKey)) ? countryFlag(entry.countryKey) + ' ' : ''}${(entry.type === 'city' && entry.favorite) ? '❤ ' : ''}${escapeHtml(entry.name)}</td>
       <td>${monthLabel(entry.month) ? monthLabel(entry.month) + ' ' : ''}${entry.year}</td>
       <td>${purposeLabel(entry.purpose)}</td>
-      <td>${companyLabel(entry.company) || '—'}</td>
+      <td>${companyLabel(entry.company) || '—'}${communityLabel(entry.community) ? ' · ' + communityLabel(entry.community) : ''}</td>
       <td>${seasonLabel(entry.season) || '—'}</td>
       <td>${activityOrDist}</td>
       <td>${entry.status === 'wishlist' ? 'План' : 'Посещено'}</td>
@@ -4151,7 +4319,16 @@ async function exportSnapshot(){
     ctx.strokeStyle = e.color; ctx.lineWidth = 2; ctx.stroke();
   });
 
-  visible.filter(e => e.type === 'city').forEach(e=>{
+  const cityDots = [];
+  const seenCityNames = new Set();
+  getAllCityVisits(visible).forEach(c=>{
+    if(c.lat == null || c.lng == null) return; // старые маршруты без сохранённых координат точек — пропускаем
+    const key = c.name.trim().toLowerCase();
+    if(seenCityNames.has(key)) return; // один и тот же город не рисуем дважды, даже если это и отдельная запись, и точка маршрута
+    seenCityNames.add(key);
+    cityDots.push(c);
+  });
+  cityDots.forEach(e=>{
     const [x,y] = proj(e.lat, e.lng);
     if(e.favorite){
       ctx.font = '22px sans-serif'; ctx.fillStyle = e.color; ctx.textAlign = 'center';
