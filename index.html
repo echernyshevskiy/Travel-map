@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.18
+  Версия: v1.26
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -79,6 +79,20 @@ window.addEventListener('unhandledrejection', function(e){
   }
   [data-theme="dark"] .leaflet-tile-pane{
     filter:sepia(0.25) saturate(0.6) brightness(0.75) contrast(1.05);
+  }
+  .leaflet-popup-content-wrapper{
+    background:var(--panel);
+    color:var(--text);
+    box-shadow:0 3px 14px rgba(0,0,0,0.35);
+  }
+  .leaflet-popup-tip{
+    background:var(--panel);
+  }
+  .leaflet-popup-close-button{
+    color:var(--text-dim) !important;
+  }
+  .leaflet-popup-close-button:hover{
+    color:var(--text) !important;
   }
   *{box-sizing:border-box;}
   html,body{height:100%;margin:0;}
@@ -207,11 +221,6 @@ window.addEventListener('unhandledrejection', function(e){
     background:var(--sage-dim);
     color:var(--on-accent);
     border-style:solid;
-  }
-  .coord-readout{
-    margin-top:8px;
-    font-size:11px;
-    color:var(--text-dim);
   }
   .file-drop{
     margin-top:10px;
@@ -965,6 +974,23 @@ window.addEventListener('unhandledrejection', function(e){
       <label>Год</label>
       <input type="number" id="fieldYear" min="1990" max="2100">
 
+      <label>Месяц <span style="font-style:italic;color:var(--text-dim);">(необязательно)</span></label>
+      <select id="fieldMonth">
+        <option value="">Не указан</option>
+        <option value="1">Январь</option>
+        <option value="2">Февраль</option>
+        <option value="3">Март</option>
+        <option value="4">Апрель</option>
+        <option value="5">Май</option>
+        <option value="6">Июнь</option>
+        <option value="7">Июль</option>
+        <option value="8">Август</option>
+        <option value="9">Сентябрь</option>
+        <option value="10">Октябрь</option>
+        <option value="11">Ноябрь</option>
+        <option value="12">Декабрь</option>
+      </select>
+
       <label>Цель поездки</label>
       <select id="fieldPurpose">
         <option value="tourism">Туризм</option>
@@ -1004,6 +1030,12 @@ window.addEventListener('unhandledrejection', function(e){
       <input type="text" id="fieldInstagram" placeholder="https://www.instagram.com/p/...">
       <div class="hint">Если также указать хотя бы одно фото выше — первое станет обложкой мини-карточки со ссылкой на пост.</div>
 
+      <label>Ссылка на карту / место <span style="font-style:italic;color:var(--text-dim);">(необязательно)</span></label>
+      <input type="text" id="fieldMapLink" placeholder="https://maps.google.com/... — ресторан, точка, место">
+
+      <label>Ссылка на документ <span style="font-style:italic;color:var(--text-dim);">(необязательно)</span></label>
+      <input type="text" id="fieldDocLink" placeholder="https://docs.google.com/... — план, заметки, бронь">
+
       <label>Заметка</label>
       <textarea id="fieldNotes" placeholder="необязательно"></textarea>
 
@@ -1014,6 +1046,11 @@ window.addEventListener('unhandledrejection', function(e){
     <div class="section">
       <p class="section-title">Фильтр по году</p>
       <div class="chips" id="yearChips"></div>
+    </div>
+
+    <div class="section">
+      <p class="section-title">Фильтр по месяцу</p>
+      <div class="chips" id="monthChips"></div>
     </div>
 
     <div class="section">
@@ -1118,7 +1155,7 @@ window.addEventListener('unhandledrejection', function(e){
       <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-style:italic;">пунктир — план / маршрут по прямой</div>
       <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
       <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;">v1.18</div>
+      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;">v1.26</div>
     </div>
     <div class="toast" id="toast"></div>
     <div class="timeline-bar" id="timelineBar" style="display:none;">
@@ -1345,6 +1382,20 @@ const SEASONS = [
   { key: 'summer', ru: 'Лето' },
   { key: 'autumn', ru: 'Осень' }
 ];
+const MONTHS = [
+  { key: 1, ru: 'Январь', short: 'янв' },
+  { key: 2, ru: 'Февраль', short: 'фев' },
+  { key: 3, ru: 'Март', short: 'мар' },
+  { key: 4, ru: 'Апрель', short: 'апр' },
+  { key: 5, ru: 'Май', short: 'май' },
+  { key: 6, ru: 'Июнь', short: 'июн' },
+  { key: 7, ru: 'Июль', short: 'июл' },
+  { key: 8, ru: 'Август', short: 'авг' },
+  { key: 9, ru: 'Сентябрь', short: 'сен' },
+  { key: 10, ru: 'Октябрь', short: 'окт' },
+  { key: 11, ru: 'Ноябрь', short: 'ноя' },
+  { key: 12, ru: 'Декабрь', short: 'дек' }
+];
 const ACTIVITIES = [
   { key: 'running', ru: 'Бег' },
   { key: 'hiking', ru: 'Хайкинг' },
@@ -1397,8 +1448,8 @@ function buildCountryInfoHtml(key){
   const info = COUNTRY_INFO[key];
   if(!info) return '';
   const timeStr = formatCapitalTime(info.tz);
-  return `<div style="margin-top:7px;padding-top:7px;border-top:1px solid rgba(43,59,46,0.15);font-size:11.5px;color:#6E6547;text-align:left;line-height:1.7;">
-    <div>Столица: <b style="color:#2B3B2E;">${escapeHtml(info.capital)}</b>${timeStr ? `<br>Сейчас там: ${timeStr}` : ''}</div>
+  return `<div style="margin-top:7px;padding-top:7px;border-top:1px solid rgba(120,110,80,0.25);font-size:11.5px;color:var(--text-dim);text-align:left;line-height:1.7;">
+    <div>Столица: <b style="color:var(--text);">${escapeHtml(info.capital)}</b>${timeStr ? `<br>Сейчас там: ${timeStr}` : ''}</div>
     <div>Язык: ${escapeHtml(info.lang)}</div>
     <div>Валюта: ${escapeHtml(info.currency)}</div>
   </div>`;
@@ -1438,6 +1489,7 @@ let activeYears = new Set(); // empty = all
 let activePurposes = new Set(); // empty = all
 let activeCompanies = new Set(); // empty = all
 let activeSeasons = new Set(); // empty = all
+let activeMonths = new Set(); // empty = all
 let activeActivities = new Set(); // empty = all (routes only)
 let activeStatuses = new Set(); // empty = all
 let activeTrips = new Set(); // empty = all, freeform trip tags
@@ -1907,7 +1959,7 @@ map.on('click', (e)=>{
       .setLatLng(e.latlng)
       .setContent(`<div style="font-family:'EB Garamond',serif;text-align:center;min-width:150px;">
         <div style="font-size:24px;line-height:1.3;">${flag}</div>
-        <b style="font-family:'Playfair Display',serif;font-style:italic;font-size:15px;color:#2B3B2E;">${escapeHtml(ruName)}</b>
+        <b style="font-family:'Playfair Display',serif;font-style:italic;font-size:15px;color:var(--text);">${escapeHtml(ruName)}</b>
         ${buildCountryInfoHtml(feature.properties.name)}
       </div>`)
       .openOn(map);
@@ -2093,8 +2145,10 @@ function renderCityCountrySuggest(){
     btn.textContent = 'Отметить';
     btn.addEventListener('click', async ()=>{
       const year = parseInt(document.getElementById('fieldYear').value) || new Date().getFullYear();
+      const month = parseInt(document.getElementById('fieldMonth').value) || undefined;
       existingWishlist.status = 'visited';
       existingWishlist.year = year;
+      existingWishlist.month = month;
       const saved = await saveData();
       rebuildAll();
       if(saved) toast(`«${ruName}» отмечена как посещённая`);
@@ -2105,8 +2159,9 @@ function renderCityCountrySuggest(){
     btn.textContent = 'Добавить';
     btn.addEventListener('click', async ()=>{
       const year = parseInt(document.getElementById('fieldYear').value) || new Date().getFullYear();
+      const month = parseInt(document.getElementById('fieldMonth').value) || undefined;
       allEntries.push({
-        id: genId(), type: 'country', name: ruName, year, photos: [], notes: '',
+        id: genId(), type: 'country', name: ruName, year, month, photos: [], notes: '',
         purpose: 'tourism', company: 'alone', season: 'summer', color: DEFAULT_COLOR.country, status: 'visited',
         countryKey: key
       });
@@ -2151,7 +2206,12 @@ document.getElementById('gpxInput').addEventListener('change', (e)=>{
         const profile = parsed.elevations.length > 1 ? downsampleNumeric(parsed.elevations, 40) : null;
         const coords = downsample(parsed.coords);
         const baseName = file.name.replace(/\.gpx$/i, '');
-        finishFile({ coords, distanceKm, fileName: file.name, baseName, elevationGain, maxElevation, durationMin, profile });
+        let startYear = null, startMonth = null;
+        if(parsed.times.length > 0){
+          const d = new Date(parsed.times[0]);
+          if(!isNaN(d.getTime())){ startYear = d.getFullYear(); startMonth = d.getMonth() + 1; }
+        }
+        finishFile({ coords, distanceKm, fileName: file.name, baseName, elevationGain, maxElevation, durationMin, profile, startYear, startMonth });
       }catch(err){
         finishFile(null);
       }
@@ -2191,8 +2251,11 @@ document.getElementById('fieldYear').value = new Date().getFullYear();
 document.getElementById('saveBtn').addEventListener('click', async ()=>{
   const name = document.getElementById('fieldName').value.trim();
   const year = parseInt(document.getElementById('fieldYear').value) || new Date().getFullYear();
+  const month = parseInt(document.getElementById('fieldMonth').value) || undefined;
   const photos = document.getElementById('fieldPhoto').value.split('\n').map(s => s.trim()).filter(Boolean);
   const instagramUrl = document.getElementById('fieldInstagram').value.trim();
+  const mapLinkUrl = document.getElementById('fieldMapLink').value.trim();
+  const docLinkUrl = document.getElementById('fieldDocLink').value.trim();
   const notes = document.getElementById('fieldNotes').value.trim();
   const purpose = document.getElementById('fieldPurpose').value;
   const company = document.getElementById('fieldCompany').value;
@@ -2204,10 +2267,12 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
   if(editingId){
     const entry = allEntries.find(x => x.id === editingId);
     if(entry){
-      const snapshot = { name: entry.name, year: entry.year, photos: entry.photos, instagramUrl: entry.instagramUrl,
+      const snapshot = { name: entry.name, year: entry.year, month: entry.month, photos: entry.photos, instagramUrl: entry.instagramUrl,
+        mapLinkUrl: entry.mapLinkUrl, docLinkUrl: entry.docLinkUrl,
         notes: entry.notes, purpose: entry.purpose, company: entry.company, season: entry.season, color: entry.color,
         trip: entry.trip, tripOrder: entry.tripOrder, status: entry.status, activity: entry.activity, favorite: entry.favorite };
-      entry.name = name || entry.name; entry.year = year; entry.photos = photos; entry.instagramUrl = instagramUrl; entry.notes = notes;
+      entry.name = name || entry.name; entry.year = year; entry.month = month; entry.photos = photos; entry.instagramUrl = instagramUrl; entry.notes = notes;
+      entry.mapLinkUrl = mapLinkUrl; entry.docLinkUrl = docLinkUrl;
       entry.purpose = purpose; entry.company = company; entry.season = season; entry.color = color;
       const oldTrip = entry.trip;
       if(entry.trip !== trip) entry.tripOrder = trip ? nextTripOrder(trip) : undefined;
@@ -2252,17 +2317,13 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
 
       const autoName = `${routeWaypoints[0].name} — ${routeWaypoints[routeWaypoints.length-1].name}`;
       allEntries.push({
-        id: genId(), type:'route', name: name || autoName, year, photos, instagramUrl, notes, purpose, company, season, color, activity, status: 'visited', trip, tripOrder: nextTripOrder(trip),
+        id: genId(), type:'route', name: name || autoName, year, month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, season, color, activity, status: 'visited', trip, tripOrder: nextTripOrder(trip),
         coordsEncoded: encodePolyline(coords), distanceKm, elevationGain: null, maxElevation: null, durationMin: null, profile: null,
         waypointNames: routeWaypoints.map(w => w.name), isEstimated
       });
       routeWaypoints = [];
       renderRouteWaypoints();
-      document.getElementById('fieldName').value = '';
-      document.getElementById('fieldPhoto').value = '';
-      document.getElementById('fieldInstagram').value = '';
-      document.getElementById('fieldNotes').value = '';
-      document.getElementById('fieldTrip').value = '';
+      resetEntryFormFields();
       const saved = await saveData();
       rebuildAll();
       if(saved) toast(isEstimated ? 'Маршрут добавлен: сервис дорог недоступен, использована прямая линия' : 'Маршрут добавлен по дорогам');
@@ -2273,7 +2334,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     pendingGpxList.forEach(g=>{
       const routeName = name ? `${name} — ${g.baseName}` : g.baseName;
       allEntries.push({
-        id: genId(), type:'route', name: routeName, year, photos, instagramUrl, notes, purpose, company, season, color, activity, status: 'visited', trip, tripOrder: nextTripOrder(trip),
+        id: genId(), type:'route', name: routeName, year: g.startYear || year, month: g.startMonth || month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, season, color, activity, status: 'visited', trip, tripOrder: nextTripOrder(trip),
         coordsEncoded: encodePolyline(g.coords), distanceKm: g.distanceKm,
         elevationGain: g.elevationGain, maxElevation: g.maxElevation,
         durationMin: g.durationMin, profile: g.profile
@@ -2285,11 +2346,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     drop.textContent = 'Нажмите, чтобы выбрать один или несколько .gpx файлов';
     drop.classList.remove('has-file');
     document.getElementById('gpxInput').value = '';
-    document.getElementById('fieldName').value = '';
-    document.getElementById('fieldPhoto').value = '';
-    document.getElementById('fieldInstagram').value = '';
-    document.getElementById('fieldNotes').value = '';
-    document.getElementById('fieldTrip').value = '';
+    resetEntryFormFields();
     const saved = await saveData();
     rebuildAll();
     if(saved) toast(addedCount === 1 ? 'Маршрут добавлен' : `Добавлено маршрутов: ${addedCount}`);
@@ -2299,7 +2356,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     const finalName = name || pendingCityName || 'Без названия';
     const favorite = document.getElementById('fieldFavorite').checked;
     allEntries.push({
-      id: genId(), type: 'city', name: finalName, year, photos, instagramUrl, notes, purpose, company, season, color, favorite, status, trip, tripOrder: nextTripOrder(trip),
+      id: genId(), type: 'city', name: finalName, year, month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, season, color, favorite, status, trip, tripOrder: nextTripOrder(trip),
       lat: pendingLatLng.lat, lng: pendingLatLng.lng, countryKey: pendingCityCountryKey
     });
     clearCitySelection();
@@ -2308,17 +2365,13 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     if(!pendingCountryKey){ toast('Выберите страну из подсказок или на карте'); return; }
     const ruName = COUNTRY_RU[pendingCountryKey] || pendingCountryKey;
     allEntries.push({
-      id: genId(), type: 'country', name: name || ruName, year, photos, instagramUrl, notes, purpose, company, season, color, status, trip, tripOrder: nextTripOrder(trip),
+      id: genId(), type: 'country', name: name || ruName, year, month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, season, color, status, trip, tripOrder: nextTripOrder(trip),
       countryKey: pendingCountryKey
     });
     clearCountrySelection();
   }
 
-  document.getElementById('fieldName').value = '';
-  document.getElementById('fieldPhoto').value = '';
-  document.getElementById('fieldInstagram').value = '';
-  document.getElementById('fieldNotes').value = '';
-  document.getElementById('fieldTrip').value = '';
+  resetEntryFormFields();
 
   const saved = await saveData();
   rebuildAll();
@@ -2331,11 +2384,7 @@ function exitEditMode(){
   editingId = null;
   document.getElementById('cancelEditBtn').style.display = 'none';
   document.getElementById('saveBtn').textContent = 'Сохранить';
-  document.getElementById('fieldName').value = '';
-  document.getElementById('fieldPhoto').value = '';
-  document.getElementById('fieldInstagram').value = '';
-  document.getElementById('fieldNotes').value = '';
-  document.getElementById('fieldTrip').value = '';
+  resetEntryFormFields();
   document.getElementById('fieldYear').value = new Date().getFullYear();
   document.getElementById('fieldPurpose').value = 'tourism';
   document.getElementById('fieldCompany').value = 'alone';
@@ -2345,6 +2394,11 @@ function exitEditMode(){
   document.getElementById('fieldColor').value = DEFAULT_COLOR[currentType];
   currentStatus = 'visited';
   document.querySelectorAll('.type-btn[data-status]').forEach(b => b.classList.toggle('active', b.dataset.status === 'visited'));
+}
+
+function resetEntryFormFields(){
+  ['fieldName','fieldPhoto','fieldInstagram','fieldMapLink','fieldDocLink','fieldNotes','fieldTrip']
+    .forEach(id => { document.getElementById(id).value = ''; });
 }
 
 function genId(){ return 'e_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -2462,6 +2516,7 @@ function rebuildAll(){
   allEntries.forEach(migrateEntry);
   syncLayers();
   buildYearChips();
+  buildFixedChips('monthChips', MONTHS, activeMonths);
   buildFixedChips('purposeChips', PURPOSES, activePurposes);
   buildFixedChips('companyChips', COMPANIES, activeCompanies);
   buildFixedChips('seasonChips', SEASONS, activeSeasons);
@@ -2477,6 +2532,7 @@ function rebuildAll(){
 function purposeLabel(key){ const p = PURPOSES.find(p => p.key === key); return p ? p.ru : '—'; }
 function companyLabel(key){ const p = COMPANIES.find(p => p.key === key); return p ? p.ru : null; }
 function seasonLabel(key){ const p = SEASONS.find(p => p.key === key); return p ? p.ru : null; }
+function monthLabel(key){ const m = MONTHS.find(m => m.key === key); return m ? m.short : null; }
 function activityLabel(key){ const p = ACTIVITIES.find(p => p.key === key); return p ? p.ru : null; }
 
 function buildSparkline(profile){
@@ -2502,7 +2558,9 @@ function routeStatsLine(entry){
 
 function shortLinkLabel(url){
   try{
-    const host = new URL(url).hostname.replace(/^www\./, '');
+    // через safeUrl — иначе адрес без схемы («disk.yandex.ru/i/…») не парсится
+    // как URL и подпись вырождалась в обезличенное «ссылка»
+    const host = new URL(safeUrl(url)).hostname.replace(/^www\./, '');
     return host;
   }catch(err){
     return 'ссылка';
@@ -2515,7 +2573,7 @@ function buildPopup(entry){
   const flag = entry.type === 'country' ? countryFlag(entry.countryKey) : (entry.type === 'city' ? countryFlag(entry.countryKey) : '');
   const flagPrefix = flag ? `${flag} ` : '';
   let html = `<div style="font-family:'EB Garamond',serif;min-width:170px;">
-    <b>${flagPrefix}${heart}${escapeHtml(entry.name)}</b>${wishTag}<br><span style="color:var(--text-dim);">${entry.year} · ${purposeLabel(entry.purpose)}</span>`;
+    <b>${flagPrefix}${heart}${escapeHtml(entry.name)}</b>${wishTag}<br><span style="color:var(--text-dim);">${monthLabel(entry.month) ? monthLabel(entry.month) + ' ' : ''}${entry.year} · ${purposeLabel(entry.purpose)}</span>`;
   if(entry.type === 'city' && entry.countryKey && flag) html += `<br><span style="color:var(--text-dim);">${flag} ${escapeHtml(COUNTRY_RU[entry.countryKey] || entry.countryKey)}</span>`;
   if(entry.type === 'country') html += buildCountryInfoHtml(entry.countryKey);
   if(entry.trip) html += `<br><span style="color:var(--amber);font-style:italic;">${escapeHtml(entry.trip)}</span>`;
@@ -2530,18 +2588,20 @@ function buildPopup(entry){
   }
   if(entry.notes) html += `<br><span style="font-style:italic;">${escapeHtml(entry.notes)}</span>`;
   if(entry.photos && entry.photos.length){
-    html += `<br>${entry.photos.map(u => `<a href="${escapeAttr(u)}" target="_blank" rel="noopener">🔗 ${escapeHtml(shortLinkLabel(u))}</a>`).join(' · ')}`;
+    html += `<br>${entry.photos.map(u => `<a href="${escapeAttr(safeUrl(u))}" target="_blank" rel="noopener">🔗 ${escapeHtml(shortLinkLabel(u))}</a>`).join(' · ')}`;
   }
   if(entry.instagramUrl){
     if(entry.photos && entry.photos.length){
-      html += `<a class="ig-card" href="${escapeAttr(entry.instagramUrl)}" target="_blank" rel="noopener">
-        <img src="${escapeAttr(entry.photos[0])}" alt="" loading="lazy">
+      html += `<a class="ig-card" href="${escapeAttr(safeUrl(entry.instagramUrl))}" target="_blank" rel="noopener">
+        <img src="${escapeAttr(safeUrl(entry.photos[0]))}" alt="" loading="lazy">
         <span class="ig-caption">📷 Открыть в Instagram →</span>
       </a>`;
     } else {
-      html += `<a class="ig-badge" href="${escapeAttr(entry.instagramUrl)}" target="_blank" rel="noopener">📷 Пост в Instagram →</a>`;
+      html += `<a class="ig-badge" href="${escapeAttr(safeUrl(entry.instagramUrl))}" target="_blank" rel="noopener">📷 Пост в Instagram →</a>`;
     }
   }
+  if(entry.mapLinkUrl) html += `<a class="ig-badge" href="${escapeAttr(safeUrl(entry.mapLinkUrl))}" target="_blank" rel="noopener">🗺️ Место на карте →</a>`;
+  if(entry.docLinkUrl) html += `<a class="ig-badge" href="${escapeAttr(safeUrl(entry.docLinkUrl))}" target="_blank" rel="noopener">📄 Документ →</a>`;
   if(entry.status === 'wishlist'){
     html += `<button onclick="upgradeToVisited('${entry.id}')" style="margin-top:9px;width:100%;padding:6px 8px;background:var(--amber);border:none;color:var(--on-accent);border-radius:3px;cursor:pointer;font-size:12px;font-family:'EB Garamond',serif;">✓ Отметить как посещённое</button>`;
   }
@@ -2551,6 +2611,19 @@ function buildPopup(entry){
 }
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function escapeAttr(s){ return escapeHtml(s); }
+
+// Нормализация пользовательских ссылок:
+// - без схемы («maps.google.com/...») браузер трактует адрес как относительный
+//   путь и уводит внутрь нашего же сайта — дописываем https://
+// - опасные схемы (javascript:, data: и т.п.) отбрасываем целиком
+function safeUrl(raw){
+  if(!raw) return '';
+  const url = String(raw).trim();
+  if(!url) return '';
+  if(/^https?:\/\//i.test(url) || /^mailto:/i.test(url)) return url;
+  if(/^[a-z][a-z0-9+.-]*:/i.test(url)) return ''; // любая другая схема — не пропускаем
+  return 'https://' + url;
+}
 
 function buildYearChips(){
   const years = [...new Set(allEntries.map(e=>e.year))].sort((a,b)=>b-a);
@@ -2676,7 +2749,7 @@ function renderTripCard(tripName){
   container.innerHTML = `
     <div class="trip-card">
       <button class="trip-close" title="Закрыть карточку">✕</button>
-      ${cover ? `<img src="${escapeAttr(cover)}" class="trip-cover" alt="">` : ''}
+      ${cover ? `<img src="${escapeAttr(safeUrl(cover))}" class="trip-cover" alt="">` : ''}
       <h3>${escapeHtml(tripName)}</h3>
       <div class="trip-years">${yearsLabel}</div>
       <button id="openStoryBtn" class="cancel-edit" style="margin-top:8px;border-color:var(--amber-dim);color:var(--amber);">📖 История поездки</button>
@@ -2767,7 +2840,9 @@ async function moveTripEntry(tripName, entryId, direction){
 let storyMap = null;
 let storyPathLayer = null;
 let storyMarkersLayer = null;
+let storyRouteLayers = {}; // entry.id -> L.Polyline of its real track, so route stops show their actual shape
 let storyObserver = null;
+let storyFlightTimer = null;
 
 function ensureStoryMap(){
   if(storyMap) return storyMap;
@@ -2797,15 +2872,17 @@ function openTripStory(tripName){
     const typeLabel = e.type === 'country' ? 'Страна' : e.type === 'city' ? 'Город' : 'Маршрут';
     const flag = (e.type === 'country' || e.type === 'city') ? countryFlag(e.countryKey) : '';
     html += `
-      <div class="story-card" ${point ? `data-lat="${point[0]}" data-lng="${point[1]}"` : ''}>
-        ${photo ? `<img src="${escapeAttr(photo)}" class="story-card-img" loading="lazy">` : `<div class="story-card-swatch" style="background:${e.color};"></div>`}
+      <div class="story-card" data-entry-id="${e.id}" ${point ? `data-lat="${point[0]}" data-lng="${point[1]}"` : ''}>
+        ${photo ? `<img src="${escapeAttr(safeUrl(photo))}" class="story-card-img" loading="lazy">` : `<div class="story-card-swatch" style="background:${e.color};"></div>`}
         <div class="story-card-body">
           <div class="story-card-step">Остановка ${i+1} из ${entries.length} · ${typeLabel}</div>
           <h3>${flag ? flag + ' ' : ''}${escapeHtml(e.name)}</h3>
-          <div class="story-card-meta">${e.year} · ${purposeLabel(e.purpose)}${e.season ? ' · ' + seasonLabel(e.season) : ''}</div>
+          <div class="story-card-meta">${monthLabel(e.month) ? monthLabel(e.month) + ' ' : ''}${e.year} · ${purposeLabel(e.purpose)}${e.season ? ' · ' + seasonLabel(e.season) : ''}</div>
           ${e.type === 'route' ? `<div class="story-card-meta" style="margin-top:4px;">${e.distanceKm.toFixed(1)} км${e.isEstimated ? ' (по прямой)' : ''}</div>` : ''}
           ${e.notes ? `<p class="story-card-notes">${escapeHtml(e.notes)}</p>` : ''}
-          ${e.instagramUrl ? `<a class="ig-badge" href="${escapeAttr(e.instagramUrl)}" target="_blank" rel="noopener">📷 Открыть в Instagram →</a>` : ''}
+          ${e.instagramUrl ? `<a class="ig-badge" href="${escapeAttr(safeUrl(e.instagramUrl))}" target="_blank" rel="noopener">📷 Открыть в Instagram →</a>` : ''}
+          ${e.mapLinkUrl ? `<a class="ig-badge" href="${escapeAttr(safeUrl(e.mapLinkUrl))}" target="_blank" rel="noopener">🗺️ Место на карте →</a>` : ''}
+          ${e.docLinkUrl ? `<a class="ig-badge" href="${escapeAttr(safeUrl(e.docLinkUrl))}" target="_blank" rel="noopener">📄 Документ →</a>` : ''}
         </div>
       </div>
     `;
@@ -2822,6 +2899,13 @@ function openTripStory(tripName){
       const points = entries.map(getEntryRepresentativePoint).filter(Boolean);
       if(storyPathLayer){ storyMap.removeLayer(storyPathLayer); storyPathLayer = null; }
       if(storyMarkersLayer){ storyMap.removeLayer(storyMarkersLayer); storyMarkersLayer = null; }
+      Object.values(storyRouteLayers).forEach(layer => storyMap.removeLayer(layer));
+      storyRouteLayers = {};
+      entries.filter(e => e.type === 'route').forEach(e=>{
+        const coords = getEntryCoords(e);
+        if(coords.length < 2) return;
+        storyRouteLayers[e.id] = L.polyline(coords, {color: e.color, weight:3, opacity:0.9, dashArray: e.isEstimated ? '8,5' : null}).addTo(storyMap);
+      });
       if(points.length){
         storyPathLayer = L.polyline(points, {color:'#A6592E', weight:2, dashArray:'6,7', opacity:0.8}).addTo(storyMap);
         storyMarkersLayer = L.layerGroup(points.map(p =>
@@ -2836,16 +2920,37 @@ function openTripStory(tripName){
 
   if(storyObserver) storyObserver.disconnect();
   storyObserver = new IntersectionObserver((observed)=>{
-    observed.forEach(item=>{
-      if(!item.isIntersecting) return;
-      item.target.parentElement.querySelectorAll('.story-card').forEach(c => c.classList.remove('active'));
-      item.target.classList.add('active');
+    // a fast scroll/swipe can make the browser report several cards crossing
+    // the threshold in one batch — react only to whichever is most visible
+    // right now, not whichever happens to be last in that batch, or the
+    // camera can appear to "skip" a middle card entirely
+    const visible = observed.filter(item => item.isIntersecting);
+    if(visible.length === 0) return;
+    const item = visible.reduce((best, cur) => cur.intersectionRatio > best.intersectionRatio ? cur : best);
+    item.target.parentElement.querySelectorAll('.story-card').forEach(c => c.classList.remove('active'));
+    item.target.classList.add('active');
+    // debounce: fast scrolling through several cards should settle on the last
+    // one before we commit to a flight, instead of stacking several half-finished
+    // camera moves on top of each other
+    clearTimeout(storyFlightTimer);
+    storyFlightTimer = setTimeout(()=>{
+      if(!storyMap) return;
+      const routeLayer = storyRouteLayers[item.target.dataset.entryId];
+      if(routeLayer){
+        const bounds = routeLayer.getBounds();
+        const dist = storyMap.getCenter().distanceTo(bounds.getCenter());
+        const duration = Math.min(2.8, Math.max(1.1, dist / 350000)); // further away = more time for tiles to load
+        storyMap.flyToBounds(bounds, {padding:[50,50], duration});
+        return;
+      }
       const lat = parseFloat(item.target.dataset.lat);
       const lng = parseFloat(item.target.dataset.lng);
-      if(!isNaN(lat) && !isNaN(lng) && storyMap){
-        storyMap.flyTo([lat,lng], 10, {duration:1.1});
+      if(!isNaN(lat) && !isNaN(lng)){
+        const dist = storyMap.getCenter().distanceTo([lat,lng]);
+        const duration = Math.min(2.8, Math.max(1.1, dist / 350000));
+        storyMap.flyTo([lat,lng], 10, {duration});
       }
-    });
+    }, 180);
   }, { root: feed, threshold: 0.55 });
   feed.querySelectorAll('.story-card[data-lat]').forEach(card => storyObserver.observe(card));
 }
@@ -2853,6 +2958,7 @@ function openTripStory(tripName){
 function closeTripStory(){
   document.getElementById('storyModal').style.display = 'none';
   if(storyObserver){ storyObserver.disconnect(); storyObserver = null; }
+  clearTimeout(storyFlightTimer);
 }
 
 document.getElementById('closeStoryModal').addEventListener('click', closeTripStory);
@@ -2915,6 +3021,7 @@ function passesFilter(entry){
   if(activePurposes.size > 0 && !activePurposes.has(entry.purpose)) return false;
   if(activeCompanies.size > 0 && entry.company && !activeCompanies.has(entry.company)) return false;
   if(activeSeasons.size > 0 && entry.season && !activeSeasons.has(entry.season)) return false;
+  if(activeMonths.size > 0 && entry.month && !activeMonths.has(entry.month)) return false;
   if(activeActivities.size > 0 && entry.type === 'route' && entry.activity && !activeActivities.has(entry.activity)) return false;
   if(activeStatuses.size > 0 && !activeStatuses.has(entry.status || 'visited')) return false;
   if(activeTrips.size > 0 && (!entry.trip || !activeTrips.has(entry.trip))) return false;
@@ -3178,7 +3285,7 @@ function renderList(precomputedVisible){
     const row = document.createElement('div');
     row.className = 'entry-row';
     const extras = [seasonLabel(entry.season), companyLabel(entry.company), entry.type === 'route' ? activityLabel(entry.activity) : null].filter(Boolean);
-    let meta = `${entry.year} · ${purposeLabel(entry.purpose)}`;
+    let meta = `${monthLabel(entry.month) ? monthLabel(entry.month) + ' ' : ''}${entry.year} · ${purposeLabel(entry.purpose)}`;
     if(entry.type === 'route'){
       meta += ` · ${entry.distanceKm.toFixed(1)} км${entry.isEstimated ? ' (по прямой)' : ''}`;
       if(entry.elevationGain !== null && entry.elevationGain !== undefined) meta += ` · +${Math.round(entry.elevationGain)}м`;
@@ -3196,8 +3303,10 @@ function renderList(precomputedVisible){
       <div class="entry-actions">
         ${heart !== null ? `<button title="${heart ? 'Убрать из любимых' : 'В любимые'}" aria-label="${heart ? 'Убрать из любимых' : 'В любимые'}" data-act="fav" style="color:${heart ? '#d9704f' : 'var(--text-dim)'};">${heart ? '❤' : '♡'}</button>` : ''}
         ${entry.status === 'wishlist' ? `<button title="Отметить как посещённое" aria-label="Отметить как посещённое" data-act="visit" style="color:var(--amber);">✓</button>` : ''}
-        ${entry.photos && entry.photos.length ? `<a href="${escapeAttr(entry.photos[0])}" target="_blank" rel="noopener" title="Фото${entry.photos.length>1 ? ' ('+entry.photos.length+')' : ''}" aria-label="Открыть фото">🖼</a>` : ''}
-        ${entry.instagramUrl ? `<a href="${escapeAttr(entry.instagramUrl)}" target="_blank" rel="noopener" title="Instagram" aria-label="Instagram">📷</a>` : ''}
+        ${entry.photos && entry.photos.length ? `<a href="${escapeAttr(safeUrl(entry.photos[0]))}" target="_blank" rel="noopener" title="Фото${entry.photos.length>1 ? ' ('+entry.photos.length+')' : ''}" aria-label="Открыть фото">🖼</a>` : ''}
+        ${entry.instagramUrl ? `<a href="${escapeAttr(safeUrl(entry.instagramUrl))}" target="_blank" rel="noopener" title="Instagram" aria-label="Instagram">📷</a>` : ''}
+        ${entry.mapLinkUrl ? `<a href="${escapeAttr(safeUrl(entry.mapLinkUrl))}" target="_blank" rel="noopener" title="Место на карте" aria-label="Место на карте">🗺️</a>` : ''}
+        ${entry.docLinkUrl ? `<a href="${escapeAttr(safeUrl(entry.docLinkUrl))}" target="_blank" rel="noopener" title="Документ" aria-label="Документ">📄</a>` : ''}
         <button title="Редактировать" aria-label="Редактировать" data-act="edit">✎</button>
         <button title="Удалить" aria-label="Удалить" data-act="del">✕</button>
       </div>
@@ -3243,8 +3352,11 @@ function startEdit(entry){
   editingId = entry.id;
   document.getElementById('fieldName').value = entry.name;
   document.getElementById('fieldYear').value = entry.year;
+  document.getElementById('fieldMonth').value = entry.month || '';
   document.getElementById('fieldPhoto').value = (entry.photos || []).join('\n');
   document.getElementById('fieldInstagram').value = entry.instagramUrl || '';
+  document.getElementById('fieldMapLink').value = entry.mapLinkUrl || '';
+  document.getElementById('fieldDocLink').value = entry.docLinkUrl || '';
   document.getElementById('fieldNotes').value = entry.notes || '';
   document.getElementById('fieldTrip').value = entry.trip || '';
   document.getElementById('fieldPurpose').value = entry.purpose || 'tourism';
@@ -3364,6 +3476,7 @@ function entriesToRows(){
     'Тип': e.type === 'country' ? 'Страна' : e.type === 'city' ? 'Город' : 'Маршрут',
     'Название': e.name,
     'Год': e.year,
+    'Месяц': e.month ? MONTHS.find(m => m.key === e.month).ru : '',
     'Поездка': e.trip || '',
     'Порядок_в_поездке': (e.trip && e.tripOrder != null) ? e.tripOrder : '',
     'Статус': e.status === 'wishlist' ? 'План' : 'Посещено',
@@ -3379,6 +3492,8 @@ function entriesToRows(){
     'Цвет': e.color || '',
     'Фото': (e.photos || []).join(' | '),
     'Instagram': e.instagramUrl || '',
+    'Карта_место': e.mapLinkUrl || '',
+    'Документ': e.docLinkUrl || '',
     'Заметка': e.notes || ''
   }));
 }
@@ -3566,7 +3681,7 @@ function closeTableModal(){
 
 function renderTable(){
   const visible = allEntries.filter(passesFilter).sort((a,b)=> b.year - a.year || a.name.localeCompare(b.name, 'ru'));
-  const countText = (activeYears.size || activePurposes.size || activeCompanies.size || activeSeasons.size || activeActivities.size || activeStatuses.size || activeTrips.size || searchQuery || activeLayerTypes.size < 3)
+  const countText = (activeYears.size || activeMonths.size || activePurposes.size || activeCompanies.size || activeSeasons.size || activeActivities.size || activeStatuses.size || activeTrips.size || searchQuery || activeLayerTypes.size < 3)
     ? `Показано ${visible.length} из ${allEntries.length} — с учётом фильтров в панели слева`
     : `Всего записей: ${allEntries.length}`;
   document.getElementById('modalCount').textContent = countText;
@@ -3592,7 +3707,7 @@ function renderTable(){
       <td><input type="checkbox" class="row-checkbox" ${selectedIds.has(entry.id) ? 'checked' : ''}></td>
       <td><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${entry.color};margin-right:6px;"></span>${typeLabel}</td>
       <td class="name-cell">${((entry.type === 'country' || entry.type === 'city') && countryFlag(entry.countryKey)) ? countryFlag(entry.countryKey) + ' ' : ''}${(entry.type === 'city' && entry.favorite) ? '❤ ' : ''}${escapeHtml(entry.name)}</td>
-      <td>${entry.year}</td>
+      <td>${monthLabel(entry.month) ? monthLabel(entry.month) + ' ' : ''}${entry.year}</td>
       <td>${purposeLabel(entry.purpose)}</td>
       <td>${companyLabel(entry.company) || '—'}</td>
       <td>${seasonLabel(entry.season) || '—'}</td>
@@ -3600,8 +3715,10 @@ function renderTable(){
       <td>${entry.status === 'wishlist' ? 'План' : 'Посещено'}</td>
       <td>${entry.trip ? escapeHtml(entry.trip) : '—'}</td>
       <td>${[
-        entry.photos && entry.photos.length ? entry.photos.map((u,i) => `<a href="${escapeAttr(u)}" target="_blank" rel="noopener">Фото${entry.photos.length>1 ? ' '+(i+1) : ''}</a>`).join(' · ') : null,
-        entry.instagramUrl ? `<a href="${escapeAttr(entry.instagramUrl)}" target="_blank" rel="noopener">📷 Instagram</a>` : null
+        entry.photos && entry.photos.length ? entry.photos.map((u,i) => `<a href="${escapeAttr(safeUrl(u))}" target="_blank" rel="noopener">Фото${entry.photos.length>1 ? ' '+(i+1) : ''}</a>`).join(' · ') : null,
+        entry.instagramUrl ? `<a href="${escapeAttr(safeUrl(entry.instagramUrl))}" target="_blank" rel="noopener">📷 Instagram</a>` : null,
+        entry.mapLinkUrl ? `<a href="${escapeAttr(safeUrl(entry.mapLinkUrl))}" target="_blank" rel="noopener">🗺️ Карта</a>` : null,
+        entry.docLinkUrl ? `<a href="${escapeAttr(safeUrl(entry.docLinkUrl))}" target="_blank" rel="noopener">📄 Документ</a>` : null
       ].filter(Boolean).join(' · ') || '—'}</td>
       <td class="table-actions">
         ${entry.status === 'wishlist' ? `<button title="Отметить как посещённое" aria-label="Отметить как посещённое" data-act="visit" style="color:var(--amber);">✓</button>` : ''}
@@ -3732,54 +3849,6 @@ function drawLegend(ctx, x, y){
     ctx.fillText(l, x+12, y+20+i*19);
   });
   ctx.restore();
-}
-
-function drawStatsPanel(ctx, x, y, w, h){
-  ctx.fillStyle = '#E7DFC7';
-  ctx.fillRect(x, y, w, h);
-  ctx.strokeStyle = '#C4B78F'; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+w,y); ctx.stroke();
-
-  ctx.fillStyle = '#2B3B2E';
-  ctx.font = "italic 700 22px 'Playfair Display'";
-  ctx.fillText('Статистика', x+28, y+42);
-
-  const rows = Array.from(document.querySelectorAll('#sidebar .stat-grid .stat-row')).map(r => {
-    const spans = r.querySelectorAll('span, b');
-    return [spans[0] ? spans[0].textContent : '', spans[1] ? spans[1].textContent : ''];
-  });
-  let ly = y+80;
-  rows.forEach(([label,val])=>{
-    ctx.font = "15px 'EB Garamond'"; ctx.fillStyle = '#6E6547'; ctx.textAlign = 'left';
-    ctx.fillText(label, x+28, ly);
-    ctx.font = "bold 15px 'Courier Prime'"; ctx.fillStyle = '#2B3B2E'; ctx.textAlign = 'right';
-    ctx.fillText(val, x+330, ly);
-    ctx.textAlign = 'left';
-    ly += 27;
-  });
-
-  function drawTopColumn(colX, title, listId){
-    ctx.fillStyle = '#2B3B2E';
-    ctx.font = "italic 700 17px 'Playfair Display'";
-    ctx.fillText(title, colX, y+80);
-    let ty = y+108;
-    Array.from(document.querySelectorAll(`#${listId} .top-item`)).slice(0,5).forEach((item,i)=>{
-      const nameEl = item.querySelector('.top-name');
-      const countEl = item.querySelector('.top-count');
-      const name = nameEl ? nameEl.textContent : '';
-      const count = countEl ? countEl.textContent : '';
-      ctx.font = "14px 'EB Garamond'"; ctx.fillStyle = '#2B3B2E'; ctx.textAlign = 'left';
-      ctx.fillText(`${i+1}. ${name}`, colX, ty);
-      ctx.font = "12px 'Courier Prime'"; ctx.fillStyle = '#6E6547'; ctx.textAlign = 'right';
-      ctx.fillText(count, colX+300, ty);
-      ctx.textAlign = 'left';
-      ty += 24;
-    });
-  }
-  drawTopColumn(x+380, 'Топ-5 стран', 'topCountriesList');
-  drawTopColumn(x+740, 'Топ-5 городов', 'topCitiesList');
-
-  ctx.font = "italic 12px 'EB Garamond'"; ctx.fillStyle = '#8A8262';
-  ctx.fillText('Карта путешествий — личный снимок', x+28, y+h-22);
 }
 
 function drawWorldBaseOutlines(ctx, proj){
