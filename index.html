@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.26
+  Версия: v1.32
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -580,6 +580,39 @@ window.addEventListener('unhandledrejection', function(e){
     gap:22px;
     padding:8px 4px 20px;
   }
+  .calendar-table{
+    border-collapse:collapse;
+    font-family:'Courier Prime',monospace;
+    font-size:12.5px;
+    width:100%;
+  }
+  .calendar-table th, .calendar-table td{
+    border:1px solid var(--line);
+    padding:8px 6px;
+    text-align:center;
+    min-width:38px;
+  }
+  .calendar-table th{
+    background:var(--panel-raised);
+    color:var(--text-dim);
+    font-weight:700;
+    position:sticky;
+    top:0;
+  }
+  .calendar-table th:first-child, .calendar-table td:first-child{
+    position:sticky;
+    left:0;
+    background:var(--panel-raised);
+    font-family:'Playfair Display',serif;
+    font-style:italic;
+    font-weight:700;
+    color:var(--text);
+    text-align:left;
+    padding-left:14px;
+  }
+  .calendar-table td.traveled{
+    font-size:15px;
+  }
   .stamp{
     position:relative;
     aspect-ratio:1;
@@ -660,6 +693,24 @@ window.addEventListener('unhandledrejection', function(e){
     color:var(--text);
     font-weight:700;
     flex-shrink:0;
+  }
+  .activity-breakdown{
+    margin-top:10px;
+    padding:8px 10px;
+    background:var(--panel-raised);
+    border-radius:4px;
+  }
+  .activity-breakdown + .activity-breakdown{
+    margin-top:6px;
+  }
+  .activity-breakdown-title{
+    font-family:'Playfair Display',serif;font-style:italic;font-weight:700;
+    font-size:13px;
+    margin-bottom:5px;
+    color:var(--text);
+  }
+  .activity-breakdown .trip-stat{
+    font-size:11.5px;
   }
   .trip-card .trip-close{
     float:right;
@@ -882,6 +933,7 @@ window.addEventListener('unhandledrejection', function(e){
     <button id="openTableBtn" class="header-btn">Таблица отметок</button>
     <button id="exportSnapshotBtn" class="header-btn">Снимок (Stories)</button>
     <button id="openPassportBtn" class="header-btn">Паспорт</button>
+    <button id="openCalendarBtn" class="header-btn">Календарь</button>
     <button id="themeToggleBtn" class="header-btn" title="Переключить тему" aria-label="Переключить тёмную/светлую тему">🌙</button>
   </div>
 </header>
@@ -943,6 +995,11 @@ window.addEventListener('unhandledrejection', function(e){
           <option value="hiking">Хайкинг</option>
           <option value="roadtrip">Автотрип</option>
         </select>
+
+        <div id="hikingDaysField" style="display:none;">
+          <label>Число дней в пути <span style="font-style:italic;color:var(--text-dim);">(если в файле нет меток времени по дням — определите сами)</span></label>
+          <input type="number" id="fieldTrackDays" min="1" max="365" step="1">
+        </div>
 
         <label>Источник маршрута</label>
         <div class="type-toggle">
@@ -1107,6 +1164,8 @@ window.addEventListener('unhandledrejection', function(e){
       <p class="section-title">Статистика (с учётом фильтров)</p>
       <div class="stat-grid">
         <div class="stat-row"><span>Пропутешествовано лет</span><b id="statYearsF">0</b></div>
+        <div class="stat-row"><span>Пропутешествовано месяцев</span><b id="statMonthsTraveledF">0</b></div>
+        <div class="stat-row"><span>Месяцев подряд (макс.)</span><b id="statMonthsStreakF">0</b></div>
         <div class="stat-row"><span>Посещено стран</span><b id="statCountriesF">0</b></div>
         <div class="stat-row"><span>Открыто карты мира</span><b id="statWorldPct">0%</b></div>
         <div class="stat-row"><span>Посещено городов</span><b id="statCitiesF">0</b></div>
@@ -1155,7 +1214,7 @@ window.addEventListener('unhandledrejection', function(e){
       <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-style:italic;">пунктир — план / маршрут по прямой</div>
       <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
       <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;">v1.26</div>
+      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;">v1.32</div>
     </div>
     <div class="toast" id="toast"></div>
     <div class="timeline-bar" id="timelineBar" style="display:none;">
@@ -1235,6 +1294,19 @@ window.addEventListener('unhandledrejection', function(e){
     </div>
     <div class="table-wrap">
       <div class="passport-grid" id="passportGrid"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="calendarModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Календарь поездок</h2>
+      <button id="closeCalendarModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-sub" id="calendarCount"></div>
+    <div class="table-wrap">
+      <table id="calendarTable" class="calendar-table"></table>
     </div>
   </div>
 </div>
@@ -1640,6 +1712,16 @@ function haversine(a,b){
   const h = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1-h));
 }
+function countDistinctDays(times){
+  if(!times || times.length === 0) return { days: 1, hasTimeData: false };
+  const daySet = new Set();
+  times.forEach(t=>{
+    const d = new Date(t);
+    if(!isNaN(d.getTime())) daySet.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+  });
+  return { days: daySet.size || 1, hasTimeData: daySet.size > 0 };
+}
+
 function trackDistanceKm(coords){
   let d = 0;
   for(let i=1;i<coords.length;i++) d += haversine(coords[i-1], coords[i]);
@@ -1713,6 +1795,10 @@ function elevationGainOf(elevations){
 
 // ---------- type toggle (form) ----------
 let currentStatus = 'visited';
+function updateHikingDaysVisibility(){
+  const activity = document.getElementById('fieldActivity').value;
+  document.getElementById('hikingDaysField').style.display = activity === 'hiking' ? 'block' : 'none';
+}
 document.querySelectorAll('.type-btn[data-type]').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.type-btn[data-type]').forEach(b=>b.classList.remove('active'));
@@ -1721,6 +1807,7 @@ document.querySelectorAll('.type-btn[data-type]').forEach(btn=>{
     document.getElementById('countryFields').style.display = currentType === 'country' ? 'block' : 'none';
     document.getElementById('cityFields').style.display = currentType === 'city' ? 'block' : 'none';
     document.getElementById('routeFields').style.display = currentType === 'route' ? 'block' : 'none';
+    updateHikingDaysVisibility();
     const statusToggle = document.getElementById('statusToggle');
     const statusLabel = document.getElementById('statusLabel');
     const isRoute = currentType === 'route';
@@ -2211,7 +2298,8 @@ document.getElementById('gpxInput').addEventListener('change', (e)=>{
           const d = new Date(parsed.times[0]);
           if(!isNaN(d.getTime())){ startYear = d.getFullYear(); startMonth = d.getMonth() + 1; }
         }
-        finishFile({ coords, distanceKm, fileName: file.name, baseName, elevationGain, maxElevation, durationMin, profile, startYear, startMonth });
+        const trackDaysInfo = countDistinctDays(parsed.times); // объединённый в один файл многодневный поход — не один день, а столько, сколько разных календарных дат встретилось в самом треке; если меток времени вовсе нет (например, файлы из планировщиков маршрутов вроде The Ride Atlas), auto-детект бессмысленен — тогда используется ручное поле «Число дней»
+        finishFile({ coords, distanceKm, fileName: file.name, baseName, elevationGain, maxElevation, durationMin, profile, startYear, startMonth, trackDays: trackDaysInfo.days, hasTimeData: trackDaysInfo.hasTimeData });
       }catch(err){
         finishFile(null);
       }
@@ -2244,9 +2332,63 @@ function formatDuration(min){
   const m = Math.round(min % 60);
   return h > 0 ? `${h} ч ${m} мин` : `${m} мин`;
 }
+function formatPace(minPerKm){
+  if(!minPerKm || !isFinite(minPerKm)) return null;
+  const m = Math.floor(minPerKm);
+  const s = Math.round((minPerKm - m) * 60);
+  return `${m}:${String(s).padStart(2,'0')} /км`;
+}
+
+function buildActivityBreakdownHtml(byActivity){
+  const blocks = [];
+  if(byActivity.hiking){
+    const h = byActivity.hiking;
+    const rows = [
+      ['пройдено', `${h.totalKm.toFixed(1)} км`],
+      h.totalDurationMin > 0 ? ['время в пути', formatDuration(h.totalDurationMin)] : null,
+      h.totalElevation > 0 ? ['набор высоты', `${Math.round(h.totalElevation)} м`] : null,
+      ['активных дней', h.activeDays],
+      ['в среднем за день', `${h.avgKmPerDay.toFixed(1)} км`],
+    ].filter(Boolean);
+    blocks.push({ icon: '🥾', title: 'Хайкинг', rows });
+  }
+  if(byActivity.running){
+    const r = byActivity.running;
+    const pace = formatPace(r.avgPaceMinPerKm);
+    const rows = [
+      ['пройдено', `${r.totalKm.toFixed(1)} км`],
+      r.totalDurationMin > 0 ? ['время', formatDuration(r.totalDurationMin)] : null,
+      pace ? ['средний темп', pace] : null,
+    ].filter(Boolean);
+    blocks.push({ icon: '🏃', title: 'Бег', rows });
+  }
+  if(byActivity.roadtrip){
+    const rt = byActivity.roadtrip;
+    const rows = [
+      ['пройдено', `${rt.totalKm.toFixed(1)} км`],
+      rt.citiesCount > 0 ? ['городов посещено', rt.citiesCount] : null,
+    ].filter(Boolean);
+    blocks.push({ icon: '🚗', title: 'Автотрип', rows });
+  }
+  if(blocks.length === 0) return '';
+  return blocks.map(b => `
+    <div class="activity-breakdown">
+      <div class="activity-breakdown-title">${b.icon} ${b.title}</div>
+      ${b.rows.map(([label,val]) => `<div class="trip-stat"><span>${label}</span><b>${val}</b></div>`).join('')}
+    </div>
+  `).join('');
+}
 
 // ---------- save ----------
 document.getElementById('fieldYear').value = new Date().getFullYear();
+
+document.getElementById('fieldActivity').addEventListener('change', updateHikingDaysVisibility);
+
+document.getElementById('fieldMonth').addEventListener('change', ()=>{
+  const month = parseInt(document.getElementById('fieldMonth').value);
+  const season = seasonForMonth(month);
+  if(season) document.getElementById('fieldSeason').value = season;
+});
 
 document.getElementById('saveBtn').addEventListener('click', async ()=>{
   const name = document.getElementById('fieldName').value.trim();
@@ -2270,7 +2412,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
       const snapshot = { name: entry.name, year: entry.year, month: entry.month, photos: entry.photos, instagramUrl: entry.instagramUrl,
         mapLinkUrl: entry.mapLinkUrl, docLinkUrl: entry.docLinkUrl,
         notes: entry.notes, purpose: entry.purpose, company: entry.company, season: entry.season, color: entry.color,
-        trip: entry.trip, tripOrder: entry.tripOrder, status: entry.status, activity: entry.activity, favorite: entry.favorite };
+        trip: entry.trip, tripOrder: entry.tripOrder, status: entry.status, activity: entry.activity, favorite: entry.favorite, trackDays: entry.trackDays };
       entry.name = name || entry.name; entry.year = year; entry.month = month; entry.photos = photos; entry.instagramUrl = instagramUrl; entry.notes = notes;
       entry.mapLinkUrl = mapLinkUrl; entry.docLinkUrl = docLinkUrl;
       entry.purpose = purpose; entry.company = company; entry.season = season; entry.color = color;
@@ -2279,7 +2421,10 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
       entry.trip = trip;
       if(oldTrip !== trip) cleanupTripMetaIfOrphaned(oldTrip);
       if(entry.type !== 'route') entry.status = status;
-      if(entry.type === 'route') entry.activity = document.getElementById('fieldActivity').value;
+      if(entry.type === 'route'){
+        entry.activity = document.getElementById('fieldActivity').value;
+        entry.trackDays = parseInt(document.getElementById('fieldTrackDays').value) || entry.trackDays || 1;
+      }
       if(entry.type === 'city') entry.favorite = document.getElementById('fieldFavorite').checked;
       lastAction = { type: 'edit', id: entry.id, snapshot };
     }
@@ -2334,10 +2479,11 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     pendingGpxList.forEach(g=>{
       const routeName = name ? `${name} — ${g.baseName}` : g.baseName;
       allEntries.push({
-        id: genId(), type:'route', name: routeName, year: g.startYear || year, month: g.startMonth || month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, season, color, activity, status: 'visited', trip, tripOrder: nextTripOrder(trip),
+        id: genId(), type:'route', name: routeName, year: g.startYear || year, month: g.startMonth || month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, season: (g.startMonth && seasonForMonth(g.startMonth)) || season, color, activity, status: 'visited', trip, tripOrder: nextTripOrder(trip),
         coordsEncoded: encodePolyline(g.coords), distanceKm: g.distanceKm,
         elevationGain: g.elevationGain, maxElevation: g.maxElevation,
-        durationMin: g.durationMin, profile: g.profile
+        durationMin: g.durationMin, profile: g.profile,
+        trackDays: g.hasTimeData ? g.trackDays : (parseInt(document.getElementById('fieldTrackDays').value) || 1)
       });
     });
     const addedCount = pendingGpxList.length;
@@ -2390,6 +2536,8 @@ function exitEditMode(){
   document.getElementById('fieldCompany').value = 'alone';
   document.getElementById('fieldSeason').value = 'summer';
   document.getElementById('fieldActivity').value = 'hiking';
+  document.getElementById('fieldTrackDays').value = 1;
+  updateHikingDaysVisibility();
   document.getElementById('fieldFavorite').checked = false;
   document.getElementById('fieldColor').value = DEFAULT_COLOR[currentType];
   currentStatus = 'visited';
@@ -2533,6 +2681,15 @@ function purposeLabel(key){ const p = PURPOSES.find(p => p.key === key); return 
 function companyLabel(key){ const p = COMPANIES.find(p => p.key === key); return p ? p.ru : null; }
 function seasonLabel(key){ const p = SEASONS.find(p => p.key === key); return p ? p.ru : null; }
 function monthLabel(key){ const m = MONTHS.find(m => m.key === key); return m ? m.short : null; }
+function seasonForMonth(month){
+  // Северное полушарие — самая частая ситуация для этой карты; если поездка
+  // была в южном полушарии, сезон можно переопределить вручную после подстановки
+  if([12,1,2].includes(month)) return 'winter';
+  if([3,4,5].includes(month)) return 'spring';
+  if([6,7,8].includes(month)) return 'summer';
+  if([9,10,11].includes(month)) return 'autumn';
+  return null;
+}
 function activityLabel(key){ const p = ACTIVITIES.find(p => p.key === key); return p ? p.ru : null; }
 
 function buildSparkline(profile){
@@ -2722,7 +2879,25 @@ function computeTripSummary(tripName){
   const totalElevation = routes.reduce((s,r) => s + (r.elevationGain || 0), 0);
   const totalDurationMin = routes.reduce((s,r) => s + (r.durationMin || 0), 0);
   const photosCount = visited.reduce((s,e) => s + ((e.photos || []).length), 0);
-  return { entries, years, countries, cities, routesCount: routes.length, totalKm, totalElevation, totalDurationMin, photosCount };
+
+  const byActivity = {};
+  ['hiking','running','roadtrip'].forEach(act=>{
+    const actRoutes = routes.filter(r => r.activity === act);
+    if(actRoutes.length === 0) return;
+    const km = actRoutes.reduce((s,r) => s + r.distanceKm, 0);
+    const durationMin = actRoutes.reduce((s,r) => s + (r.durationMin || 0), 0);
+    if(act === 'hiking'){
+      const elevation = actRoutes.reduce((s,r) => s + (r.elevationGain || 0), 0);
+      const activeDays = actRoutes.reduce((s,r) => s + (r.trackDays || 1), 0); // объединённые многодневные треки считаются по факту дат внутри файла, не по числу файлов
+      byActivity.hiking = { totalKm: km, totalDurationMin: durationMin, totalElevation: elevation, activeDays, avgKmPerDay: activeDays ? km / activeDays : 0 };
+    } else if(act === 'running'){
+      byActivity.running = { totalKm: km, totalDurationMin: durationMin, avgPaceMinPerKm: km > 0 ? durationMin / km : null };
+    } else if(act === 'roadtrip'){
+      byActivity.roadtrip = { totalKm: km, citiesCount: cities };
+    }
+  });
+
+  return { entries, years, countries, cities, routesCount: routes.length, totalKm, totalElevation, totalDurationMin, photosCount, byActivity };
 }
 
 function renderTripCard(tripName){
@@ -2762,6 +2937,7 @@ function renderTripCard(tripName){
       <div class="trip-stats">
         ${stats.map(([label,val]) => `<div class="trip-stat"><span>${label}</span><b>${val}</b></div>`).join('')}
       </div>
+      ${buildActivityBreakdownHtml(s.byActivity)}
       <label class="trip-sublabel">О поездке</label>
       <textarea id="tripNarrativeInput" placeholder="Пара слов о том, какой была эта поездка…">${escapeHtml(meta.narrative || '')}</textarea>
       <button id="tripNarrativeSave" class="cancel-edit" style="margin-top:6px;">Сохранить описание</button>
@@ -3162,6 +3338,19 @@ function updateFilteredStats(precomputedVisible){
   const visited = visible.filter(e => e.status !== 'wishlist');
 
   const years = new Set(visited.map(e => e.year));
+
+  // «месяцев» и «месяцев подряд» считаются только по записям, где указан
+  // и год, и месяц — без месяца календарную позицию точно не определить
+  const monthKeys = new Set(visited.filter(e => e.year && e.month).map(e => e.year * 12 + e.month));
+  const monthsTraveled = monthKeys.size;
+  const sortedMonths = [...monthKeys].sort((a,b) => a - b);
+  let monthsStreak = sortedMonths.length > 0 ? 1 : 0;
+  let curStreak = monthsStreak;
+  for(let i = 1; i < sortedMonths.length; i++){
+    curStreak = sortedMonths[i] === sortedMonths[i-1] + 1 ? curStreak + 1 : 1;
+    if(curStreak > monthsStreak) monthsStreak = curStreak;
+  }
+
   const countryKeys = new Set(visited.filter(e => e.type === 'country').map(e => e.countryKey));
   const cityKeys = new Set(visited.filter(e => e.type === 'city').map(e => e.name.trim().toLowerCase()));
   const routes = visited.filter(e => e.type === 'route');
@@ -3179,6 +3368,8 @@ function updateFilteredStats(precomputedVisible){
   });
 
   document.getElementById('statYearsF').textContent = years.size;
+  document.getElementById('statMonthsTraveledF').textContent = monthsTraveled;
+  document.getElementById('statMonthsStreakF').textContent = monthsStreak;
   document.getElementById('statCountriesF').textContent = countryKeys.size;
   document.getElementById('statWorldPct').textContent = `${Math.round((countryKeys.size / COUNTRY_LIST.length) * 100)}%`;
   document.getElementById('statCitiesF').textContent = cityKeys.size;
@@ -3363,7 +3554,11 @@ function startEdit(entry){
   document.getElementById('fieldCompany').value = entry.company || 'alone';
   document.getElementById('fieldSeason').value = entry.season || 'summer';
   document.getElementById('fieldColor').value = entry.color || DEFAULT_COLOR[entry.type];
-  if(entry.type === 'route') document.getElementById('fieldActivity').value = entry.activity || 'hiking';
+  if(entry.type === 'route'){
+    document.getElementById('fieldActivity').value = entry.activity || 'hiking';
+    document.getElementById('fieldTrackDays').value = entry.trackDays || 1;
+    updateHikingDaysVisibility();
+  }
   if(entry.type === 'city') document.getElementById('fieldFavorite').checked = !!entry.favorite;
   if(entry.type !== 'route'){
     currentStatus = entry.status || 'visited';
@@ -4033,6 +4228,44 @@ document.getElementById('openPassportBtn').addEventListener('click', ()=>{
   document.getElementById('passportSearchInput').value = '';
   renderPassport();
   document.getElementById('passportModal').style.display = 'flex';
+});
+
+function renderCalendar(){
+  const visited = allEntries.filter(e => e.status !== 'wishlist' && e.year);
+  const table = document.getElementById('calendarTable');
+  if(visited.length === 0){
+    document.getElementById('calendarCount').textContent = '';
+    table.innerHTML = `<tr><td style="border:none;color:var(--text-dim);padding:20px 4px;">Пока нет посещённых отметок с указанным годом.</td></tr>`;
+    return;
+  }
+  const minYear = Math.min(...visited.map(e => e.year));
+  const maxYear = Math.max(...visited.map(e => e.year));
+  const traveled = new Set(visited.filter(e => e.month).map(e => `${e.year}-${e.month}`));
+
+  document.getElementById('calendarCount').textContent = `${minYear}–${maxYear} · ✈️ отмечен месяц, в котором есть хотя бы одна посещённая точка с указанным месяцем`;
+
+  let html = `<thead><tr><th>Год</th>${MONTHS.map(m => `<th>${m.short}</th>`).join('')}</tr></thead><tbody>`;
+  for(let year = minYear; year <= maxYear; year++){
+    html += `<tr><td>${year}</td>`;
+    MONTHS.forEach(m=>{
+      const hit = traveled.has(`${year}-${m.key}`);
+      html += `<td class="${hit ? 'traveled' : ''}">${hit ? '✈️' : ''}</td>`;
+    });
+    html += `</tr>`;
+  }
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+document.getElementById('openCalendarBtn').addEventListener('click', ()=>{
+  renderCalendar();
+  document.getElementById('calendarModal').style.display = 'flex';
+});
+document.getElementById('closeCalendarModal').addEventListener('click', ()=>{
+  document.getElementById('calendarModal').style.display = 'none';
+});
+document.getElementById('calendarModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'calendarModal') document.getElementById('calendarModal').style.display = 'none';
 });
 document.getElementById('passportSearchInput').addEventListener('input', debounce((e)=>{
   passportSearchQuery = e.target.value.trim().toLowerCase();
