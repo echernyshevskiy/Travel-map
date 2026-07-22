@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.49
+  Версия: v1.52
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -1266,7 +1266,7 @@ window.addEventListener('unhandledrejection', function(e){
       <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-style:italic;">пунктир — план / маршрут по прямой</div>
       <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
       <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.49</div>
+      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.52</div>
     </div>
     <div class="toast" id="toast"></div>
     <div class="timeline-bar" id="timelineBar" style="display:none;">
@@ -2660,7 +2660,8 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
       const snapshot = { name: entry.name, year: entry.year, month: entry.month, photos: entry.photos, instagramUrl: entry.instagramUrl,
         mapLinkUrl: entry.mapLinkUrl, docLinkUrl: entry.docLinkUrl,
         notes: entry.notes, purpose: entry.purpose, company: entry.company, community: entry.community, season: entry.season, color: entry.color,
-        trip: entry.trip, tripOrder: entry.tripOrder, status: entry.status, activity: entry.activity, favorite: entry.favorite, trackDays: entry.trackDays };
+        trip: entry.trip, tripOrder: entry.tripOrder, status: entry.status, activity: entry.activity, favorite: entry.favorite, trackDays: entry.trackDays,
+        lat: entry.lat, lng: entry.lng, countryKey: entry.countryKey };
       entry.name = name || entry.name; entry.year = year; entry.month = month; entry.photos = photos; entry.instagramUrl = instagramUrl; entry.notes = notes;
       entry.mapLinkUrl = mapLinkUrl; entry.docLinkUrl = docLinkUrl;
       entry.purpose = purpose; entry.company = company; entry.community = community; entry.season = season; entry.color = color;
@@ -2674,6 +2675,16 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
         entry.trackDays = parseInt(document.getElementById('fieldTrackDays').value) || entry.trackDays || 1;
       }
       if(entry.type === 'city') entry.favorite = document.getElementById('fieldFavorite').checked;
+      if(entry.type === 'city' && pendingLatLng){
+        // сработает, только если во время именно этого редактирования реально
+        // искали и выбрали город заново — иначе координаты не трогаем
+        entry.lat = pendingLatLng.lat;
+        entry.lng = pendingLatLng.lng;
+        entry.countryKey = pendingCityCountryKey;
+      }
+      if(entry.type === 'country' && pendingCountryKey){
+        entry.countryKey = pendingCountryKey;
+      }
       lastAction = { type: 'edit', id: entry.id, snapshot };
     }
     const saved = await saveData();
@@ -3882,6 +3893,8 @@ function focusEntry(entry){
 function startEdit(entry){
   if(READ_ONLY){ toast('Это read-only версия — редактирование недоступно'); return; }
   editingId = entry.id;
+  clearCitySelection(); // иначе может подмешаться то, что искали для другой, более ранней записи в этой же сессии
+  clearCountrySelection();
   document.getElementById('fieldName').value = entry.name;
   document.getElementById('fieldYear').value = entry.year;
   document.getElementById('fieldMonth').value = entry.month || '';
@@ -4676,22 +4689,56 @@ function renderDiagnostics(){
 
   const noMonth = allEntries.filter(e => e.status !== 'wishlist' && e.year && !e.month);
 
-  const cityNames = [...new Set(getAllCityVisits(allEntries).map(c => c.name.trim()).filter(Boolean))];
-  const similarPairs = [];
-  for(let i=0;i<cityNames.length;i++){
-    for(let j=i+1;j<cityNames.length;j++){
-      const a = cityNames[i], b = cityNames[j];
-      if(a.toLowerCase() === b.toLowerCase()) continue;
-      const dist = levenshtein(a.toLowerCase(), b.toLowerCase());
-      const maxLen = Math.max(a.length, b.length);
-      if(dist > 0 && dist <= 2 && dist / maxLen <= 0.3) similarPairs.push([a, b]);
+  function findSimilarPairs(names){
+    const pairs = [];
+    for(let i=0;i<names.length;i++){
+      for(let j=i+1;j<names.length;j++){
+        const a = names[i], b = names[j];
+        if(a.toLowerCase() === b.toLowerCase()) continue;
+        const dist = levenshtein(a.toLowerCase(), b.toLowerCase());
+        const maxLen = Math.max(a.length, b.length);
+        if(dist > 0 && dist <= 2 && dist / maxLen <= 0.3) pairs.push([a, b]);
+      }
     }
+    return pairs;
   }
+
+  const cityNames = [...new Set(getAllCityVisits(allEntries).map(c => c.name.trim()).filter(Boolean))];
+  const similarPairs = findSimilarPairs(cityNames);
+
+  const tripNames = [...new Set(allEntries.map(e => e.trip).filter(Boolean).map(t => t.trim()))];
+  const similarTripPairs = findSimilarPairs(tripNames);
 
   const missingCoords = allEntries.filter(e => e.type === 'route' && e.waypointNames && e.waypointNames.length > 0 &&
     (!e.waypointCoords || e.waypointCoords.length !== e.waypointNames.length || e.waypointCoords.some(c => !c || c[0] == null)));
 
   const noCountry = allEntries.filter(e => e.type === 'city' && !e.countryKey);
+
+  function looksLikeUrl(raw){
+    if(!raw) return true; // пусто — не ошибка, просто не заполнено
+    try{ new URL(safeUrl(raw)); return true; }catch(err){ return false; }
+  }
+  const brokenLinks = [];
+  allEntries.forEach(e=>{
+    const fields = [
+      ['Instagram', e.instagramUrl],
+      ['карта', e.mapLinkUrl],
+      ['документ', e.docLinkUrl],
+    ];
+    fields.forEach(([label, value])=>{
+      if(value && !looksLikeUrl(value)) brokenLinks.push({ entry: e, label: `${e.name} — ${label}`, value });
+    });
+    (e.photos || []).forEach((p, i)=>{
+      if(p && !looksLikeUrl(p)) brokenLinks.push({ entry: e, label: `${e.name} — фото ${i+1}`, value: p });
+    });
+  });
+
+  const dupeGroups = {};
+  allEntries.forEach(e=>{
+    const key = `${e.type}|${e.name.trim().toLowerCase()}|${e.year}`;
+    (dupeGroups[key] = dupeGroups[key] || []).push(e);
+  });
+  const duplicateGroups = Object.values(dupeGroups).filter(group => group.length > 1);
 
   // точки маршрута, стоящие подозрительно далеко от остальных точек ТОГО ЖЕ маршрута —
   // типичный симптом неоднозначного геокодирования (например, «Дублин, Ирландия» превратился
@@ -4717,9 +4764,40 @@ function renderDiagnostics(){
     });
   });
 
+  // страна, реально указанная у записи, сверяется с тем, в границы какой страны
+  // фактически попадают её координаты (та же геометрия, что для клика по карте).
+  // Ловит случаи вроде «страна определилась, но не та» — то, что проверка «без
+  // страны» пропускает, ведь там страна как раз есть, просто неверная
+  const countryMismatches = [];
+  allEntries.forEach(e=>{
+    if(e.type === 'city' && e.countryKey && e.lat != null && e.lng != null){
+      const feature = findCountryFeature({ lat: e.lat, lng: e.lng });
+      const actualKey = feature ? feature.properties.name : null;
+      if(actualKey && actualKey !== e.countryKey){
+        countryMismatches.push({ entry: e, label: e.name, saved: COUNTRY_RU[e.countryKey] || e.countryKey, actual: COUNTRY_RU[actualKey] || actualKey });
+      }
+    } else if(e.type === 'route' && e.waypointCoords && e.waypointCountryKeys){
+      e.waypointCoords.forEach((c, i)=>{
+        const savedKey = e.waypointCountryKeys[i];
+        if(!c || c[0] == null || !savedKey) return;
+        const feature = findCountryFeature({ lat: c[0], lng: c[1] });
+        const actualKey = feature ? feature.properties.name : null;
+        if(actualKey && actualKey !== savedKey){
+          countryMismatches.push({ entry: e, label: `${e.waypointNames[i]} (${e.name})`, saved: COUNTRY_RU[savedKey] || savedKey, actual: COUNTRY_RU[actualKey] || actualKey });
+        }
+      });
+    }
+  });
+
   const typeLabel = e => e.type === 'country' ? 'страна' : e.type === 'city' ? 'город' : 'маршрут';
 
   let html = '';
+  html += buildDiagSection(
+    'Несовпадение сохранённой и фактической страны',
+    'Координаты записи на самом деле попадают в границы другой страны, чем сохранено — обычно значит, что при поиске подтянулся не тот город (например, одноимённый в другой стране).',
+    countryMismatches, 'У всех записей сохранённая страна совпадает с той, где реально находятся координаты.',
+    m => `<div class="diag-row" data-diag-id="${m.entry.id}">${escapeHtml(m.label)}<div class="diag-row-meta">записано: ${escapeHtml(m.saved)} · по факту: ${escapeHtml(m.actual)}</div></div>`
+  );
   html += buildDiagSection(
     'Точки маршрута далеко от остальных',
     'Похоже на ошибку геокодирования — одноимённый город на другом континенте (например, «Дублин, Огайо» вместо «Дублин, Ирландия»). Откройте маршрут и пересоздайте именно эту точку через поиск, явно выбрав нужную страну из списка вариантов.',
@@ -4739,10 +4817,28 @@ function renderDiagnostics(){
     ([a,b]) => `<div class="diag-row">${escapeHtml(a)} ↔ ${escapeHtml(b)}</div>`
   );
   html += buildDiagSection(
+    'Похожие названия поездок',
+    'Возможные опечатки — одна и та же поездка под разными написаниями тега считается как две разные в списке поездок.',
+    similarTripPairs, 'Явных похожих написаний тегов поездок не найдено.',
+    ([a,b]) => `<div class="diag-row">${escapeHtml(a)} ↔ ${escapeHtml(b)}</div>`
+  );
+  html += buildDiagSection(
     'Маршруты без координат точек',
     'Есть названные города, но не сохранены координаты — не попадут в «Самую дальнюю точку» и на PNG-снимок. Откройте запись и нажмите «Обновить координаты точек маршрута».',
     missingCoords, 'У всех маршрутов с названными городами координаты сохранены.',
     e => `<div class="diag-row" data-diag-id="${e.id}">${escapeHtml(e.name)}<div class="diag-row-meta">${e.year} · ${e.waypointNames.length} точек</div></div>`
+  );
+  html += buildDiagSection(
+    'Возможно нерабочие ссылки',
+    'Значение не похоже на ссылку — вероятно, вставлен не тот текст или адрес обрезался при копировании.',
+    brokenLinks, 'Все указанные ссылки похожи на настоящие адреса.',
+    b => `<div class="diag-row" data-diag-id="${b.entry.id}">${escapeHtml(b.label)}<div class="diag-row-meta">${escapeHtml(b.value)}</div></div>`
+  );
+  html += buildDiagSection(
+    'Возможные дубли записей',
+    'Одинаковый тип, название и год — вероятно, добавлено случайно дважды.',
+    duplicateGroups, 'Явных дублей не найдено.',
+    group => `<div class="diag-row" data-diag-id="${group[0].id}">${escapeHtml(group[0].name)}<div class="diag-row-meta">${group[0].year} · ${typeLabel(group[0])} · ${group.length} записи</div></div>`
   );
   html += buildDiagSection(
     'Города без определённой страны',
