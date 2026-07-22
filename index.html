@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.40
+  Версия: v1.46
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -569,6 +569,7 @@ window.addEventListener('unhandledrejection', function(e){
   .year-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;}
   .year-bar{width:100%;background:var(--amber);border-radius:2px 2px 0 0;min-height:2px;}
   .year-bar-label{font-family:'Courier Prime',monospace;font-size:9px;color:var(--text-dim);white-space:nowrap;}
+  .pace-value-label{font-family:'Courier Prime',monospace;font-size:9px;color:var(--text);white-space:nowrap;margin-bottom:2px;}
   .continent-list{display:flex;flex-direction:column;gap:9px;}
   .continent-row{display:flex;align-items:center;gap:8px;}
   .continent-name{width:96px;flex-shrink:0;font-size:12px;color:var(--text);}
@@ -614,6 +615,31 @@ window.addEventListener('unhandledrejection', function(e){
   .calendar-table td.traveled{
     font-size:15px;
   }
+  .diag-section{
+    padding:16px 20px;
+    border-bottom:1px solid var(--line);
+  }
+  .diag-section:last-child{border-bottom:none;}
+  .diag-section-title{
+    font-family:'Playfair Display',serif;font-style:italic;font-weight:700;
+    font-size:15px;color:var(--text);margin:0 0 4px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .diag-section-hint{font-size:11.5px;color:var(--text-dim);margin-bottom:10px;line-height:1.5;}
+  .diag-count-badge{
+    font-family:'Courier Prime',monospace;font-size:11px;
+    background:var(--amber-dim);color:var(--on-accent);
+    border-radius:10px;padding:1px 8px;
+  }
+  .diag-count-badge.ok{background:var(--sage-dim);}
+  .diag-list{display:flex;flex-direction:column;gap:2px;}
+  .diag-row{
+    padding:8px 10px;border-radius:4px;cursor:pointer;
+    font-size:13px;border:1px solid transparent;
+  }
+  .diag-row:hover{background:var(--panel-raised);border-color:var(--line);}
+  .diag-row .diag-row-meta{color:var(--text-dim);font-size:11.5px;margin-top:2px;font-family:'Courier Prime',monospace;}
+  .diag-empty{font-size:12.5px;color:var(--text-dim);font-style:italic;padding:2px 2px 4px;}
   .stamp{
     position:relative;
     aspect-ratio:1;
@@ -935,6 +961,7 @@ window.addEventListener('unhandledrejection', function(e){
     <button id="exportSnapshotBtn" class="header-btn">Снимок (Stories)</button>
     <button id="openPassportBtn" class="header-btn">Паспорт</button>
     <button id="openCalendarBtn" class="header-btn">Календарь</button>
+    <button id="openDiagnosticsBtn" class="header-btn">Проверка данных</button>
     <button id="themeToggleBtn" class="header-btn" title="Переключить тему" aria-label="Переключить тёмную/светлую тему">🌙</button>
   </div>
 </header>
@@ -942,7 +969,7 @@ window.addEventListener('unhandledrejection', function(e){
 <div class="layout">
   <div id="sidebar">
 
-    <div class="section">
+    <div class="section" id="addEntrySection">
       <p class="section-title">Добавить отметку</p>
       <label>Тип</label>
       <div class="type-toggle">
@@ -1179,7 +1206,7 @@ window.addEventListener('unhandledrejection', function(e){
       <button class="cancel-edit" id="exportXlsxBtn">Скачать таблицу (XLSX)</button>
       <button class="cancel-edit" id="importBtn">Загрузить из файла</button>
       <input type="file" id="importInput" accept=".json" style="display:none;">
-      <div class="hint">Отметки хранятся в облаке артефакта. Файл — подстраховка на случай, если она станет недоступна: храните его у себя.</div>
+      <div class="hint" id="backupHint">Отметки хранятся в облаке артефакта. Файл — подстраховка на случай, если она станет недоступна: храните его у себя.</div>
     </div>
 
     <div class="section">
@@ -1202,6 +1229,9 @@ window.addEventListener('unhandledrejection', function(e){
 
       <p class="section-title" style="margin-top:16px;">По годам</p>
       <div class="year-chart" id="yearChart"></div>
+
+      <p class="section-title" style="margin-top:16px;">Темп бега по годам <span style="font-style:italic;color:var(--text-dim);text-transform:none;letter-spacing:0;">(ниже столбик — быстрее темп)</span></p>
+      <div class="year-chart" id="paceTrendChart"></div>
 
       <p class="section-title" style="margin-top:16px;">По частям света</p>
       <div class="continent-list" id="continentStats"></div>
@@ -1236,7 +1266,7 @@ window.addEventListener('unhandledrejection', function(e){
       <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-style:italic;">пунктир — план / маршрут по прямой</div>
       <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
       <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;">v1.40</div>
+      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.46</div>
     </div>
     <div class="toast" id="toast"></div>
     <div class="timeline-bar" id="timelineBar" style="display:none;">
@@ -1330,6 +1360,17 @@ window.addEventListener('unhandledrejection', function(e){
     <div class="table-wrap">
       <table id="calendarTable" class="calendar-table"></table>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="diagnosticsModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Проверка данных</h2>
+      <button id="closeDiagnosticsModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-sub">Клик по записи открывает её для редактирования.</div>
+    <div class="table-wrap" id="diagnosticsBody"></div>
   </div>
 </div>
 
@@ -1506,6 +1547,7 @@ const STATUSES = [
 ];
 const DEFAULT_COLOR = { country: '#A6592E', city: '#3F5240', route: '#3F5240' };
 const HOME_LOCATION = { name: 'Москва, Россия', lat: 55.7558, lng: 37.6173 };
+const HOME_CITY_NAME = HOME_LOCATION.name.split(',')[0].trim();
 const CONTINENT_ORDER = ['Европа','Азия','Африка','Северная Америка','Южная Америка','Австралия и Океания','Антарктида'];
 const CONTINENT_TOTALS = (()=>{
   const totals = {};
@@ -1612,7 +1654,13 @@ function toast(msg){
 }
 
 // ---------- storage ----------
-let tripMeta = {}; // { [tripName]: { narrative, coverPhoto } }
+// READ_ONLY и запечённые данные — единственное, что отличает read-only сборку
+// от обычной. В рабочей сборке плейсхолдеры подставляются как false / [] / {},
+// в read-only — как true и реальный экспорт данных на момент сборки.
+const READ_ONLY = false;
+const BAKED_ENTRIES = [];
+const BAKED_TRIP_META = {};
+let tripMeta = READ_ONLY ? BAKED_TRIP_META : {}; // { [tripName]: { narrative, coverPhoto } }
 const LOCAL_STORAGE_KEY = 'travel-map-data';
 
 function hasClaudeStorage(){
@@ -1620,6 +1668,11 @@ function hasClaudeStorage(){
 }
 
 async function loadData(){
+  if(READ_ONLY){
+    allEntries = JSON.parse(JSON.stringify(BAKED_ENTRIES));
+    tripMeta = JSON.parse(JSON.stringify(BAKED_TRIP_META));
+    return;
+  }
   try{
     if(hasClaudeStorage()){
       const res = await window.storage.get('travel-data');
@@ -1630,8 +1683,8 @@ async function loadData(){
         return;
       }
     }
-    // fall back to the browser's own storage — used when opened as a plain file
-    // or installed as a PWA outside Claude, where window.storage doesn't exist
+    // fall back to the browser's own storage — используется при открытии как
+    // обычного файла или установленного PWA вне Claude, где window.storage нет
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
     if(raw){
       const parsed = JSON.parse(raw);
@@ -1644,6 +1697,10 @@ async function loadData(){
   }
 }
 async function saveData(){
+  if(READ_ONLY){
+    toast('Это read-only версия карты — изменения не сохраняются');
+    return false;
+  }
   const payload = JSON.stringify({entries: allEntries, tripMeta});
   try{
     if(hasClaudeStorage()){
@@ -1748,12 +1805,13 @@ function getAllCityVisits(entries){
   const visits = [];
   entries.forEach(e=>{
     if(e.type === 'city'){
-      visits.push({ name: e.name, lat: e.lat, lng: e.lng, color: e.color, favorite: !!e.favorite, status: e.status, fromRoute: false });
+      visits.push({ name: e.name, lat: e.lat, lng: e.lng, color: e.color, favorite: !!e.favorite, status: e.status, fromRoute: false, countryKey: e.countryKey || null });
     } else if(e.type === 'route' && e.waypointNames){
       e.waypointNames.forEach((name, i)=>{
         const coord = e.waypointCoords && e.waypointCoords[i];
+        const countryKey = e.waypointCountryKeys && e.waypointCountryKeys[i] || null;
         // точки маршрута не бывают избранными/вишлистом — берут цвет своего маршрута
-        visits.push({ name, lat: coord ? coord[0] : null, lng: coord ? coord[1] : null, color: e.color, favorite: false, status: 'visited', fromRoute: true });
+        visits.push({ name, lat: coord ? coord[0] : null, lng: coord ? coord[1] : null, color: e.color, favorite: false, status: 'visited', fromRoute: true, countryKey });
       });
     }
   });
@@ -1931,6 +1989,7 @@ async function queryNominatimSettlements(q){
 }
 
 async function refreshWaypointCoords(){
+  if(READ_ONLY){ toast('Это read-only версия — редактирование недоступно'); return; }
   const entry = allEntries.find(e => e.id === editingId);
   if(!entry || entry.type !== 'route' || !entry.waypointNames || entry.waypointNames.length === 0) return;
   const btn = document.getElementById('refreshWaypointsBtn');
@@ -2545,6 +2604,7 @@ document.getElementById('fieldMonth').addEventListener('change', ()=>{
 });
 
 document.getElementById('saveBtn').addEventListener('click', async ()=>{
+  if(READ_ONLY){ toast('Это read-only версия — редактирование недоступно'); return; }
   const name = document.getElementById('fieldName').value.trim();
   const year = parseInt(document.getElementById('fieldYear').value) || new Date().getFullYear();
   const month = parseInt(document.getElementById('fieldMonth').value) || undefined;
@@ -2620,7 +2680,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
       allEntries.push({
         id: genId(), type:'route', name: name || autoName, year, month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, community, season, color, activity, status: 'visited', trip, tripOrder: nextTripOrder(trip),
         coordsEncoded: encodePolyline(coords), distanceKm, elevationGain: null, maxElevation: null, durationMin: null, profile: null,
-        waypointNames: routeWaypoints.map(w => w.name), waypointCoords: routeWaypoints.map(w => [w.lat, w.lng]), isEstimated
+        waypointNames: routeWaypoints.map(w => w.name), waypointCoords: routeWaypoints.map(w => [w.lat, w.lng]), waypointCountryKeys: routeWaypoints.map(w => w.countryKey || null), isEstimated
       });
       routeWaypoints = [];
       renderRouteWaypoints();
@@ -2921,10 +2981,12 @@ function buildPopup(entry){
   }
   if(entry.mapLinkUrl) html += `<a class="ig-badge" href="${escapeAttr(safeUrl(entry.mapLinkUrl))}" target="_blank" rel="noopener">🗺️ Место на карте →</a>`;
   if(entry.docLinkUrl) html += `<a class="ig-badge" href="${escapeAttr(safeUrl(entry.docLinkUrl))}" target="_blank" rel="noopener">📄 Документ →</a>`;
-  if(entry.status === 'wishlist'){
+  if(!READ_ONLY && entry.status === 'wishlist'){
     html += `<button onclick="upgradeToVisited('${entry.id}')" style="margin-top:9px;width:100%;padding:6px 8px;background:var(--amber);border:none;color:var(--on-accent);border-radius:3px;cursor:pointer;font-size:12px;font-family:'EB Garamond',serif;">✓ Отметить как посещённое</button>`;
   }
-  html += `<button onclick="deleteEntry('${entry.id}')" style="margin-top:9px;width:100%;padding:6px 8px;background:var(--danger);border:none;color:var(--on-accent);border-radius:3px;cursor:pointer;font-size:12px;font-family:'EB Garamond',serif;">Удалить отметку</button>`;
+  if(!READ_ONLY){
+    html += `<button onclick="deleteEntry('${entry.id}')" style="margin-top:9px;width:100%;padding:6px 8px;background:var(--danger);border:none;color:var(--on-accent);border-radius:3px;cursor:pointer;font-size:12px;font-family:'EB Garamond',serif;">Удалить отметку</button>`;
+  }
   html += `</div>`;
   return html;
 }
@@ -2995,6 +3057,36 @@ function buildFixedChips(containerId, options, activeSet){
   });
 }
 
+// синхронизирует адрес страницы с текущей выбранной поездкой — ровно одна
+// активная поездка отражается в #trip=..., иначе (несколько/ни одной) хэш убирается.
+// replaceState — чтобы клики по чипам не засоряли историю браузера
+function updateTripUrlHash(){
+  if(activeTrips.size === 1){
+    const tripName = [...activeTrips][0];
+    history.replaceState(null, '', '#trip=' + encodeURIComponent(tripName));
+  } else if(window.location.hash.startsWith('#trip=')){
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+  }
+}
+
+// открытие по прямой ссылке вида #trip=Армения — воспроизводит ровно то же,
+// что происходит по клику на чип этой поездки
+function applyTripFromUrl(){
+  const hash = window.location.hash;
+  if(!hash.startsWith('#trip=')) return;
+  const tripName = decodeURIComponent(hash.slice(6));
+  const exists = allEntries.some(e => e.trip === tripName);
+  if(!exists) return;
+  activeTrips.clear();
+  activeTrips.add(tripName);
+  buildTripChips();
+  applyFilters();
+  focusTrip(tripName);
+  renderTripCard(tripName);
+  const tripCardEl = document.getElementById('tripCard');
+  if(tripCardEl) tripCardEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function buildTripChips(){
   const container = document.getElementById('tripChips');
   const trips = [...new Set(allEntries.map(e => e.trip).filter(Boolean))].sort((a,b) => a.localeCompare(b, 'ru'));
@@ -3012,6 +3104,7 @@ function buildTripChips(){
     buildTripChips();
     applyFilters();
     clearTripCard();
+    updateTripUrlHash();
   });
   container.appendChild(allChip);
   trips.forEach(tr=>{
@@ -3023,6 +3116,7 @@ function buildTripChips(){
       buildTripChips();
       applyFilters();
       if(activeTrips.size === 1) focusTrip([...activeTrips][0]);
+      updateTripUrlHash();
     });
     container.appendChild(chip);
   });
@@ -3085,12 +3179,12 @@ function renderTripCard(tripName){
 
   container.innerHTML = `
     <div class="trip-card">
-      <button class="trip-close" title="Закрыть карточку">✕</button>
+      <button class="trip-close" title="Закрыть карточку" aria-label="Закрыть карточку">✕</button>
       ${cover ? `<img src="${escapeAttr(safeUrl(cover))}" class="trip-cover" alt="">` : ''}
       <h3>${escapeHtml(tripName)}</h3>
       <div class="trip-years">${yearsLabel}</div>
       <button id="openStoryBtn" class="cancel-edit" style="margin-top:8px;border-color:var(--amber-dim);color:var(--amber);">📖 История поездки</button>
-      ${availablePhotos.length > 1 ? `
+      ${(!READ_ONLY && availablePhotos.length > 1) ? `
         <label class="trip-sublabel">Обложка</label>
         <select id="tripCoverSelect">
           ${availablePhotos.map(p => `<option value="${escapeAttr(p)}" ${p===cover?'selected':''}>${escapeHtml(shortLinkLabel(p))}</option>`).join('')}
@@ -3100,9 +3194,11 @@ function renderTripCard(tripName){
         ${stats.map(([label,val]) => `<div class="trip-stat"><span>${label}</span><b>${val}</b></div>`).join('')}
       </div>
       ${buildActivityBreakdownHtml(s.byActivity)}
-      <label class="trip-sublabel">О поездке</label>
-      <textarea id="tripNarrativeInput" placeholder="Пара слов о том, какой была эта поездка…">${escapeHtml(meta.narrative || '')}</textarea>
-      <button id="tripNarrativeSave" class="cancel-edit" style="margin-top:6px;">Сохранить описание</button>
+      ${READ_ONLY ? (meta.narrative ? `<label class="trip-sublabel">О поездке</label><p style="font-style:italic;font-size:13px;color:var(--text);line-height:1.6;">${escapeHtml(meta.narrative)}</p>` : '') : `
+        <label class="trip-sublabel">О поездке</label>
+        <textarea id="tripNarrativeInput" placeholder="Пара слов о том, какой была эта поездка…">${escapeHtml(meta.narrative || '')}</textarea>
+        <button id="tripNarrativeSave" class="cancel-edit" style="margin-top:6px;">Сохранить описание</button>
+      `}
       ${orderedEntries.length > 1 ? `
         <label class="trip-sublabel">Порядок остановок</label>
         <div id="tripOrderList">
@@ -3110,14 +3206,14 @@ function renderTripCard(tripName){
             <div class="waypoint-row" data-id="${e.id}">
               <span class="waypoint-index">${i+1}</span>
               <span class="waypoint-name">${escapeHtml(e.name)}</span>
-              <div class="waypoint-actions">
+              ${READ_ONLY ? '' : `<div class="waypoint-actions">
                 <button data-act="up" ${i===0 ? 'disabled' : ''} title="Выше" aria-label="Выше">↑</button>
                 <button data-act="down" ${i===orderedEntries.length-1 ? 'disabled' : ''} title="Ниже" aria-label="Ниже">↓</button>
-              </div>
+              </div>`}
             </div>
           `).join('')}
         </div>
-        <div class="hint">Порядок задаёт пунктирную линию пути на карте.</div>
+        ${READ_ONLY ? '' : `<div class="hint">Порядок задаёт пунктирную линию пути на карте.</div>`}
       ` : ''}
     </div>
   `;
@@ -3129,6 +3225,7 @@ function renderTripCard(tripName){
     buildTripChips();
     applyFilters();
     clearTripCard();
+    updateTripUrlHash();
   });
 
   const coverSelect = container.querySelector('#tripCoverSelect');
@@ -3141,13 +3238,16 @@ function renderTripCard(tripName){
     });
   }
 
-  container.querySelector('#tripNarrativeSave').addEventListener('click', async ()=>{
-    const text = container.querySelector('#tripNarrativeInput').value.trim();
-    if(!tripMeta[tripName]) tripMeta[tripName] = {};
-    tripMeta[tripName].narrative = text;
-    const saved = await saveData();
-    if(saved) toast('Описание поездки сохранено');
-  });
+  const narrativeSaveBtn = container.querySelector('#tripNarrativeSave');
+  if(narrativeSaveBtn){
+    narrativeSaveBtn.addEventListener('click', async ()=>{
+      const text = container.querySelector('#tripNarrativeInput').value.trim();
+      if(!tripMeta[tripName]) tripMeta[tripName] = {};
+      tripMeta[tripName].narrative = text;
+      const saved = await saveData();
+      if(saved) toast('Описание поездки сохранено');
+    });
+  }
 
   const orderList = container.querySelector('#tripOrderList');
   if(orderList){
@@ -3552,9 +3652,10 @@ function updateFilteredStats(precomputedVisible){
   document.getElementById('statElevationF').textContent = `${Math.round(totalElevation).toLocaleString('ru-RU')} м`;
   document.getElementById('statLongestF').textContent = longest ? `${longest.name} · ${longest.distanceKm.toFixed(1)} км` : '—';
   document.getElementById('statHomeF').textContent = HOME_LOCATION.name;
-  document.getElementById('statFarthestF').textContent = farthest ? `${farthest.name} · ${Math.round(farthestDist).toLocaleString('ru-RU')} км` : '—';
+  document.getElementById('statFarthestF').textContent = farthest ? `${farthest.countryKey ? countryFlag(farthest.countryKey) + ' ' : ''}${farthest.name} · ${Math.round(farthestDist).toLocaleString('ru-RU')} км` : '—';
 
   renderYearChart(visited);
+  renderPaceTrend(visited);
   renderContinentStats(visited);
 
   const countryCounts = {};
@@ -3565,6 +3666,7 @@ function updateFilteredStats(precomputedVisible){
 
   const cityCounts = {};
   cityVisits.forEach(c=>{
+    if(c.name.trim().toLowerCase() === HOME_CITY_NAME.toLowerCase()) return; // дом — не «визит», ему тут не место
     const key = c.name.trim();
     cityCounts[key] = (cityCounts[key] || 0) + 1;
   });
@@ -3588,6 +3690,36 @@ function renderYearChart(visited){
     const h = Math.max(2, Math.round((counts[y] / max) * 52));
     return `<div class="year-bar-wrap" title="${y}: ${counts[y]}">
       <div class="year-bar" style="height:${h}px;"></div>
+      <div class="year-bar-label">${String(y).slice(2)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderPaceTrend(visited){
+  const container = document.getElementById('paceTrendChart');
+  const routes = visited.filter(e => e.type === 'route' && e.activity === 'running' && e.durationMin && e.distanceKm);
+  const byYear = {};
+  routes.forEach(r=>{
+    if(!byYear[r.year]) byYear[r.year] = { km: 0, min: 0 };
+    byYear[r.year].km += r.distanceKm;
+    byYear[r.year].min += r.durationMin;
+  });
+  const years = Object.keys(byYear).map(Number).sort((a,b) => a-b);
+  if(years.length === 0){
+    container.innerHTML = `<div class="hint">Нет забегов с сохранённым временем — темп посчитать не из чего</div>`;
+    return;
+  }
+  const paces = years.map(y => byYear[y].min / byYear[y].km);
+  const maxPace = Math.max(...paces);
+  const minPace = Math.min(...paces);
+  container.innerHTML = years.map((y,i) => {
+    const pace = paces[i];
+    // высота столбика — само время на км (медленнее = выше), а не инвертированная «скорость»,
+    // так интуитивнее читается вместе с подписью значения над столбиком
+    const h = maxPace === minPace ? 20 : Math.max(6, Math.round(((pace - minPace) / (maxPace - minPace)) * 26) + 6);
+    return `<div class="year-bar-wrap" title="${y}: темп ${formatPace(pace)}, ${byYear[y].km.toFixed(0)} км">
+      <div class="pace-value-label">${formatPace(pace).replace(' /км','')}</div>
+      <div class="year-bar" style="height:${h}px;background:var(--sage);"></div>
       <div class="year-bar-label">${String(y).slice(2)}</div>
     </div>`;
   }).join('');
@@ -3665,14 +3797,14 @@ function renderList(precomputedVisible){
         <div class="entry-meta mono">${meta}</div>
       </div>
       <div class="entry-actions">
-        ${heart !== null ? `<button title="${heart ? 'Убрать из любимых' : 'В любимые'}" aria-label="${heart ? 'Убрать из любимых' : 'В любимые'}" data-act="fav" style="color:${heart ? '#d9704f' : 'var(--text-dim)'};">${heart ? '❤' : '♡'}</button>` : ''}
-        ${entry.status === 'wishlist' ? `<button title="Отметить как посещённое" aria-label="Отметить как посещённое" data-act="visit" style="color:var(--amber);">✓</button>` : ''}
+        ${(!READ_ONLY && heart !== null) ? `<button title="${heart ? 'Убрать из любимых' : 'В любимые'}" aria-label="${heart ? 'Убрать из любимых' : 'В любимые'}" data-act="fav" style="color:${heart ? '#d9704f' : 'var(--text-dim)'};">${heart ? '❤' : '♡'}</button>` : ''}
+        ${(!READ_ONLY && entry.status === 'wishlist') ? `<button title="Отметить как посещённое" aria-label="Отметить как посещённое" data-act="visit" style="color:var(--amber);">✓</button>` : ''}
         ${entry.photos && entry.photos.length ? `<a href="${escapeAttr(safeUrl(entry.photos[0]))}" target="_blank" rel="noopener" title="Фото${entry.photos.length>1 ? ' ('+entry.photos.length+')' : ''}" aria-label="Открыть фото">🖼</a>` : ''}
         ${entry.instagramUrl ? `<a href="${escapeAttr(safeUrl(entry.instagramUrl))}" target="_blank" rel="noopener" title="Instagram" aria-label="Instagram">📷</a>` : ''}
         ${entry.mapLinkUrl ? `<a href="${escapeAttr(safeUrl(entry.mapLinkUrl))}" target="_blank" rel="noopener" title="Место на карте" aria-label="Место на карте">🗺️</a>` : ''}
         ${entry.docLinkUrl ? `<a href="${escapeAttr(safeUrl(entry.docLinkUrl))}" target="_blank" rel="noopener" title="Документ" aria-label="Документ">📄</a>` : ''}
-        <button title="Редактировать" aria-label="Редактировать" data-act="edit">✎</button>
-        <button title="Удалить" aria-label="Удалить" data-act="del">✕</button>
+        ${READ_ONLY ? '' : `<button title="Редактировать" aria-label="Редактировать" data-act="edit">✎</button>
+        <button title="Удалить" aria-label="Удалить" data-act="del">✕</button>`}
       </div>
     `;
     const visitBtn = row.querySelector('[data-act="visit"]');
@@ -3692,8 +3824,10 @@ function renderList(precomputedVisible){
       });
     }
     row.querySelector('.entry-main').addEventListener('click', ()=> focusEntry(entry));
-    row.querySelector('[data-act="edit"]').addEventListener('click', (ev)=>{ ev.stopPropagation(); startEdit(entry); });
-    row.querySelector('[data-act="del"]').addEventListener('click', (ev)=>{ ev.stopPropagation(); deleteEntry(entry.id); });
+    const editBtn = row.querySelector('[data-act="edit"]');
+    if(editBtn) editBtn.addEventListener('click', (ev)=>{ ev.stopPropagation(); startEdit(entry); });
+    const delBtn = row.querySelector('[data-act="del"]');
+    if(delBtn) delBtn.addEventListener('click', (ev)=>{ ev.stopPropagation(); deleteEntry(entry.id); });
     container.appendChild(row);
   });
 }
@@ -3713,6 +3847,7 @@ function focusEntry(entry){
 }
 
 function startEdit(entry){
+  if(READ_ONLY){ toast('Это read-only версия — редактирование недоступно'); return; }
   editingId = entry.id;
   document.getElementById('fieldName').value = entry.name;
   document.getElementById('fieldYear').value = entry.year;
@@ -3748,6 +3883,7 @@ function startEdit(entry){
 let lastAction = null; // { type:'delete', items:[{entry,index}], tripsToCleanup:Set } | { type:'edit', id, snapshot }
 
 async function deleteEntry(id){
+  if(READ_ONLY){ toast('Это read-only версия — удаление недоступно'); return; }
   const entry = allEntries.find(e => e.id === id);
   const label = entry ? entry.name : 'эту отметку';
   if(!confirm(`Удалить «${label}»?`)) return;
@@ -3856,6 +3992,8 @@ function entriesToRows(){
     'Сообщество': communityLabel(e.community) || '',
     'Сезон': seasonLabel(e.season) || '',
     'Активность': e.type === 'route' ? (activityLabel(e.activity) || '') : '',
+    'Дней_в_пути': (e.type === 'route' && e.activity === 'hiking' && e.trackDays) ? e.trackDays : '',
+    'Точки_маршрута': (e.type === 'route' && e.waypointNames) ? e.waypointNames.join(' → ') : '',
     'Дистанция_км': e.type === 'route' ? Number(e.distanceKm.toFixed(2)) : '',
     'НаборВысоты_м': (e.type === 'route' && e.elevationGain != null) ? Math.round(e.elevationGain) : '',
     'МаксВысота_м': (e.type === 'route' && e.maxElevation != null) ? Math.round(e.maxElevation) : '',
@@ -4076,7 +4214,7 @@ function renderTable(){
       : '—';
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><input type="checkbox" class="row-checkbox" ${selectedIds.has(entry.id) ? 'checked' : ''}></td>
+      <td>${READ_ONLY ? '' : `<input type="checkbox" class="row-checkbox" ${selectedIds.has(entry.id) ? 'checked' : ''}>`}</td>
       <td><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${entry.color};margin-right:6px;"></span>${typeLabel}</td>
       <td class="name-cell">${((entry.type === 'country' || entry.type === 'city') && countryFlag(entry.countryKey)) ? countryFlag(entry.countryKey) + ' ' : ''}${(entry.type === 'city' && entry.favorite) ? '❤ ' : ''}${escapeHtml(entry.name)}</td>
       <td>${monthLabel(entry.month) ? monthLabel(entry.month) + ' ' : ''}${entry.year}</td>
@@ -4093,15 +4231,18 @@ function renderTable(){
         entry.docLinkUrl ? `<a href="${escapeAttr(safeUrl(entry.docLinkUrl))}" target="_blank" rel="noopener">📄 Документ</a>` : null
       ].filter(Boolean).join(' · ') || '—'}</td>
       <td class="table-actions">
-        ${entry.status === 'wishlist' ? `<button title="Отметить как посещённое" aria-label="Отметить как посещённое" data-act="visit" style="color:var(--amber);">✓</button>` : ''}
-        <button title="Редактировать" aria-label="Редактировать" data-act="edit">✎</button>
-        <button title="Удалить" aria-label="Удалить" data-act="del">✕</button>
+        ${(!READ_ONLY && entry.status === 'wishlist') ? `<button title="Отметить как посещённое" aria-label="Отметить как посещённое" data-act="visit" style="color:var(--amber);">✓</button>` : ''}
+        ${READ_ONLY ? '' : `<button title="Редактировать" aria-label="Редактировать" data-act="edit">✎</button>
+        <button title="Удалить" aria-label="Удалить" data-act="del">✕</button>`}
       </td>
     `;
-    tr.querySelector('.row-checkbox').addEventListener('change', (e)=>{
-      if(e.target.checked) selectedIds.add(entry.id); else selectedIds.delete(entry.id);
-      updateBulkBar();
-    });
+    const rowCheckbox = tr.querySelector('.row-checkbox');
+    if(rowCheckbox){
+      rowCheckbox.addEventListener('change', (e)=>{
+        if(e.target.checked) selectedIds.add(entry.id); else selectedIds.delete(entry.id);
+        updateBulkBar();
+      });
+    }
     const tableVisitBtn = tr.querySelector('[data-act="visit"]');
     if(tableVisitBtn){
       tableVisitBtn.addEventListener('click', async ()=>{
@@ -4109,17 +4250,14 @@ function renderTable(){
         renderTable();
       });
     }
-    tr.querySelector('[data-act="edit"]').addEventListener('click', ()=>{
-      startEdit(entry);
-      closeTableModal();
-    });
-    tr.querySelector('[data-act="del"]').addEventListener('click', async ()=>{
-      await deleteEntry(entry.id);
-      renderTable();
-    });
+    const tableEditBtn = tr.querySelector('[data-act="edit"]');
+    if(tableEditBtn) tableEditBtn.addEventListener('click', ()=>{ startEdit(entry); closeTableModal(); });
+    const tableDelBtn = tr.querySelector('[data-act="del"]');
+    if(tableDelBtn) tableDelBtn.addEventListener('click', async ()=>{ await deleteEntry(entry.id); renderTable(); });
     tbody.appendChild(tr);
   });
-  document.getElementById('selectAllCheckbox').checked = false;
+  const selectAllCb = document.getElementById('selectAllCheckbox');
+  if(selectAllCb) selectAllCb.checked = false;
   updateBulkBar();
 }
 
@@ -4171,17 +4309,28 @@ function drawGraticule(ctx, bounds, proj){
   ctx.restore();
 }
 
+function traceRing(ctx, ring, proj){
+  let prevLng = null;
+  ring.forEach((c,i)=>{
+    const [x,y] = proj(c[1], c[0]);
+    // разрыв контура вместо линии через всю карту — иначе страна, чьи границы
+    // пересекают линию перемены дат (Россия), рисуется с уродливой прямой
+    // чертой через всю карту, соединяющей крайний восток с крайним западом
+    if(i === 0 || (prevLng !== null && Math.abs(c[0]-prevLng) > 180)){
+      ctx.moveTo(x,y);
+    } else {
+      ctx.lineTo(x,y);
+    }
+    prevLng = c[0];
+  });
+  ctx.closePath();
+}
+
 function drawCountryGeometry(ctx, geometry, proj, color, isWishlist){
   const polys = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
   polys.forEach(poly=>{
     ctx.beginPath();
-    poly.forEach(ring=>{
-      ring.forEach((c,i)=>{
-        const [x,y] = proj(c[1], c[0]);
-        if(i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-      });
-      ctx.closePath();
-    });
+    poly.forEach(ring => traceRing(ctx, ring, proj));
     if(isWishlist){
       ctx.save();
       ctx.setLineDash([4,4]);
@@ -4231,17 +4380,26 @@ function drawWorldBaseOutlines(ctx, proj){
     const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
     polys.forEach(poly=>{
       ctx.beginPath();
-      poly.forEach(ring=>{
-        ring.forEach((c,i)=>{
-          const [x,y] = proj(c[1], c[0]);
-          if(i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-        });
-        ctx.closePath();
-      });
+      poly.forEach(ring => traceRing(ctx, ring, proj));
       ctx.stroke();
     });
   });
   ctx.restore();
+}
+
+function drawHomeRegion(ctx, proj){
+  const geom = getCountryGeometry(HOME_COUNTRY_KEY);
+  if(!geom) return;
+  const polys = geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates;
+  polys.forEach(poly=>{
+    ctx.beginPath();
+    poly.forEach(ring => traceRing(ctx, ring, proj));
+    ctx.save();
+    ctx.globalAlpha = 0.10; ctx.fillStyle = HOME_COLOR; ctx.fill();
+    ctx.globalAlpha = 1; ctx.strokeStyle = HOME_COLOR; ctx.lineWidth = 1.5;
+    ctx.setLineDash([2,5]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.restore();
+  });
 }
 
 function drawStoryStats(ctx, x, y, w, h){
@@ -4257,6 +4415,9 @@ function drawStoryStats(ctx, x, y, w, h){
     { value: worldPct, label: 'мира' }
   ];
   const colW = w / 3;
+  ctx.font = "italic 700 20px 'Playfair Display'";
+  ctx.fillStyle = '#6E6547'; ctx.textAlign = 'center';
+  ctx.fillText('Посещено', x+w/2, y+55);
   items.forEach((item,i)=>{
     const cx = x + colW*i + colW/2;
     ctx.textAlign = 'center';
@@ -4311,6 +4472,7 @@ async function exportSnapshot(){
 
   drawGraticule(ctx, worldBounds, proj);
   drawWorldBaseOutlines(ctx, proj);
+  drawHomeRegion(ctx, proj);
 
   const visible = allEntries.filter(passesFilter);
 
@@ -4340,16 +4502,16 @@ async function exportSnapshot(){
   cityDots.forEach(e=>{
     const [x,y] = proj(e.lat, e.lng);
     if(e.favorite){
-      ctx.font = '22px sans-serif'; ctx.fillStyle = e.color; ctx.textAlign = 'center';
-      ctx.fillText('❤', x, y+7);
+      ctx.font = '11px sans-serif'; ctx.fillStyle = e.color; ctx.textAlign = 'center';
+      ctx.fillText('❤', x, y+4);
       ctx.textAlign = 'left';
     } else if(e.status === 'wishlist'){
-      ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2);
-      ctx.setLineDash([3,3]); ctx.strokeStyle = e.color; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2);
+      ctx.setLineDash([2,2]); ctx.strokeStyle = e.color; ctx.lineWidth = 1; ctx.stroke(); ctx.setLineDash([]);
     } else {
-      ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2);
+      ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2);
       ctx.fillStyle = e.color; ctx.fill();
-      ctx.strokeStyle = '#2B3B2E'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.strokeStyle = '#2B3B2E'; ctx.lineWidth = 0.75; ctx.stroke();
     }
   });
 
@@ -4446,6 +4608,106 @@ function renderCalendar(){
 document.getElementById('openCalendarBtn').addEventListener('click', ()=>{
   renderCalendar();
   document.getElementById('calendarModal').style.display = 'flex';
+});
+
+// расстояние Левенштейна — нужно для поиска похожих (возможно, опечатанных) названий городов
+function levenshtein(a, b){
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m+1}, () => new Array(n+1).fill(0));
+  for(let i=0;i<=m;i++) dp[i][0] = i;
+  for(let j=0;j<=n;j++) dp[0][j] = j;
+  for(let i=1;i<=m;i++){
+    for(let j=1;j<=n;j++){
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+    }
+  }
+  return dp[m][n];
+}
+
+function buildDiagSection(title, hint, items, emptyText, renderRow){
+  const badge = items.length > 0
+    ? `<span class="diag-count-badge">${items.length}</span>`
+    : `<span class="diag-count-badge ok">✓</span>`;
+  const body = items.length > 0
+    ? `<div class="diag-list">${items.map(renderRow).join('')}</div>`
+    : `<div class="diag-empty">${emptyText}</div>`;
+  return `<div class="diag-section">
+    <p class="diag-section-title">${title} ${badge}</p>
+    ${hint ? `<div class="diag-section-hint">${hint}</div>` : ''}
+    ${body}
+  </div>`;
+}
+
+function renderDiagnostics(){
+  const container = document.getElementById('diagnosticsBody');
+
+  const noMonth = allEntries.filter(e => e.status !== 'wishlist' && e.year && !e.month);
+
+  const cityNames = [...new Set(getAllCityVisits(allEntries).map(c => c.name.trim()).filter(Boolean))];
+  const similarPairs = [];
+  for(let i=0;i<cityNames.length;i++){
+    for(let j=i+1;j<cityNames.length;j++){
+      const a = cityNames[i], b = cityNames[j];
+      if(a.toLowerCase() === b.toLowerCase()) continue;
+      const dist = levenshtein(a.toLowerCase(), b.toLowerCase());
+      const maxLen = Math.max(a.length, b.length);
+      if(dist > 0 && dist <= 2 && dist / maxLen <= 0.3) similarPairs.push([a, b]);
+    }
+  }
+
+  const missingCoords = allEntries.filter(e => e.type === 'route' && e.waypointNames && e.waypointNames.length > 0 &&
+    (!e.waypointCoords || e.waypointCoords.length !== e.waypointNames.length || e.waypointCoords.some(c => !c || c[0] == null)));
+
+  const noCountry = allEntries.filter(e => e.type === 'city' && !e.countryKey);
+
+  const typeLabel = e => e.type === 'country' ? 'страна' : e.type === 'city' ? 'город' : 'маршрут';
+
+  let html = '';
+  html += buildDiagSection(
+    'Записи без месяца',
+    'Не учитываются в статистике «Пропутешествовано месяцев», «Месяцев подряд» и в Календаре.',
+    noMonth, 'У всех посещённых записей с годом указан и месяц.',
+    e => `<div class="diag-row" data-diag-id="${e.id}">${escapeHtml(e.name)}<div class="diag-row-meta">${e.year} · ${typeLabel(e)}</div></div>`
+  );
+  html += buildDiagSection(
+    'Похожие названия городов',
+    'Возможные опечатки — один и тот же город под разными написаниями считается как два разных места.',
+    similarPairs, 'Явных похожих написаний не найдено.',
+    ([a,b]) => `<div class="diag-row">${escapeHtml(a)} ↔ ${escapeHtml(b)}</div>`
+  );
+  html += buildDiagSection(
+    'Маршруты без координат точек',
+    'Есть названные города, но не сохранены координаты — не попадут в «Самую дальнюю точку» и на PNG-снимок. Откройте запись и нажмите «Обновить координаты точек маршрута».',
+    missingCoords, 'У всех маршрутов с названными городами координаты сохранены.',
+    e => `<div class="diag-row" data-diag-id="${e.id}">${escapeHtml(e.name)}<div class="diag-row-meta">${e.year} · ${e.waypointNames.length} точек</div></div>`
+  );
+  html += buildDiagSection(
+    'Города без определённой страны',
+    'Не удалось сопоставить страну — не будет флага и информации о стране в попапе.',
+    noCountry, 'У всех городов определена страна.',
+    e => `<div class="diag-row" data-diag-id="${e.id}">${escapeHtml(e.name)}<div class="diag-row-meta">${e.year}</div></div>`
+  );
+
+  container.innerHTML = html;
+  container.querySelectorAll('[data-diag-id]').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      const entry = allEntries.find(e => e.id === row.dataset.diagId);
+      if(!entry) return;
+      document.getElementById('diagnosticsModal').style.display = 'none';
+      startEdit(entry);
+    });
+  });
+}
+
+document.getElementById('openDiagnosticsBtn').addEventListener('click', ()=>{
+  renderDiagnostics();
+  document.getElementById('diagnosticsModal').style.display = 'flex';
+});
+document.getElementById('closeDiagnosticsModal').addEventListener('click', ()=>{
+  document.getElementById('diagnosticsModal').style.display = 'none';
+});
+document.getElementById('diagnosticsModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'diagnosticsModal') document.getElementById('diagnosticsModal').style.display = 'none';
 });
 document.getElementById('closeCalendarModal').addEventListener('click', ()=>{
   document.getElementById('calendarModal').style.display = 'none';
@@ -4568,7 +4830,35 @@ document.getElementById('themeToggleBtn').addEventListener('click', ()=>{
 });
 
 // ---------- init ----------
+// в read-only сборке эти элементы всегда скрыты — редактирование недоступно
+// в принципе, поэтому даже форма добавления/импорт/массовые действия не нужны
+function applyReadOnlyUI(){
+  if(!READ_ONLY) return;
+  const addSection = document.getElementById('addEntrySection');
+  if(addSection) addSection.style.display = 'none';
+  const importBtn = document.getElementById('importBtn');
+  if(importBtn) importBtn.style.display = 'none';
+  const diagnosticsBtn = document.getElementById('openDiagnosticsBtn');
+  if(diagnosticsBtn) diagnosticsBtn.style.display = 'none'; // «нажал — исправил» не имеет смысла, когда редактирование заблокировано
+  const bulkBar = document.getElementById('bulkBar');
+  if(bulkBar) bulkBar.style.setProperty('display', 'none', 'important');
+  const selectAllTh = document.getElementById('selectAllCheckbox');
+  if(selectAllTh) selectAllTh.style.display = 'none';
+  const backupHint = document.getElementById('backupHint');
+  if(backupHint) backupHint.textContent = 'Это read-only версия карты — редактирование недоступно. Можно скачать снимок данных для себя.';
+  const h1 = document.querySelector('header h1');
+  if(h1) h1.insertAdjacentHTML('beforeend', ' <span style="font-size:11px;font-style:normal;font-family:\'Courier Prime\',monospace;background:var(--amber-dim);color:var(--on-accent);padding:2px 7px;border-radius:10px;vertical-align:middle;">RO · только просмотр</span>');
+  const legendVersion = document.getElementById('legendVersion');
+  if(legendVersion) legendVersion.textContent += '-RO';
+  document.title += ' · RO';
+}
+
 (async function init(){
+  try{
+    applyReadOnlyUI();
+  }catch(err){
+    console.error('applyReadOnlyUI failed', err);
+  }
   try{
     renderHomeRegion();
   }catch(err){
@@ -4585,6 +4875,11 @@ document.getElementById('themeToggleBtn').addEventListener('click', ()=>{
     rebuildAll();
   }catch(err){
     showFatalErrorBanner('Не удалось инициализировать интерфейс: ' + (err && err.message ? err.message : err) + '.');
+  }
+  try{
+    applyTripFromUrl();
+  }catch(err){
+    console.error('applyTripFromUrl failed', err);
   }
 })();
 </script>
