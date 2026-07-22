@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.48
+  Версия: v1.49
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -1266,7 +1266,7 @@ window.addEventListener('unhandledrejection', function(e){
       <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-style:italic;">пунктир — план / маршрут по прямой</div>
       <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
       <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.48</div>
+      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.49</div>
     </div>
     <div class="toast" id="toast"></div>
     <div class="timeline-bar" id="timelineBar" style="display:none;">
@@ -1485,6 +1485,7 @@ let placingCity = false;
 let pendingLatLng = null;
 let pendingCityName = null;
 let pendingCityCountry = null;
+let pendingCityCountryCode = null;
 let pendingCityCountryKey = null;
 
 let placingCountry = false;
@@ -1497,6 +1498,12 @@ const COUNTRY_LIST = Object.keys(COUNTRY_RU)
 const HOME_COUNTRY_KEY = 'Russia';
 const HOME_COLOR = '#6E7A8A';
 const COUNTRY_LIST_SELECTABLE = COUNTRY_LIST.filter(c => c.key !== HOME_COUNTRY_KEY);
+// ISO-код надёжнее сопоставления по переведённому названию: Nominatim иногда
+// возвращает официальную полную форму («Южно-Африканская Республика»), а у нас
+// в переводах — принятое короткое название («ЮАР») — по названию совпадения не
+// будет, а по коду ZA/ZA — всегда однозначно
+const ISO_TO_COUNTRY_KEY = {};
+Object.entries(COUNTRY_ISO).forEach(([key, code]) => { if(code) ISO_TO_COUNTRY_KEY[code.toUpperCase()] = key; });
 
 const PURPOSES = [
   { key: 'tourism', ru: 'Туризм' },
@@ -1993,7 +2000,7 @@ async function queryNominatimSettlements(q, biasLatLng){
     const addr = d.address || {};
     const short = addr.city || addr.town || addr.village || addr.municipality || addr.hamlet || addr.suburb || addr.county || d.display_name.split(',')[0];
     const region = [addr.state, addr.country].filter(Boolean).join(', ');
-    return { name: short, full: region ? `${short} — ${region}` : short, lat: parseFloat(d.lat), lng: parseFloat(d.lon), country: addr.country || null };
+    return { name: short, full: region ? `${short} — ${region}` : short, lat: parseFloat(d.lat), lng: parseFloat(d.lon), country: addr.country || null, countryCode: addr.country_code ? addr.country_code.toUpperCase() : null };
   });
 }
 
@@ -2073,7 +2080,7 @@ function renderRouteCitySuggestions(){
 }
 
 function addRouteWaypoint(m){
-  routeWaypoints.push({ name: m.name, lat: m.lat, lng: m.lng, countryKey: m.country ? findAnyCountryKeyByRuName(m.country) : null });
+  routeWaypoints.push({ name: m.name, lat: m.lat, lng: m.lng, countryKey: (m.country || m.countryCode) ? findAnyCountryKeyByRuName(m.country, m.countryCode) : null });
   routeCitySearchInput.value = '';
   routeCitySuggestBox.style.display = 'none';
   renderRouteWaypoints();
@@ -2244,6 +2251,7 @@ function clearCitySelection(){
   pendingLatLng = null;
   pendingCityName = null;
   pendingCityCountry = null;
+  pendingCityCountryCode = null;
   pendingCityCountryKey = null;
   document.getElementById('citySelectedTag').innerHTML = '';
   document.getElementById('citySearch').value = '';
@@ -2355,7 +2363,8 @@ function pickCity(m){
   pendingLatLng = { lat: m.lat, lng: m.lng };
   pendingCityName = m.name;
   pendingCityCountry = m.country || null;
-  pendingCityCountryKey = findAnyCountryKeyByRuName(m.country);
+  pendingCityCountryCode = m.countryCode || null;
+  pendingCityCountryKey = findAnyCountryKeyByRuName(m.country, m.countryCode);
   citySearchInput.value = '';
   citySuggestBox.style.display = 'none';
   setSelectedTag('citySelectedTag', m.full, clearCitySelection);
@@ -2365,13 +2374,22 @@ function pickCity(m){
   renderCityCountrySuggest();
 }
 
-function findCountryKeyByRuName(ruName){
+function findCountryKeyByRuName(ruName, isoCode){
+  if(isoCode){
+    const key = ISO_TO_COUNTRY_KEY[isoCode.toUpperCase()];
+    if(key && key !== HOME_COUNTRY_KEY) return key;
+    if(key === HOME_COUNTRY_KEY) return null; // этот список намеренно не предлагает "отметить Россию"
+  }
   if(!ruName) return null;
   const target = ruName.trim().toLowerCase();
   const match = COUNTRY_LIST_SELECTABLE.find(c => c.ru.toLowerCase() === target);
   return match ? match.key : null;
 }
-function findAnyCountryKeyByRuName(ruName){
+function findAnyCountryKeyByRuName(ruName, isoCode){
+  if(isoCode){
+    const key = ISO_TO_COUNTRY_KEY[isoCode.toUpperCase()];
+    if(key) return key;
+  }
   if(!ruName) return null;
   const target = ruName.trim().toLowerCase();
   const match = COUNTRY_LIST.find(c => c.ru.toLowerCase() === target);
@@ -2422,7 +2440,7 @@ function renderCityCountrySuggest(){
   const container = document.getElementById('cityCountrySuggest');
   container.innerHTML = '';
   if(!pendingCityCountry) return;
-  const key = findCountryKeyByRuName(pendingCityCountry);
+  const key = findCountryKeyByRuName(pendingCityCountry, pendingCityCountryCode);
   if(!key) return;
   const existingVisited = allEntries.find(e => e.type === 'country' && e.countryKey === key && e.status !== 'wishlist');
   if(existingVisited) return;
