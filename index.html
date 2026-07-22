@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.46
+  Версия: v1.47
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -1266,7 +1266,7 @@ window.addEventListener('unhandledrejection', function(e){
       <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-style:italic;">пунктир — план / маршрут по прямой</div>
       <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
       <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.46</div>
+      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.47</div>
     </div>
     <div class="toast" id="toast"></div>
     <div class="timeline-bar" id="timelineBar" style="display:none;">
@@ -1976,8 +1976,17 @@ document.addEventListener('click', (e)=>{
   if(!routeCitySearchInput.contains(e.target) && !routeCitySuggestBox.contains(e.target)) routeCitySuggestBox.style.display = 'none';
 });
 
-async function queryNominatimSettlements(q){
-  const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&accept-language=ru&limit=12&q=${encodeURIComponent(q)}`;
+async function queryNominatimSettlements(q, biasLatLng){
+  let url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&accept-language=ru&limit=12&q=${encodeURIComponent(q)}`;
+  if(biasLatLng){
+    // мягкое смещение результатов к региону уже добавленных точек маршрута —
+    // без bounded=1, так что результаты в другом регионе не отсекаются совсем,
+    // просто не выходят на первое место автоматически (случай «Дублин, Ирландия»
+    // vs «Дублин, Огайо» — оба существуют, но нужный обычно рядом с остальными точками)
+    const [lat, lng] = biasLatLng;
+    const delta = 3;
+    url += `&viewbox=${lng-delta},${lat-delta},${lng+delta},${lat+delta}`;
+  }
   const res = await fetch(url);
   const data = await res.json();
   return data.map(d => {
@@ -1997,12 +2006,14 @@ async function refreshWaypointCoords(){
   btn.disabled = true;
   const newCoords = [];
   let failCount = 0;
+  let lastGoodCoord = null; // смещаем поиск каждой следующей точки к предыдущей уже найденной — та же логика, что при живом добавлении маршрута
   for(let i = 0; i < entry.waypointNames.length; i++){
     btn.textContent = `Ищу точку ${i+1} из ${entry.waypointNames.length}…`;
     try{
-      const matches = await queryNominatimSettlements(entry.waypointNames[i]);
+      const matches = await queryNominatimSettlements(entry.waypointNames[i], lastGoodCoord);
       if(matches.length > 0){
         newCoords.push([matches[0].lat, matches[0].lng]);
+        lastGoodCoord = [matches[0].lat, matches[0].lng];
       } else {
         newCoords.push(null);
         failCount++;
@@ -2031,7 +2042,11 @@ document.getElementById('refreshWaypointsBtn').addEventListener('click', refresh
 
 async function fetchRouteCitySuggestions(q){
   try{
-    routeCityMatches = await queryNominatimSettlements(q);
+    // как только в маршруте есть хотя бы одна точка — ищем следующую рядом с ней,
+    // а не «в вакууме», чтобы не подхватить одноимённый город на другом континенте
+    const last = routeWaypoints[routeWaypoints.length - 1];
+    const bias = last ? [last.lat, last.lng] : null;
+    routeCityMatches = await queryNominatimSettlements(q, bias);
     routeCityHlIndex = -1;
     renderRouteCitySuggestions();
     clearServiceIssue('поиск городов');
