@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.47
+  Версия: v1.48
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -1266,7 +1266,7 @@ window.addEventListener('unhandledrejection', function(e){
       <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-style:italic;">пунктир — план / маршрут по прямой</div>
       <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
       <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.47</div>
+      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.48</div>
     </div>
     <div class="toast" id="toast"></div>
     <div class="timeline-bar" id="timelineBar" style="display:none;">
@@ -4675,9 +4675,39 @@ function renderDiagnostics(){
 
   const noCountry = allEntries.filter(e => e.type === 'city' && !e.countryKey);
 
+  // точки маршрута, стоящие подозрительно далеко от остальных точек ТОГО ЖЕ маршрута —
+  // типичный симптом неоднозначного геокодирования (например, «Дублин, Ирландия» превратился
+  // в «Дублин, Огайо»): сравниваю расстояние каждой точки до центра масс маршрута с медианным
+  // расстоянием остальных точек до того же центра, а не с фиксированным порогом — так работает
+  // и для компактной поездки по одному городу, и для растянутого автотрипа через полстраны
+  const outlierWaypoints = [];
+  allEntries.forEach(e=>{
+    if(e.type !== 'route' || !e.waypointCoords || e.waypointNames.length < 3) return;
+    const pts = e.waypointCoords.map((c,i) => c ? {i, lat:c[0], lng:c[1]} : null).filter(Boolean);
+    if(pts.length < 3) return;
+    const centroid = [
+      pts.reduce((s,p) => s+p.lat, 0) / pts.length,
+      pts.reduce((s,p) => s+p.lng, 0) / pts.length
+    ];
+    const distances = pts.map(p => ({ i: p.i, dist: haversine(centroid, [p.lat, p.lng]) }));
+    const sorted = distances.map(d => d.dist).slice().sort((a,b) => a-b);
+    const median = sorted[Math.floor(sorted.length/2)];
+    distances.forEach(d=>{
+      if(d.dist > 300 && d.dist > median * 4){
+        outlierWaypoints.push({ entry: e, name: e.waypointNames[d.i], dist: d.dist });
+      }
+    });
+  });
+
   const typeLabel = e => e.type === 'country' ? 'страна' : e.type === 'city' ? 'город' : 'маршрут';
 
   let html = '';
+  html += buildDiagSection(
+    'Точки маршрута далеко от остальных',
+    'Похоже на ошибку геокодирования — одноимённый город на другом континенте (например, «Дублин, Огайо» вместо «Дублин, Ирландия»). Откройте маршрут и пересоздайте именно эту точку через поиск, явно выбрав нужную страну из списка вариантов.',
+    outlierWaypoints, 'Все точки маршрутов стоят рядом друг с другом — аномалий не найдено.',
+    o => `<div class="diag-row" data-diag-id="${o.entry.id}">${escapeHtml(o.name)}<div class="diag-row-meta">${escapeHtml(o.entry.name)} · ~${Math.round(o.dist).toLocaleString('ru-RU')} км от остальных точек</div></div>`
+  );
   html += buildDiagSection(
     'Записи без месяца',
     'Не учитываются в статистике «Пропутешествовано месяцев», «Месяцев подряд» и в Календаре.',
