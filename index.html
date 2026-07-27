@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.54
+  Версия: v1.56
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -615,6 +615,12 @@ window.addEventListener('unhandledrejection', function(e){
   .calendar-table td.traveled{
     font-size:15px;
   }
+  .diag-badge{
+    display:inline-block;margin-left:6px;
+    font-family:'Courier Prime',monospace;font-size:10px;font-weight:700;
+    background:var(--amber);color:var(--on-accent);
+    border-radius:9px;padding:1px 6px;vertical-align:middle;
+  }
   .diag-section{
     padding:16px 20px;
     border-bottom:1px solid var(--line);
@@ -943,6 +949,15 @@ window.addEventListener('unhandledrejection', function(e){
     }
     .header-actions::-webkit-scrollbar{display:none;}
     .header-btn{padding:6px 10px;font-size:10.5px;white-space:nowrap;flex-shrink:0;}
+    /* полоса прокрутки скрыта — без этой подсказки не видно, что справа есть ещё кнопки */
+    header{position:relative;}
+    header::after{
+      content:'';
+      position:absolute;right:0;bottom:10px;
+      width:26px;height:28px;
+      background:linear-gradient(to right, transparent, var(--panel));
+      pointer-events:none;
+    }
   }
 </style>
 </head>
@@ -1145,6 +1160,7 @@ window.addEventListener('unhandledrejection', function(e){
     </div>
 
     <div class="section">
+      <button class="cancel-edit" id="resetFiltersBtn" style="margin-top:0;display:none;">Сбросить все фильтры</button>
       <p class="section-title">Фильтр по году</p>
       <div class="chips" id="yearChips"></div>
     </div>
@@ -1266,7 +1282,7 @@ window.addEventListener('unhandledrejection', function(e){
       <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-style:italic;">пунктир — план / маршрут по прямой</div>
       <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
       <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.54</div>
+      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.56</div>
     </div>
     <div class="toast" id="toast"></div>
     <div class="timeline-bar" id="timelineBar" style="display:none;">
@@ -2924,8 +2940,24 @@ function syncLayers(){
   });
 }
 
+// Фильтры «Год» и «Поездка» строятся из самих данных, а не из фиксированного списка.
+// Если удалить последнюю запись выбранного года/поездки, чип исчезает — но выбор
+// остаётся в памяти и продолжает отфильтровывать вообще всё, а снять его уже нечем.
+// Поэтому перед перерисовкой чистим выбор от того, чего в данных больше нет.
+function pruneStaleFilters(){
+  const years = new Set(allEntries.map(e => e.year));
+  [...activeYears].forEach(y => { if(!years.has(y)) activeYears.delete(y); });
+  const trips = new Set(allEntries.map(e => e.trip).filter(Boolean));
+  let prunedTrip = false;
+  [...activeTrips].forEach(t => { if(!trips.has(t)){ activeTrips.delete(t); prunedTrip = true; } });
+  // хэш трогаем ТОЛЬКО если реально что-то вычистили: иначе первый же rebuildAll
+  // при загрузке страницы стёр бы #trip=... раньше, чем applyTripFromUrl его прочитает
+  if(prunedTrip) updateTripUrlHash();
+}
+
 function rebuildAll(){
   allEntries.forEach(migrateEntry);
+  pruneStaleFilters();
   syncLayers();
   buildYearChips();
   buildFixedChips('monthChips', MONTHS, activeMonths);
@@ -2940,6 +2972,9 @@ function rebuildAll(){
   updateTimelineRange();
   applyFilters();
   updateStats();
+  updateDiagnosticsBadge();
+  const resetBtn = document.getElementById('resetFiltersBtn');
+  if(resetBtn) resetBtn.style.display = anyFilterActive() ? 'block' : 'none';
 }
 
 function purposeLabel(key){ const p = PURPOSES.find(p => p.key === key); return p ? p.ru : '—'; }
@@ -3813,11 +3848,46 @@ function renderTopList(containerId, items){
   `).join('');
 }
 
+// сбрасывает все фильтры разом — иначе при 4-5 накликанных фильтрах их
+// приходится снимать по одному, в разных группах чипов
+function anyFilterActive(){
+  return activeYears.size || activeMonths.size || activePurposes.size || activeCompanies.size ||
+         activeCommunities.size || activeSeasons.size || activeActivities.size ||
+         activeStatuses.size || activeTrips.size ||
+         activeLayerTypes.size !== 3 || (searchQuery && searchQuery.trim());
+}
+
+function resetAllFilters(){
+  [activeYears, activeMonths, activePurposes, activeCompanies, activeCommunities,
+   activeSeasons, activeActivities, activeStatuses, activeTrips].forEach(s => s.clear());
+  activeLayerTypes = new Set(['country','city','route']);
+  searchQuery = '';
+  const gs = document.getElementById('globalSearch');
+  if(gs) gs.value = '';
+  const ts = document.getElementById('tableSearchInput');
+  if(ts) ts.value = '';
+  const cs = document.getElementById('clearSearchBtn');
+  if(cs) cs.style.display = 'none';
+  clearTripCard();
+  updateTripUrlHash();
+  rebuildAll();
+}
+
 function renderList(precomputedVisible){
   const container = document.getElementById('entryList');
   const visible = (precomputedVisible || allEntries.filter(passesFilter)).slice().sort((a,b)=> b.year - a.year || a.name.localeCompare(b.name));
   if(visible.length === 0){
-    container.innerHTML = `<div class="empty-state">Пока нет отметок под текущий фильтр.<br>Добавьте точку или маршрут через форму слева.</div>`;
+    // «данных нет вообще» и «фильтры всё отсеяли» — разные ситуации,
+    // и подсказка нужна разная: во втором случае с кнопкой сброса
+    if(allEntries.length > 0 && anyFilterActive()){
+      container.innerHTML = `<div class="empty-state">Под текущие фильтры ничего не попало.<br><button class="cancel-edit" id="emptyResetFiltersBtn" style="margin-top:9px;">Сбросить все фильтры</button></div>`;
+      const btn = document.getElementById('emptyResetFiltersBtn');
+      if(btn) btn.addEventListener('click', resetAllFilters);
+    } else if(allEntries.length === 0){
+      container.innerHTML = `<div class="empty-state">${READ_ONLY ? 'В этой карте пока нет отметок.' : 'Пока нет ни одной отметки.<br>Добавьте страну, город или маршрут через форму выше.'}</div>`;
+    } else {
+      container.innerHTML = `<div class="empty-state">Пока нет отметок под текущий фильтр.</div>`;
+    }
     return;
   }
   container.innerHTML = '';
@@ -3831,7 +3901,7 @@ function renderList(precomputedVisible){
       if(entry.elevationGain !== null && entry.elevationGain !== undefined) meta += ` · +${Math.round(entry.elevationGain)}м`;
     }
     if(extras.length) meta += ` · ${extras.join(' · ')}`;
-    if(entry.trip) meta += ` · ${entry.trip}`;
+    if(entry.trip) meta += ` · ${escapeHtml(entry.trip)}`;
     if(entry.status === 'wishlist') meta += ` · план`;
     const heart = entry.type === 'city' ? entry.favorite : null;
     row.innerHTML = `
@@ -3931,8 +4001,9 @@ let lastAction = null; // { type:'delete', items:[{entry,index}], tripsToCleanup
 async function deleteEntry(id){
   if(READ_ONLY){ toast('Это read-only версия — удаление недоступно'); return; }
   const entry = allEntries.find(e => e.id === id);
-  const label = entry ? entry.name : 'эту отметку';
-  if(!confirm(`Удалить «${label}»?`)) return;
+  if(!entry) return;
+  // без подтверждения: удаление одной записи сразу отменяемо кнопкой «Отменить»
+  // в тосте (7 секунд), системный диалог тут только мешает
   map.closePopup();
   const index = allEntries.findIndex(e => e.id === id);
   const removed = allEntries[index];
@@ -4011,7 +4082,9 @@ function updateStats(){
 // ---------- export / import ----------
 document.getElementById('exportBtn').addEventListener('click', ()=>{
   if(allEntries.length === 0){ toast('Пока нечего экспортировать'); return; }
-  const data = JSON.stringify({ entries: allEntries, exportedAt: new Date().toISOString() }, null, 2);
+  // tripMeta (описания поездок и выбранные обложки) хранится отдельно от записей —
+  // без него резервная копия неполная, при восстановлении молча терялись все тексты «О поездке»
+  const data = JSON.stringify({ entries: allEntries, tripMeta, exportedAt: new Date().toISOString() }, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -4117,11 +4190,15 @@ document.getElementById('importInput').addEventListener('change', (e)=>{
         `ОК — заменить все текущие отметки импортированными.\n` +
         `Отмена — добавить к уже существующим (без дублей).`
       );
+      const importedMeta = (parsed && typeof parsed.tripMeta === 'object' && parsed.tripMeta) ? parsed.tripMeta : null;
       if(replace){
         allEntries = valid;
+        if(importedMeta) tripMeta = JSON.parse(JSON.stringify(importedMeta));
       } else {
         const existingIds = new Set(allEntries.map(x => x.id));
         allEntries = allEntries.concat(valid.filter(x => !existingIds.has(x.id)));
+        // при добавлении не затираем уже написанные описания — берём только те поездки, которых ещё нет
+        if(importedMeta) Object.keys(importedMeta).forEach(k => { if(!tripMeta[k]) tripMeta[k] = importedMeta[k]; });
       }
       const saved = await saveData();
       rebuildAll();
@@ -4684,9 +4761,7 @@ function buildDiagSection(title, hint, items, emptyText, renderRow){
   </div>`;
 }
 
-function renderDiagnostics(){
-  const container = document.getElementById('diagnosticsBody');
-
+function computeDiagnostics(){
   const noMonth = allEntries.filter(e => e.status !== 'wishlist' && e.year && !e.month);
 
   function findSimilarPairs(names){
@@ -4791,6 +4866,37 @@ function renderDiagnostics(){
 
   const typeLabel = e => e.type === 'country' ? 'страна' : e.type === 'city' ? 'город' : 'маршрут';
 
+  return { countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs, missingCoords, brokenLinks, duplicateGroups, noCountry, typeLabel };
+}
+
+// суммарное число находок — для бейджа на кнопке, чтобы не приходилось
+// открывать панель только ради того, чтобы узнать, есть ли что чинить
+function countDiagnosticsIssues(){
+  try{
+    const d = computeDiagnostics();
+    return d.countryMismatches.length + d.outlierWaypoints.length + d.noMonth.length +
+           d.similarPairs.length + d.similarTripPairs.length + d.missingCoords.length +
+           d.brokenLinks.length + d.duplicateGroups.length + d.noCountry.length;
+  }catch(err){
+    console.error('countDiagnosticsIssues failed', err);
+    return 0;
+  }
+}
+
+function updateDiagnosticsBadge(){
+  const btn = document.getElementById('openDiagnosticsBtn');
+  if(!btn || READ_ONLY) return;
+  const n = countDiagnosticsIssues();
+  const existing = btn.querySelector('.diag-badge');
+  if(existing) existing.remove();
+  if(n > 0) btn.insertAdjacentHTML('beforeend', `<span class="diag-badge">${n}</span>`);
+}
+
+function renderDiagnostics(){
+  const container = document.getElementById('diagnosticsBody');
+  const { countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs,
+          missingCoords, brokenLinks, duplicateGroups, noCountry, typeLabel } = computeDiagnostics();
+
   let html = '';
   html += buildDiagSection(
     'Несовпадение сохранённой и фактической страны',
@@ -4858,6 +4964,7 @@ function renderDiagnostics(){
   });
 }
 
+document.getElementById('resetFiltersBtn').addEventListener('click', resetAllFilters);
 document.getElementById('openDiagnosticsBtn').addEventListener('click', ()=>{
   renderDiagnostics();
   document.getElementById('diagnosticsModal').style.display = 'flex';
