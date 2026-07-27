@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.56
+  Версия: v1.60
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -325,7 +325,7 @@ window.addEventListener('unhandledrejection', function(e){
   }
   .entry-actions a:hover{color:var(--amber);}
   .legend{
-    position:absolute;bottom:16px;right:16px;
+    position:absolute;bottom:76px;right:16px;
     background:rgba(231,223,199,0.94);
     border:1px solid var(--line);
     border-radius:4px;
@@ -557,9 +557,9 @@ window.addEventListener('unhandledrejection', function(e){
   }
   .table-actions button:hover{background:var(--bg);color:var(--text);}
   .stat-grid{display:flex;flex-direction:column;gap:7px;}
-  .stat-row{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;gap:10px;}
+  .stat-row{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;gap:10px;flex-wrap:wrap;}
   .stat-row span{color:var(--text-dim);}
-  .stat-row b{font-family:'Courier Prime',monospace;color:var(--text);font-weight:700;flex-shrink:0;}
+  .stat-row b{font-family:'Courier Prime',monospace;color:var(--text);font-weight:700;flex-shrink:0;margin-left:auto;max-width:100%;overflow-wrap:anywhere;}
   .top-list{display:flex;flex-direction:column;gap:5px;}
   .top-item{display:flex;align-items:center;gap:8px;font-size:13px;}
   .top-rank{width:14px;flex-shrink:0;color:var(--amber);font-family:'Courier Prime',monospace;font-size:11px;}
@@ -719,6 +719,7 @@ window.addEventListener('unhandledrejection', function(e){
     justify-content:space-between;
     font-size:12.5px;
     gap:8px;
+    flex-wrap:wrap;
   }
   .trip-card .trip-stat span{color:var(--text-dim);}
   .trip-card .trip-stat b{
@@ -726,6 +727,9 @@ window.addEventListener('unhandledrejection', function(e){
     color:var(--text);
     font-weight:700;
     flex-shrink:0;
+    margin-left:auto;
+    max-width:100%;
+    overflow-wrap:anywhere;
   }
   .activity-breakdown{
     margin-top:10px;
@@ -934,6 +938,8 @@ window.addEventListener('unhandledrejection', function(e){
     #mapWrap{flex:1;}
     .stats{display:none;}
     .timeline-bar{left:8px;right:8px;bottom:8px;padding:8px 10px;gap:8px;}
+    .legend{bottom:62px;right:8px;font-size:10px;padding:8px 10px;max-width:62%;}
+    .legend div{gap:5px;margin-top:3px;}
     .timeline-year{font-size:16px;min-width:40px;}
     #timelineModeBtn{padding:0 8px;font-size:10.5px;}
     .topo-toggle-btn{top:10px;right:10px;padding:6px 9px;font-size:11px;}
@@ -1038,6 +1044,14 @@ window.addEventListener('unhandledrejection', function(e){
           <option value="hiking">Хайкинг</option>
           <option value="roadtrip">Автотрип</option>
         </select>
+
+        <div id="terrainField" style="display:none;">
+          <label>Покрытие <span style="font-style:italic;color:var(--text-dim);">(определяется по набору высоты, можно исправить)</span></label>
+          <select id="fieldTerrain">
+            <option value="road">Шоссе</option>
+            <option value="trail">Трейл</option>
+          </select>
+        </div>
 
         <div id="hikingDaysField" style="display:none;">
           <label>Число дней в пути <span style="font-style:italic;color:var(--text-dim);">(если в файле нет меток времени по дням — определите сами)</span></label>
@@ -1249,6 +1263,9 @@ window.addEventListener('unhandledrejection', function(e){
       <p class="section-title" style="margin-top:16px;">Темп бега по годам <span style="font-style:italic;color:var(--text-dim);text-transform:none;letter-spacing:0;">(ниже столбик — быстрее темп)</span></p>
       <div class="year-chart" id="paceTrendChart"></div>
 
+      <p class="section-title" style="margin-top:16px;">Лучший темп по дистанциям</p>
+      <div class="stat-grid" id="bestPaceList"></div>
+
       <p class="section-title" style="margin-top:16px;">По частям света</p>
       <div class="continent-list" id="continentStats"></div>
 
@@ -1282,7 +1299,7 @@ window.addEventListener('unhandledrejection', function(e){
       <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-style:italic;">пунктир — план / маршрут по прямой</div>
       <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
       <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.56</div>
+      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.60</div>
     </div>
     <div class="toast" id="toast"></div>
     <div class="timeline-bar" id="timelineBar" style="display:none;">
@@ -1927,6 +1944,17 @@ let currentStatus = 'visited';
 function updateHikingDaysVisibility(){
   const activity = document.getElementById('fieldActivity').value;
   document.getElementById('hikingDaysField').style.display = activity === 'hiking' ? 'block' : 'none';
+  const tf = document.getElementById('terrainField');
+  if(tf) tf.style.display = activity === 'running' ? 'block' : 'none';
+}
+
+// Порог подобран по реальному разрыву между шоссе и трейлом: у шоссейных
+// забегов набор обычно 3-8 м/км, у трейла — десятки. 18 м/км лежит в пустоте
+// между этими группами. Это только подсказка — значение можно исправить руками.
+const TRAIL_ELEV_THRESHOLD = 18;
+function guessTerrain(distanceKm, elevationGain){
+  if(!distanceKm || elevationGain == null) return 'road';
+  return (elevationGain / distanceKm) >= TRAIL_ELEV_THRESHOLD ? 'trail' : 'road';
 }
 function updateCommunityVisibility(){
   const company = document.getElementById('fieldCompany').value;
@@ -2578,6 +2606,11 @@ function updateFileDropSummary(failedCount){
   // иначе на экране остаётся то, что было выставлено раньше вручную
   const detectedMonths = pendingGpxList.map(g => g.startMonth).filter(Boolean);
   const detectedYears = pendingGpxList.map(g => g.startYear).filter(Boolean);
+  // покрытие подставляем по суммарному набору высоты загруженных треков
+  const totKm = pendingGpxList.reduce((s,g) => s + (g.distanceKm || 0), 0);
+  const totGain = pendingGpxList.reduce((s,g) => s + (g.elevationGain || 0), 0);
+  const tSel = document.getElementById('fieldTerrain');
+  if(tSel && totKm > 0) tSel.value = guessTerrain(totKm, totGain);
   if(detectedMonths.length > 0 && detectedMonths.every(m => m === detectedMonths[0])){
     document.getElementById('fieldMonth').value = detectedMonths[0];
     const season = seasonForMonth(detectedMonths[0]);
@@ -2689,6 +2722,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
       if(entry.type === 'route'){
         entry.activity = document.getElementById('fieldActivity').value;
         entry.trackDays = parseInt(document.getElementById('fieldTrackDays').value) || entry.trackDays || 1;
+        entry.terrain = entry.activity === 'running' ? document.getElementById('fieldTerrain').value : undefined;
       }
       if(entry.type === 'city') entry.favorite = document.getElementById('fieldFavorite').checked;
       if(entry.type === 'city' && pendingLatLng){
@@ -2760,7 +2794,8 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
         coordsEncoded: encodePolyline(g.coords), distanceKm: g.distanceKm,
         elevationGain: g.elevationGain, maxElevation: g.maxElevation,
         durationMin: g.durationMin, profile: g.profile,
-        trackDays: g.hasTimeData ? g.trackDays : (parseInt(document.getElementById('fieldTrackDays').value) || 1)
+        trackDays: g.hasTimeData ? g.trackDays : (parseInt(document.getElementById('fieldTrackDays').value) || 1),
+        terrain: activity === 'running' ? (document.getElementById('fieldTerrain').value || guessTerrain(g.distanceKm, g.elevationGain)) : undefined
       });
     });
     const addedCount = pendingGpxList.length;
@@ -2815,6 +2850,7 @@ function exitEditMode(){
   updateCommunityVisibility();
   document.getElementById('fieldSeason').value = 'summer';
   document.getElementById('fieldActivity').value = 'hiking';
+  document.getElementById('fieldTerrain').value = 'road';
   document.getElementById('fieldTrackDays').value = 1;
   updateHikingDaysVisibility();
   document.getElementById('refreshWaypointsField').style.display = 'none';
@@ -2882,6 +2918,11 @@ function cityIcon(color, favorite, isWishlist){
 
 function migrateEntry(entry){
   if(!entry.purpose) entry.purpose = 'tourism';
+  // покрытие для уже сохранённых забегов выводим из набора высоты —
+  // иначе разделение шоссе/трейл заработало бы только для новых записей
+  if(entry.type === 'route' && entry.activity === 'running' && !entry.terrain){
+    entry.terrain = guessTerrain(entry.distanceKm, entry.elevationGain);
+  }
   if(!entry.color) entry.color = DEFAULT_COLOR[entry.type] || '#3F5240';
   if(!entry.status) entry.status = 'visited';
   if(!entry.photos){
@@ -2973,8 +3014,6 @@ function rebuildAll(){
   applyFilters();
   updateStats();
   updateDiagnosticsBadge();
-  const resetBtn = document.getElementById('resetFiltersBtn');
-  if(resetBtn) resetBtn.style.display = anyFilterActive() ? 'block' : 'none';
 }
 
 function purposeLabel(key){ const p = PURPOSES.find(p => p.key === key); return p ? p.ru : '—'; }
@@ -3574,6 +3613,10 @@ function applyFilters(){
   applyTimelineOpacity();
   renderList(visible);
   updateFilteredStats(visible);
+  // именно здесь, а не в rebuildAll: клики по чипам фильтров вызывают applyFilters(),
+  // полная перерисовка при этом не запускается
+  const resetBtn = document.getElementById('resetFiltersBtn');
+  if(resetBtn) resetBtn.style.display = anyFilterActive() ? 'block' : 'none';
 }
 
 // ---------- timeline ----------
@@ -3735,6 +3778,7 @@ function updateFilteredStats(precomputedVisible){
 
   renderYearChart(visited);
   renderPaceTrend(visited);
+  renderBestPaces(visited);
   renderContinentStats(visited);
 
   const countryCounts = {};
@@ -3774,32 +3818,85 @@ function renderYearChart(visited){
   }).join('');
 }
 
+// Стандартные дистанции с допуском: GPS почти всегда даёт чуть больше
+// официальной длины, плюс тренировочные забеги редко ровно 10,00 км
+const RACE_DISTANCES = [
+  { key: '5k',   ru: '5 км',           min: 4.6,  max: 5.6 },
+  { key: '10k',  ru: '10 км',          min: 9.4,  max: 11.0 },
+  { key: 'half', ru: 'Полумарафон',    min: 20.0, max: 22.5 },
+  { key: 'full', ru: 'Марафон',        min: 41.0, max: 44.5 },
+];
+
+function renderBestPaces(visited){
+  const container = document.getElementById('bestPaceList');
+  const runs = visited.filter(e => e.type === 'route' && e.activity === 'running' && e.durationMin && e.distanceKm);
+  const terrainOf = r => r.terrain || guessTerrain(r.distanceKm, r.elevationGain);
+  let html = '';
+  [{key:'road',ru:'Шоссе'},{key:'trail',ru:'Трейл'}].forEach(t=>{
+    const pool = runs.filter(r => terrainOf(r) === t.key);
+    if(pool.length === 0) return;
+    const rows = [];
+    RACE_DISTANCES.forEach(d=>{
+      const inBucket = pool.filter(r => r.distanceKm >= d.min && r.distanceKm <= d.max);
+      if(inBucket.length === 0) return;
+      const best = inBucket.reduce((a,b) => (a.durationMin/a.distanceKm) <= (b.durationMin/b.distanceKm) ? a : b);
+      rows.push({ label: d.ru, pace: best.durationMin/best.distanceKm, entry: best, count: inBucket.length });
+    });
+    if(rows.length === 0) return;
+    html += `<div class="hint" style="margin:6px 0 3px;">${t.ru}</div>` + rows.map(r=>{
+      const gpk = (r.entry.elevationGain != null && r.entry.distanceKm)
+        ? ` · ${Math.round(r.entry.elevationGain / r.entry.distanceKm)} м/км` : '';
+      return `<div class="stat-row">
+        <span>${r.label}${r.count > 1 ? ` <span style="opacity:0.6;">из ${r.count}</span>` : ''}</span>
+        <b>${formatPace(r.pace)}</b>
+      </div>
+      <div class="hint" style="margin:-4px 0 2px;">${escapeHtml(r.entry.name)} · ${r.entry.distanceKm.toFixed(1)} км${gpk} · ${monthLabel(r.entry.month) ? monthLabel(r.entry.month) + ' ' : ''}${r.entry.year}</div>`;
+    }).join('');
+  });
+  container.innerHTML = html || `<div class="hint">Нет забегов, попадающих в стандартные дистанции (5 км, 10 км, полумарафон, марафон).</div>`;
+}
+
+
 function renderPaceTrend(visited){
   const container = document.getElementById('paceTrendChart');
-  const routes = visited.filter(e => e.type === 'route' && e.activity === 'running' && e.durationMin && e.distanceKm);
-  const byYear = {};
-  routes.forEach(r=>{
-    if(!byYear[r.year]) byYear[r.year] = { km: 0, min: 0 };
-    byYear[r.year].km += r.distanceKm;
-    byYear[r.year].min += r.durationMin;
-  });
-  const years = Object.keys(byYear).map(Number).sort((a,b) => a-b);
-  if(years.length === 0){
+  const all = visited.filter(e => e.type === 'route' && e.activity === 'running' && e.durationMin && e.distanceKm);
+  // шоссе и трейл считаем раздельно: усреднять их вместе бессмысленно,
+  // разница в темпе легко двукратная и определяется рельефом, а не формой
+  const groups = [
+    { key:'road',  ru:'Шоссе', color:'var(--sage)' },
+    { key:'trail', ru:'Трейл', color:'var(--amber)' },
+  ].map(g => ({ ...g, runs: all.filter(r => (r.terrain || guessTerrain(r.distanceKm, r.elevationGain)) === g.key) }))
+   .filter(g => g.runs.length > 0);
+
+  if(groups.length === 0){
     container.innerHTML = `<div class="hint">Нет забегов с сохранённым временем — темп посчитать не из чего</div>`;
     return;
   }
-  const paces = years.map(y => byYear[y].min / byYear[y].km);
-  const maxPace = Math.max(...paces);
-  const minPace = Math.min(...paces);
-  container.innerHTML = years.map((y,i) => {
-    const pace = paces[i];
-    // высота столбика — само время на км (медленнее = выше), а не инвертированная «скорость»,
-    // так интуитивнее читается вместе с подписью значения над столбиком
-    const h = maxPace === minPace ? 20 : Math.max(6, Math.round(((pace - minPace) / (maxPace - minPace)) * 26) + 6);
-    return `<div class="year-bar-wrap" title="${y}: темп ${formatPace(pace)}, ${byYear[y].km.toFixed(0)} км">
-      <div class="pace-value-label">${formatPace(pace).replace(' /км','')}</div>
-      <div class="year-bar" style="height:${h}px;background:var(--sage);"></div>
-      <div class="year-bar-label">${String(y).slice(2)}</div>
+
+  container.style.display = 'block';
+  container.style.height = 'auto';
+  container.innerHTML = groups.map(g=>{
+    const byYear = {};
+    g.runs.forEach(r=>{
+      if(!byYear[r.year]) byYear[r.year] = { km:0, min:0 };
+      byYear[r.year].km += r.distanceKm;
+      byYear[r.year].min += r.durationMin;
+    });
+    const years = Object.keys(byYear).map(Number).sort((a,b)=>a-b);
+    const paces = years.map(y => byYear[y].min / byYear[y].km);
+    const maxP = Math.max(...paces), minP = Math.min(...paces);
+    const bars = years.map((y,i)=>{
+      const p = paces[i];
+      const h = maxP === minP ? 20 : Math.max(6, Math.round(((p-minP)/(maxP-minP))*26)+6);
+      return `<div class="year-bar-wrap" title="${y}: темп ${formatPace(p)}, ${byYear[y].km.toFixed(0)} км">
+        <div class="pace-value-label">${formatPace(p).replace(' /км','')}</div>
+        <div class="year-bar" style="height:${h}px;background:${g.color};"></div>
+        <div class="year-bar-label">${String(y).slice(2)}</div>
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:10px;">
+      <div class="hint" style="margin:0 0 3px;">${g.ru} · забегов: ${g.runs.length}</div>
+      <div style="display:flex;align-items:flex-end;gap:4px;height:64px;">${bars}</div>
     </div>`;
   }).join('');
 }
@@ -3983,6 +4080,7 @@ function startEdit(entry){
   if(entry.type === 'route'){
     document.getElementById('fieldActivity').value = entry.activity || 'hiking';
     document.getElementById('fieldTrackDays').value = entry.trackDays || 1;
+    document.getElementById('fieldTerrain').value = entry.terrain || guessTerrain(entry.distanceKm, entry.elevationGain);
     updateHikingDaysVisibility();
     document.getElementById('refreshWaypointsField').style.display = (entry.waypointNames && entry.waypointNames.length) ? 'block' : 'none';
   }
