@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.65
+  Версия: v1.69
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -190,6 +190,16 @@ window.addEventListener('unhandledrejection', function(e){
     animation:bootDots 1.2s steps(4,end) infinite;
   }
   @keyframes bootDots{to{width:14px;}}
+  .img-failed{
+    display:flex;align-items:center;justify-content:center;
+    min-height:54px;width:100%;
+    background:repeating-linear-gradient(45deg,var(--panel-raised),var(--panel-raised) 6px,var(--panel) 6px,var(--panel) 12px);
+    border:1px dashed var(--line);
+    border-radius:4px;
+    font-family:'Courier Prime',monospace;font-size:9.5px;
+    color:var(--text-dim);text-align:center;padding:6px;
+    box-sizing:border-box;
+  }
   .entry-year-head{
     display:flex;align-items:baseline;justify-content:space-between;
     font-family:'Playfair Display',serif;font-style:italic;font-weight:700;
@@ -645,12 +655,6 @@ window.addEventListener('unhandledrejection', function(e){
   .continent-bar-track{flex:1;height:7px;background:var(--bg);border:1px solid var(--line);border-radius:3px;overflow:hidden;}
   .continent-bar-fill{height:100%;background:var(--amber);}
   .continent-pct{width:76px;flex-shrink:0;text-align:right;font-family:'Courier Prime',monospace;font-size:10.5px;color:var(--text-dim);}
-  .passport-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
-    gap:22px;
-    padding:8px 4px 20px;
-  }
   .calendar-table{
     border-collapse:collapse;
     font-family:'Courier Prime',monospace;
@@ -684,6 +688,43 @@ window.addEventListener('unhandledrejection', function(e){
   .calendar-table td.traveled{
     font-size:15px;
   }
+  .gal-year{
+    font-family:'Playfair Display',serif;font-style:italic;font-weight:700;
+    font-size:15px;color:var(--text-dim);
+    padding:14px 2px 6px;border-bottom:1px solid var(--line);margin-bottom:10px;
+    display:flex;justify-content:space-between;align-items:baseline;
+  }
+  .gal-year span{font-family:'Courier Prime',monospace;font-style:normal;font-size:10.5px;opacity:0.7;}
+  .gal-grid{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));
+    gap:12px;margin-bottom:6px;
+  }
+  .gal-item{
+    display:flex;flex-direction:column;gap:5px;
+    cursor:pointer;text-decoration:none;color:inherit;
+  }
+  .gal-thumb{
+    width:100%;aspect-ratio:1/1;
+    object-fit:cover;
+    border:1px solid var(--line);border-radius:4px;
+    background:var(--panel-raised);
+    display:block;
+  }
+  .gal-album{
+    width:100%;aspect-ratio:1/1;
+    border:1px dashed var(--line);border-radius:4px;
+    background:var(--panel-raised);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:5px;text-align:center;padding:8px;box-sizing:border-box;
+  }
+  .gal-album-icon{font-size:22px;line-height:1;opacity:0.75;}
+  .gal-album-label{
+    font-family:'Courier Prime',monospace;font-size:9px;
+    color:var(--text-dim);letter-spacing:0.5px;line-height:1.4;
+  }
+  .gal-cap{font-size:11.5px;color:var(--text);line-height:1.35;}
+  .gal-cap em{font-style:normal;font-family:'Courier Prime',monospace;font-size:9.5px;color:var(--text-dim);display:block;margin-top:2px;}
+  .gal-item:hover .gal-thumb,.gal-item:hover .gal-album{border-color:var(--amber-dim);}
   .diag-badge{
     display:inline-block;margin-left:6px;
     font-family:'Courier Prime',monospace;font-size:10px;font-weight:700;
@@ -715,6 +756,112 @@ window.addEventListener('unhandledrejection', function(e){
   .diag-row:hover{background:var(--panel-raised);border-color:var(--line);}
   .diag-row .diag-row-meta{color:var(--text-dim);font-size:11.5px;margin-top:2px;font-family:'Courier Prime',monospace;}
   .diag-empty{font-size:12.5px;color:var(--text-dim);font-style:italic;padding:2px 2px 4px;}
+  .passport-book{
+    padding:14px 20px 4px;
+    display:flex;justify-content:center;
+  }
+  .pp-spread{
+    display:flex;gap:0;
+    width:100%;max-width:720px;
+    border-radius:5px;
+    box-shadow:0 6px 22px rgba(43,59,46,0.20);
+    overflow:hidden;
+  }
+  .pp-page{
+    flex:1;min-width:0;
+    background:
+      repeating-linear-gradient(115deg, rgba(160,140,95,0.05) 0 2px, transparent 2px 9px),
+      repeating-linear-gradient(65deg, rgba(160,140,95,0.05) 0 2px, transparent 2px 9px),
+      linear-gradient(#f3ecd7, #ece3ca);
+    padding:16px 14px 26px;
+    position:relative;
+    min-height:340px;
+  }
+  .pp-page.left{box-shadow:inset -14px 0 18px -14px rgba(70,50,20,0.45);}
+  .pp-page.right{box-shadow:inset 14px 0 18px -14px rgba(70,50,20,0.45);}
+  .pp-page-head{
+    font-family:'Courier Prime',monospace;font-size:8.5px;
+    letter-spacing:1.6px;text-transform:uppercase;
+    color:rgba(90,70,40,0.5);
+    border-bottom:1px solid rgba(140,115,70,0.25);
+    padding-bottom:5px;margin-bottom:10px;
+    display:flex;justify-content:space-between;
+  }
+  .pp-stamps{
+    display:grid;grid-template-columns:1fr 1fr;
+    gap:10px 8px;
+  }
+  .pp-page-num{
+    position:absolute;bottom:8px;left:0;right:0;
+    text-align:center;
+    font-family:'Courier Prime',monospace;font-size:9px;
+    color:rgba(90,70,40,0.45);
+  }
+  .pp-empty-page{
+    display:flex;align-items:center;justify-content:center;
+    height:100%;min-height:200px;
+    font-family:'EB Garamond',serif;font-style:italic;font-size:12px;
+    color:rgba(90,70,40,0.4);text-align:center;padding:0 12px;
+  }
+  /* обложка — стилизация, а не воспроизведение документа */
+  .pp-cover{
+    width:100%;max-width:340px;
+    min-height:400px;
+    border-radius:6px;
+    background:linear-gradient(150deg,#6d1f24,#4e1418 55%,#5c191e);
+    box-shadow:0 8px 26px rgba(43,59,46,0.32), inset 0 0 0 1px rgba(214,178,102,0.28);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:10px;padding:30px 22px;text-align:center;
+    color:#d8b978;
+  }
+  .pp-emblem{
+    width:62px;height:62px;border-radius:50%;
+    border:1.5px solid rgba(216,185,120,0.75);
+    display:flex;align-items:center;justify-content:center;
+    font-size:26px;line-height:1;
+    margin-bottom:4px;
+  }
+  .pp-cover-country{
+    font-family:'EB Garamond',serif;font-size:12px;
+    letter-spacing:3px;text-transform:uppercase;
+    opacity:0.9;
+  }
+  .pp-cover-title{
+    font-family:'Playfair Display',serif;font-weight:700;
+    font-size:26px;letter-spacing:5px;text-transform:uppercase;
+  }
+  .pp-cover-sub{
+    font-family:'EB Garamond',serif;font-style:italic;font-size:13px;
+    opacity:0.75;margin-top:-4px;
+  }
+  .pp-cover-line{
+    width:56px;height:1px;background:rgba(216,185,120,0.5);margin:6px 0;
+  }
+  .pp-cover-chip{
+    font-family:'Courier Prime',monospace;font-size:10px;
+    letter-spacing:1.2px;opacity:0.8;
+  }
+  .pp-nav{
+    display:flex;align-items:center;justify-content:center;gap:14px;
+    padding:10px 20px 16px;
+  }
+  .pp-nav button{
+    background:var(--panel-raised);border:1px solid var(--line);
+    color:var(--text);font-size:17px;line-height:1;
+    width:34px;height:34px;border-radius:50%;cursor:pointer;
+  }
+  .pp-nav button:disabled{opacity:0.35;cursor:default;}
+  .pp-nav span{
+    font-family:'Courier Prime',monospace;font-size:11px;color:var(--text-dim);
+    min-width:112px;text-align:center;
+  }
+  @media (max-width:768px){
+    .pp-spread{flex-direction:column;max-width:100%;}
+    .pp-page{min-height:0;padding:12px 11px 22px;}
+    .pp-page.left,.pp-page.right{box-shadow:none;}
+    .pp-page.left{border-bottom:1px dashed rgba(140,115,70,0.4);}
+    .pp-cover{min-height:320px;}
+  }
   .stamp{
     position:relative;
     aspect-ratio:1;
@@ -948,6 +1095,17 @@ window.addEventListener('unhandledrejection', function(e){
     border-radius:4px;
     cursor:pointer;
   }
+  .map-full-btn{
+    right:auto;left:16px;top:16px;
+    font-size:14px;line-height:1;
+    padding:7px 10px;
+  }
+  /* развёрнутая карта: панель убирается, карта занимает всё окно */
+  body.map-full #sidebar{display:none;}
+  body.map-full #scrollTopBtn{display:none !important;}
+  body.map-full header{display:none;}
+  body.map-full .layout{height:100vh;}
+  body.map-full #mapWrap{height:100vh;}
   .topo-toggle-btn.active{
     background:var(--sage-dim);
     color:var(--on-accent);
@@ -1013,6 +1171,7 @@ window.addEventListener('unhandledrejection', function(e){
     .timeline-year{font-size:16px;min-width:40px;}
     #timelineModeBtn{padding:0 8px;font-size:10.5px;}
     .topo-toggle-btn{top:10px;right:10px;padding:6px 9px;font-size:11px;}
+    .map-full-btn{left:10px;right:auto;top:10px;padding:6px 8px;font-size:13px;}
     .service-status{top:10px;font-size:11px;padding:6px 10px;max-width:70%;}
     header{flex-wrap:wrap;padding:10px 14px;gap:8px;}
     header h1{font-size:16px;width:100%;}
@@ -1059,6 +1218,7 @@ window.addEventListener('unhandledrejection', function(e){
     <button id="openPassportBtn" class="header-btn">Паспорт</button>
     <button id="openCalendarBtn" class="header-btn">Календарь</button>
     <button id="openDiagnosticsBtn" class="header-btn">Проверка данных</button>
+    <button id="openGalleryBtn" class="header-btn">Фотогалерея</button>
     <button id="themeToggleBtn" class="header-btn" title="Переключить тему" aria-label="Переключить тёмную/светлую тему">🌙</button>
   </div>
 </header>
@@ -1372,6 +1532,7 @@ window.addEventListener('unhandledrejection', function(e){
     <div class="compass-rose"><span>N</span></div>
     <div class="service-status" id="serviceStatus" style="display:none;"></div>
     <button id="topoToggleBtn" class="topo-toggle-btn" title="Переключить на рельефную карту" aria-label="Переключить на рельефную карту">🏔 Рельеф</button>
+    <button id="mapFullBtn" class="topo-toggle-btn map-full-btn" title="Развернуть карту на весь экран" aria-label="Развернуть карту на весь экран">⤢</button>
     <div class="legend">
       <div><span class="dot country"></span> Страна (заливка)</div>
       <div><span class="dot city"></span> Город (точка)</div>
@@ -1379,7 +1540,7 @@ window.addEventListener('unhandledrejection', function(e){
       <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-style:italic;">пунктир — план / маршрут по прямой</div>
       <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
       <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.65</div>
+      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.69</div>
     </div>
     <div class="toast" id="toast"></div>
     <div class="timeline-bar" id="timelineBar" style="display:none;">
@@ -1458,8 +1619,24 @@ window.addEventListener('unhandledrejection', function(e){
       <input type="text" id="passportSearchInput" placeholder="Поиск по названию страны…" style="max-width:320px;">
     </div>
     <div class="table-wrap">
-      <div class="passport-grid" id="passportGrid"></div>
+      <div class="passport-book" id="passportBook"></div>
+      <div class="pp-nav">
+        <button id="ppPrev" aria-label="Предыдущий разворот">‹</button>
+        <span id="ppPos"></span>
+        <button id="ppNext" aria-label="Следующий разворот">›</button>
+      </div>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="galleryModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Фотогалерея</h2>
+      <button id="closeGalleryModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-sub" id="galleryCount"></div>
+    <div class="table-wrap" id="galleryBody"></div>
   </div>
 </div>
 
@@ -1558,6 +1735,27 @@ document.getElementById('topoToggleBtn').addEventListener('click', ()=>{
   }
   usingTopoLayer = !usingTopoLayer;
   document.getElementById('topoToggleBtn').classList.toggle('active', usingTopoLayer);
+});
+
+// разворачивание карты на весь экран
+function setMapFullscreen(on){
+  document.body.classList.toggle('map-full', on);
+  const btn = document.getElementById('mapFullBtn');
+  if(btn){
+    btn.textContent = on ? '⤡' : '⤢';
+    const label = on ? 'Свернуть карту обратно' : 'Развернуть карту на весь экран';
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+  }
+  // Leaflet кэширует размеры контейнера: без пересчёта карта останется
+  // прежнего размера и с серыми пустотами по краям
+  setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){} }, 60);
+}
+document.getElementById('mapFullBtn').addEventListener('click', ()=>{
+  setMapFullscreen(!document.body.classList.contains('map-full'));
+});
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape' && document.body.classList.contains('map-full')) setMapFullscreen(false);
 });
 
 let cityCluster;
@@ -2816,7 +3014,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
   const name = document.getElementById('fieldName').value.trim();
   const year = parseInt(document.getElementById('fieldYear').value) || new Date().getFullYear();
   const month = parseInt(document.getElementById('fieldMonth').value) || undefined;
-  const photos = document.getElementById('fieldPhoto').value.split('\n').map(s => s.trim()).filter(Boolean);
+  const photos = document.getElementById('fieldPhoto').value.split('\n').map(s => normalizePhotoUrl(s.trim())).filter(Boolean);
   const instagramUrl = document.getElementById('fieldInstagram').value.trim();
   const mapLinkUrl = document.getElementById('fieldMapLink').value.trim();
   const docLinkUrl = document.getElementById('fieldDocLink').value.trim();
@@ -3048,6 +3246,7 @@ function cityIcon(color, favorite, isWishlist){
   });
 }
 
+let migrationChanged = false;
 function migrateEntry(entry){
   if(!entry.purpose) entry.purpose = 'tourism';
   // покрытие для уже сохранённых забегов выводим из набора высоты —
@@ -3059,6 +3258,12 @@ function migrateEntry(entry){
   if(!entry.status) entry.status = 'visited';
   if(!entry.photos){
     entry.photos = entry.photo ? [entry.photo] : [];
+  }
+  // уже сохранённые ссылки Google Drive приводим к отображаемому виду
+  if(entry.photos.length){
+    const before = entry.photos.join('\n');
+    entry.photos = entry.photos.map(p => normalizePhotoUrl(p)).filter(Boolean);
+    if(entry.photos.join('\n') !== before) migrationChanged = true;
   }
   return entry;
 }
@@ -3222,7 +3427,7 @@ function buildPopup(entry){
   if(entry.instagramUrl){
     if(entry.photos && entry.photos.length){
       html += `<a class="ig-card" href="${escapeAttr(safeUrl(entry.instagramUrl))}" target="_blank" rel="noopener">
-        <img src="${escapeAttr(safeUrl(entry.photos[0]))}" alt="" loading="lazy">
+        <img src="${escapeAttr(safeUrl(entry.photos[0]))}" alt="" loading="lazy" onerror="photoFailed(this)">
         <span class="ig-caption">📷 Открыть в Instagram →</span>
       </a>`;
     } else {
@@ -3255,6 +3460,48 @@ function safeUrl(raw){
   if(/^[a-z][a-z0-9+.-]*:/i.test(url)) return ''; // любая другая схема — не пропускаем
   return 'https://' + url;
 }
+
+// Обычная ссылка Google Drive ведёт на страницу просмотра, а не на сам файл,
+// поэтому в <img> она не отображается. Вытаскиваем идентификатор файла и
+// собираем прямой адрес. Форму uc?export=view намеренно не используем — она
+// упирается в 403 и лимиты запросов.
+function normalizePhotoUrl(raw){
+  const url = safeUrl(raw);
+  if(!url) return '';
+  const m = url.match(/drive\.google\.com\/file\/d\/([-\w]{10,})/)
+        || url.match(/drive\.google\.com\/open\?id=([-\w]{10,})/)
+        || url.match(/drive\.google\.com\/uc\?(?:[^#]*&)?id=([-\w]{10,})/);
+  if(m) return 'https://lh3.googleusercontent.com/d/' + m[1];
+  return url;
+}
+
+// ссылки, которые заведомо ведут на страницу или альбом, а не на файл картинки
+const NON_IMAGE_HOST_PATTERNS = [
+  { re: /(^|\/\/)(disk\.yandex\.[a-z]+|yadi\.sk)\//i, ru: 'Яндекс.Диск — публичная ссылка ведёт на страницу, не на файл' },
+  { re: /instagram\.com\//i, ru: 'Instagram — ссылка на пост, не на изображение' },
+  { re: /photos\.app\.goo\.gl|photos\.google\.com/i, ru: 'Google Фото — ссылка на альбом' },
+  { re: /drive\.google\.com\/drive\/folders/i, ru: 'Google Drive — ссылка на папку' },
+  { re: /drive\.google\.com/i, ru: 'Google Drive — ссылка не на файл изображения' },
+  { re: /dropbox\.com\/(s|scl)\//i, ru: 'Dropbox — нужен параметр raw=1' },
+];
+function photoLinkProblem(raw){
+  const url = safeUrl(raw);
+  if(!url) return null;
+  const hit = NON_IMAGE_HOST_PATTERNS.find(p => p.re.test(url));
+  return hit ? hit.ru : null;
+}
+
+// картинка не загрузилась — показываем понятную заглушку вместо пустого места
+function photoFailed(img){
+  if(!img || img.dataset.failed) return;
+  img.dataset.failed = '1';
+  const ph = document.createElement('div');
+  ph.className = 'img-failed';
+  ph.title = img.getAttribute('src') || '';
+  ph.textContent = 'фото не открывается';
+  if(img.parentNode) img.parentNode.replaceChild(ph, img);
+}
+window.photoFailed = photoFailed;
 
 function buildYearChips(){
   const years = [...new Set(allEntries.map(e=>e.year))].sort((a,b)=>b-a);
@@ -3430,7 +3677,7 @@ function renderTripCard(tripName){
   container.innerHTML = `
     <div class="trip-card">
       <button class="trip-close" title="Закрыть карточку" aria-label="Закрыть карточку">✕</button>
-      ${cover ? `<img src="${escapeAttr(safeUrl(cover))}" class="trip-cover" alt="">` : ''}
+      ${cover ? `<img src="${escapeAttr(safeUrl(cover))}" class="trip-cover" alt="" onerror="photoFailed(this)">` : ''}
       <h3>${escapeHtml(tripName)}</h3>
       <div class="trip-years">${yearsLabel}</div>
       <button id="openStoryBtn" class="cancel-edit" style="margin-top:8px;border-color:var(--amber-dim);color:var(--amber);">📖 История поездки</button>
@@ -3561,7 +3808,7 @@ function openTripStory(tripName){
     const flag = (e.type === 'country' || e.type === 'city') ? countryFlag(e.countryKey) : '';
     html += `
       <div class="story-card" data-entry-id="${e.id}" ${point ? `data-lat="${point[0]}" data-lng="${point[1]}"` : ''}>
-        ${photo ? `<img src="${escapeAttr(safeUrl(photo))}" class="story-card-img" loading="lazy">` : `<div class="story-card-swatch" style="background:${e.color};"></div>`}
+        ${photo ? `<img src="${escapeAttr(safeUrl(photo))}" class="story-card-img" loading="lazy" onerror="photoFailed(this)">` : `<div class="story-card-swatch" style="background:${e.color};"></div>`}
         <div class="story-card-body">
           <div class="story-card-step">Остановка ${i+1} из ${entries.length} · ${typeLabel}</div>
           <h3>${flag ? flag + ' ' : ''}${escapeHtml(e.name)}</h3>
@@ -4333,20 +4580,24 @@ function updateStats(){
 }
 
 // ---------- export / import ----------
-document.getElementById('exportBtn').addEventListener('click', ()=>{
-  if(allEntries.length === 0){ toast('Пока нечего экспортировать'); return; }
-  // tripMeta (описания поездок и выбранные обложки) хранится отдельно от записей —
-  // без него резервная копия неполная, при восстановлении молча терялись все тексты «О поездке»
+// общая выгрузка резервной копии — используется и кнопкой экспорта,
+// и автоматически перед импортом с заменой
+function downloadBackup(suffix){
   const data = JSON.stringify({ entries: allEntries, tripMeta, exportedAt: new Date().toISOString() }, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `travel-map-${new Date().toISOString().slice(0,10)}.json`;
+  a.download = `travel-map-${new Date().toISOString().slice(0,10)}${suffix || ''}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  setTimeout(()=> URL.revokeObjectURL(url), 1000);
+}
+
+document.getElementById('exportBtn').addEventListener('click', ()=>{
+  if(allEntries.length === 0){ toast('Пока нечего экспортировать'); return; }
+  downloadBackup();
   toast(`Сохранено: ${allEntries.length} записей`);
 });
 
@@ -4441,10 +4692,21 @@ document.getElementById('importInput').addEventListener('change', (e)=>{
       const replace = confirm(
         `Найдено записей: ${valid.length}.\n\n` +
         `ОК — заменить все текущие отметки импортированными.\n` +
-        `Отмена — добавить к уже существующим (без дублей).`
+        `Отмена — добавить к уже существующим (без дублей).\n\n` +
+        `Замена необратима, отменить её нельзя. Перед заменой автоматически скачается копия текущих данных.`
       );
       const importedMeta = (parsed && typeof parsed.tripMeta === 'object' && parsed.tripMeta) ? parsed.tripMeta : null;
       if(replace){
+        // единственное необратимое действие во всём приложении: отмены для него нет,
+        // поэтому перед заменой сохраняем текущее состояние отдельным файлом
+        if(allEntries.length > 0){
+          try{
+            downloadBackup('-до-импорта');
+            toast('Скачана копия текущих данных перед заменой');
+          }catch(err){
+            console.error('pre-import backup failed', err);
+          }
+        }
         allEntries = valid;
         if(importedMeta) tripMeta = JSON.parse(JSON.stringify(importedMeta));
       } else {
@@ -5061,6 +5323,14 @@ function computeDiagnostics(){
     });
   });
 
+  const nonImagePhotos = [];
+  allEntries.forEach(e=>{
+    (e.photos || []).forEach((p, i)=>{
+      const problem = photoLinkProblem(p);
+      if(problem) nonImagePhotos.push({ entry: e, label: `${e.name} — фото ${i+1}`, reason: problem });
+    });
+  });
+
   const dupeGroups = {};
   allEntries.forEach(e=>{
     const key = `${e.type}|${e.name.trim().toLowerCase()}|${e.year}|${e.month || 'none'}`;
@@ -5119,7 +5389,7 @@ function computeDiagnostics(){
 
   const typeLabel = e => e.type === 'country' ? 'страна' : e.type === 'city' ? 'город' : 'маршрут';
 
-  return { countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs, missingCoords, brokenLinks, duplicateGroups, noCountry, typeLabel };
+  return { countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs, missingCoords, brokenLinks, nonImagePhotos, duplicateGroups, noCountry, typeLabel };
 }
 
 // суммарное число находок — для бейджа на кнопке, чтобы не приходилось
@@ -5129,7 +5399,7 @@ function countDiagnosticsIssues(){
     const d = computeDiagnostics();
     return d.countryMismatches.length + d.outlierWaypoints.length + d.noMonth.length +
            d.similarPairs.length + d.similarTripPairs.length + d.missingCoords.length +
-           d.brokenLinks.length + d.duplicateGroups.length + d.noCountry.length;
+           d.brokenLinks.length + d.nonImagePhotos.length + d.duplicateGroups.length + d.noCountry.length;
   }catch(err){
     console.error('countDiagnosticsIssues failed', err);
     return 0;
@@ -5148,7 +5418,7 @@ function updateDiagnosticsBadge(){
 function renderDiagnostics(){
   const container = document.getElementById('diagnosticsBody');
   const { countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs,
-          missingCoords, brokenLinks, duplicateGroups, noCountry, typeLabel } = computeDiagnostics();
+          missingCoords, brokenLinks, nonImagePhotos, duplicateGroups, noCountry, typeLabel } = computeDiagnostics();
 
   let html = '';
   html += buildDiagSection(
@@ -5194,6 +5464,12 @@ function renderDiagnostics(){
     b => `<div class="diag-row" data-diag-id="${b.entry.id}">${escapeHtml(b.label)}<div class="diag-row-meta">${escapeHtml(b.value)}</div></div>`
   );
   html += buildDiagSection(
+    'Фото не отобразятся',
+    'Ссылка ведёт на страницу или альбом, а не на сам файл изображения — в карточках останется пустое место. Нужна прямая ссылка на картинку.',
+    nonImagePhotos, 'Все ссылки на фото ведут прямо на изображения.',
+    n => `<div class="diag-row" data-diag-id="${n.entry.id}">${escapeHtml(n.label)}<div class="diag-row-meta">${escapeHtml(n.reason)}</div></div>`
+  );
+  html += buildDiagSection(
     'Возможные дубли записей',
     'Одинаковый тип, название, год и месяц (если указан) — вероятно, добавлено случайно дважды. Один и тот же город в разные месяцы не считается дублем.',
     duplicateGroups, 'Явных дублей не найдено.',
@@ -5236,6 +5512,8 @@ document.getElementById('calendarModal').addEventListener('click', (e)=>{
 });
 document.getElementById('passportSearchInput').addEventListener('input', debounce((e)=>{
   passportSearchQuery = e.target.value.trim().toLowerCase();
+  // при новом запросе открываем сразу страницы с печатями, а не обложку
+  passportSpread = passportSearchQuery ? 1 : 0;
   renderPassport();
 }, 150));
 document.getElementById('closePassportModal').addEventListener('click', closePassportModal);
@@ -5254,6 +5532,33 @@ function stampHash(str){
 
 let passportSearchQuery = '';
 
+const PP_PER_PAGE = 6; // печатей на одной странице (сетка 2×3)
+let passportSpread = 0;
+
+function buildStampHtml(s){
+  const years = [...new Set(s.years)].sort((a,b)=>a-b);
+  const yearsLabel = years.length > 1 ? `${years[0]}–${years[years.length-1]}` : `${years[0]}`;
+  const angle = (stampHash(s.name) % 17) - 8; // -8..8 градусов, устойчиво для каждой страны
+  const flag = countryFlag(s.countryKey);
+  return `<div class="stamp" style="--stamp-color:${s.color};transform:rotate(${angle}deg);">
+    ${s.count > 1 ? `<div class="stamp-count">×${s.count}</div>` : ''}
+    ${flag ? `<div style="font-size:22px;margin-bottom:2px;">${flag}</div>` : ''}
+    <div class="stamp-name">${escapeHtml(s.name)}</div>
+    <div class="stamp-year">${yearsLabel}</div>
+  </div>`;
+}
+
+function buildPageHtml(stamps, pageNum, side){
+  const body = stamps.length
+    ? `<div class="pp-stamps">${stamps.map(buildStampHtml).join('')}</div>`
+    : `<div class="pp-empty-page">свободная страница<br>для будущих печатей</div>`;
+  return `<div class="pp-page ${side}">
+    <div class="pp-page-head"><span>визы / visas</span><span>${pageNum}</span></div>
+    ${body}
+    <div class="pp-page-num">— ${pageNum} —</div>
+  </div>`;
+}
+
 function renderPassport(){
   const countries = allEntries.filter(e => e.type === 'country' && e.status !== 'wishlist');
   const byKey = {};
@@ -5269,28 +5574,145 @@ function renderPassport(){
     `Собрано печатей: ${allStamps.length} из ${COUNTRY_LIST.length} (${Math.round((allStamps.length/COUNTRY_LIST.length)*100)}% карты мира)` +
     (passportSearchQuery ? ` · показано: ${stamps.length}` : '');
 
-  const grid = document.getElementById('passportGrid');
-  if(allStamps.length === 0){
-    grid.innerHTML = `<div class="hint">Пока нет посещённых стран — первая печать появится здесь, как только вы отметите первую страну на карте.</div>`;
-    return;
-  }
-  if(stamps.length === 0){
-    grid.innerHTML = `<div class="hint">Ничего не найдено по запросу «${escapeHtml(passportSearchQuery)}».</div>`;
-    return;
-  }
-  grid.innerHTML = stamps.map(s=>{
-    const years = [...new Set(s.years)].sort((a,b)=>a-b);
-    const yearsLabel = years.length > 1 ? `${years[0]}–${years[years.length-1]}` : `${years[0]}`;
-    const angle = (stampHash(s.name) % 17) - 8; // -8..8 degrees, stable per country
-    const flag = countryFlag(s.countryKey);
-    return `<div class="stamp" style="--stamp-color:${s.color};transform:rotate(${angle}deg);">
-      ${s.count > 1 ? `<div class="stamp-count">×${s.count}</div>` : ''}
-      ${flag ? `<div style="font-size:22px;margin-bottom:2px;">${flag}</div>` : ''}
-      <div class="stamp-name">${escapeHtml(s.name)}</div>
-      <div class="stamp-year">${yearsLabel}</div>
+  const book = document.getElementById('passportBook');
+  const pos = document.getElementById('ppPos');
+  const prev = document.getElementById('ppPrev');
+  const next = document.getElementById('ppNext');
+
+  // разбиваем печати по страницам, страницы — по разворотам (2 страницы на разворот)
+  const pages = [];
+  for(let i = 0; i < stamps.length; i += PP_PER_PAGE) pages.push(stamps.slice(i, i + PP_PER_PAGE));
+  if(pages.length === 0) pages.push([]);
+  if(pages.length % 2) pages.push([]); // чтобы разворот всегда был из двух страниц
+  const spreadsCount = pages.length / 2;
+  const totalSpreads = spreadsCount + 1; // + обложка
+
+  if(passportSpread > totalSpreads - 1) passportSpread = totalSpreads - 1;
+  if(passportSpread < 0) passportSpread = 0;
+
+  if(passportSpread === 0){
+    book.innerHTML = `<div class="pp-cover">
+      <div class="pp-emblem">✦</div>
+      <div class="pp-cover-country">Российская Федерация</div>
+      <div class="pp-cover-line"></div>
+      <div class="pp-cover-title">Паспорт</div>
+      <div class="pp-cover-sub">путешественника</div>
+      <div class="pp-cover-line"></div>
+      <div class="pp-cover-chip">${allStamps.length === 0 ? 'печатей пока нет' : 'печатей: ' + allStamps.length}</div>
     </div>`;
-  }).join('');
+    pos.textContent = 'обложка';
+  } else {
+    const idx = (passportSpread - 1) * 2;
+    book.innerHTML = `<div class="pp-spread">
+      ${buildPageHtml(pages[idx], idx + 1, 'left')}
+      ${buildPageHtml(pages[idx + 1], idx + 2, 'right')}
+    </div>`;
+    pos.textContent = `страницы ${idx + 1}–${idx + 2} из ${pages.length}`;
+  }
+
+  prev.disabled = passportSpread === 0;
+  next.disabled = passportSpread >= totalSpreads - 1;
+
+  if(passportSearchQuery && stamps.length === 0){
+    book.innerHTML = `<div class="hint" style="padding:20px;">Ничего не найдено по запросу «${escapeHtml(passportSearchQuery)}».</div>`;
+    pos.textContent = '';
+    prev.disabled = next.disabled = true;
+  }
 }
+
+// Галерея показывает и настоящие миниатюры, и ссылки на альбомы: часть фото
+// хранится прямыми ссылками на изображения, часть — ссылками на альбом целиком.
+// Вторые физически нельзя показать картинкой, поэтому они выводятся отдельной
+// плиткой со ссылкой наружу, а не «битой» картинкой.
+function galleryHostLabel(url){
+  try{ return new URL(safeUrl(url)).hostname.replace(/^www\./,''); }catch(e){ return 'ссылка'; }
+}
+
+function renderGallery(){
+  const body = document.getElementById('galleryBody');
+  const visible = allEntries.filter(passesFilter);
+  const items = [];
+  visible.forEach(e=>{
+    (e.photos || []).forEach((p, i)=>{
+      if(!p) return;
+      items.push({
+        entry: e, url: p, index: i, total: (e.photos || []).length,
+        isAlbum: !!photoLinkProblem(p),
+        year: e.year || 0
+      });
+    });
+  });
+
+  const withThumbs = items.filter(i => !i.isAlbum).length;
+  document.getElementById('galleryCount').textContent = items.length === 0
+    ? 'Пока нет фотографий'
+    : `Фотографий: ${items.length}` + (withThumbs < items.length
+        ? ` · миниатюрами: ${withThumbs}, ссылками на альбом: ${items.length - withThumbs}`
+        : '');
+
+  if(items.length === 0){
+    body.innerHTML = `<div class="hint" style="padding:20px;">${
+      allEntries.some(e => (e.photos||[]).length)
+        ? 'Под текущие фильтры не попало ни одной записи с фото.'
+        : 'Добавьте ссылку на фото в любую отметку — она появится здесь.'
+    }</div>`;
+    return;
+  }
+
+  items.sort((a,b)=> b.year - a.year || a.entry.name.localeCompare(b.entry.name, 'ru'));
+
+  let html = '', lastYear = null;
+  items.forEach(it=>{
+    if(it.year !== lastYear){
+      if(lastYear !== null) html += '</div>';
+      lastYear = it.year;
+      const n = items.filter(x => x.year === it.year).length;
+      html += `<div class="gal-year">${it.year || 'без года'}<span>${n}</span></div><div class="gal-grid">`;
+    }
+    const flag = (it.entry.type === 'country' || it.entry.type === 'city') ? countryFlag(it.entry.countryKey) : '';
+    const cap = `${flag ? flag + ' ' : ''}${escapeHtml(it.entry.name)}`;
+    const sub = `${monthLabel(it.entry.month) ? monthLabel(it.entry.month) + ' ' : ''}${it.entry.year}${it.total > 1 ? ` · фото ${it.index+1} из ${it.total}` : ''}`;
+    if(it.isAlbum){
+      html += `<a class="gal-item" href="${escapeAttr(safeUrl(it.url))}" target="_blank" rel="noopener" title="${escapeAttr(photoLinkProblem(it.url) || '')}">
+        <div class="gal-album">
+          <div class="gal-album-icon">🗂</div>
+          <div class="gal-album-label">альбом<br>${escapeHtml(galleryHostLabel(it.url))}</div>
+        </div>
+        <div class="gal-cap">${cap}<em>${sub}</em></div>
+      </a>`;
+    } else {
+      html += `<div class="gal-item" data-gal-id="${escapeAttr(it.entry.id)}">
+        <img class="gal-thumb" src="${escapeAttr(safeUrl(it.url))}" alt="" loading="lazy" onerror="photoFailed(this)">
+        <div class="gal-cap">${cap}<em>${sub}</em></div>
+      </div>`;
+    }
+  });
+  if(lastYear !== null) html += '</div>';
+  body.innerHTML = html;
+}
+
+// клик по миниатюре — закрыть галерею и перелететь к точке на карте
+document.getElementById('galleryBody').addEventListener('click', (ev)=>{
+  const item = ev.target.closest('[data-gal-id]');
+  if(!item) return;
+  const entry = allEntries.find(e => e.id === item.dataset.galId);
+  if(!entry) return;
+  document.getElementById('galleryModal').style.display = 'none';
+  focusEntry(entry);
+});
+document.getElementById('openGalleryBtn').addEventListener('click', ()=>{
+  renderGallery();
+  document.getElementById('galleryModal').style.display = 'flex';
+});
+document.getElementById('closeGalleryModal').addEventListener('click', ()=>{
+  document.getElementById('galleryModal').style.display = 'none';
+});
+document.getElementById('galleryModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'galleryModal') document.getElementById('galleryModal').style.display = 'none';
+});
+
+document.getElementById('ppPrev').addEventListener('click', ()=>{ passportSpread--; renderPassport(); });
+document.getElementById('ppNext').addEventListener('click', ()=>{ passportSpread++; renderPassport(); });
 
 function renderHomeRegion(){
   const geom = getCountryGeometry(HOME_COUNTRY_KEY);
@@ -5442,6 +5864,12 @@ const COLLAPSE_KEY = 'travel-map-collapsed';
     applyTripFromUrl();
   }catch(err){
     console.error('applyTripFromUrl failed', err);
+  }
+
+  // если при загрузке пришлось переписать ссылки на фото — сохраняем один раз,
+  // иначе в резервную копию попадал бы старый, неотображаемый вид
+  if(migrationChanged && !READ_ONLY){
+    try{ await saveData(); }catch(err){ console.error('post-migration save failed', err); }
   }
 
   // кнопка «наверх» появляется, только когда есть куда прокручивать
