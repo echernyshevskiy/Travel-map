@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.69
+  Версия: v1.76
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -688,6 +688,49 @@ window.addEventListener('unhandledrejection', function(e){
   .calendar-table td.traveled{
     font-size:15px;
   }
+  .season-chart{
+    display:grid;grid-template-columns:repeat(12,1fr);
+    gap:3px;align-items:end;
+    height:76px;
+  }
+  .season-col{
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+    height:100%;gap:2px;min-width:0;
+  }
+  .season-bar{
+    width:100%;border-radius:2px 2px 0 0;
+    background:var(--sage);
+    min-height:2px;
+  }
+  .season-bar.peak{background:var(--amber);}
+  .season-bar.zero{background:repeating-linear-gradient(45deg,var(--line),var(--line) 2px,transparent 2px 4px);min-height:3px;}
+  .season-cnt{
+    font-family:'Courier Prime',monospace;font-size:8px;color:var(--text);line-height:1;
+  }
+  .season-lbl{
+    font-family:'Courier Prime',monospace;font-size:7.5px;color:var(--text-dim);
+    line-height:1;text-transform:lowercase;
+  }
+  .recap-grid{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+    gap:10px;padding:14px 20px 8px;
+  }
+  .recap-card{
+    background:var(--panel-raised);border:1px solid var(--line);
+    border-radius:5px;padding:12px 13px;
+  }
+  .recap-num{
+    font-family:'Playfair Display',serif;font-style:italic;font-weight:700;
+    font-size:26px;color:var(--text);line-height:1.1;
+  }
+  .recap-label{
+    font-family:'Courier Prime',monospace;font-size:9.5px;
+    letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-top:3px;
+  }
+  .recap-hi{padding:2px 20px 6px;}
+  .recap-hi .stat-row{padding:5px 0;border-bottom:1px solid var(--line);}
+  .recap-hi .stat-row:last-child{border-bottom:none;}
+  .recap-empty{padding:24px 20px;}
   .gal-year{
     font-family:'Playfair Display',serif;font-style:italic;font-weight:700;
     font-size:15px;color:var(--text-dim);
@@ -725,6 +768,21 @@ window.addEventListener('unhandledrejection', function(e){
   .gal-cap{font-size:11.5px;color:var(--text);line-height:1.35;}
   .gal-cap em{font-style:normal;font-family:'Courier Prime',monospace;font-size:9.5px;color:var(--text-dim);display:block;margin-top:2px;}
   .gal-item:hover .gal-thumb,.gal-item:hover .gal-album{border-color:var(--amber-dim);}
+  .diag-merge{
+    display:flex;gap:6px;align-items:center;margin-top:7px;
+  }
+  .diag-merge input{
+    flex:1;min-width:0;margin:0;
+    padding:5px 8px;font-size:11.5px;
+  }
+  .diag-merge button{
+    flex-shrink:0;
+    background:var(--panel-raised);border:1px solid var(--amber-dim);
+    color:var(--amber);font-family:'EB Garamond',serif;font-size:11.5px;
+    padding:5px 11px;border-radius:4px;cursor:pointer;
+  }
+  .diag-merge button:hover{background:var(--amber);color:var(--on-accent);}
+  .diag-merge button:disabled{opacity:0.45;cursor:default;}
   .diag-badge{
     display:inline-block;margin-left:6px;
     font-family:'Courier Prime',monospace;font-size:10px;font-weight:700;
@@ -789,8 +847,22 @@ window.addEventListener('unhandledrejection', function(e){
   }
   .pp-stamps{
     display:grid;grid-template-columns:1fr 1fr;
-    gap:10px 8px;
+    gap:14px 10px;
+    padding:2px 2px 8px;
   }
+  /* печати внутри паспорта меньше, чем в общей сетке: они повёрнуты на несколько
+     градусов, и повёрнутый квадрат выходит за свой блок — без запаса он наезжает
+     на соседнюю печать и на край страницы */
+  .pp-stamps .stamp{
+    max-width:124px;
+    margin:0 auto;
+    padding:11px;
+    border-width:1.5px;
+  }
+  .pp-stamps .stamp::before{inset:6px;}
+  .pp-stamps .stamp .stamp-name{font-size:12px;}
+  .pp-stamps .stamp .stamp-year{font-size:9.5px;}
+  .pp-stamps .stamp div[style*="font-size:22px"]{font-size:17px !important;}
   .pp-page-num{
     position:absolute;bottom:8px;left:0;right:0;
     text-align:center;
@@ -861,6 +933,29 @@ window.addEventListener('unhandledrejection', function(e){
     .pp-page.left,.pp-page.right{box-shadow:none;}
     .pp-page.left{border-bottom:1px dashed rgba(140,115,70,0.4);}
     .pp-cover{min-height:320px;}
+    /* при ширине панели ~320px колонка около 140px, а повёрнутая печать
+       в 124px занимает те же 140px — без запаса. Уменьшаем. */
+    .pp-stamps{gap:12px 8px;}
+    .pp-stamps .stamp{max-width:104px;padding:9px;}
+    .pp-stamps .stamp::before{inset:5px;}
+    .pp-stamps .stamp .stamp-name{font-size:10.5px;}
+    .pp-stamps .stamp .stamp-year{font-size:8.5px;}
+    .pp-stamps .stamp div[style*="font-size:22px"]{font-size:15px !important;}
+  }
+  @media print{
+    /* при печати выводим только паспорт и сразу все развороты */
+    body > *:not(#passportModal){display:none !important;}
+    #passportModal{position:static !important;display:block !important;background:none !important;padding:0 !important;}
+    #passportModal .modal-panel{box-shadow:none !important;border:none !important;max-height:none !important;width:100% !important;}
+    #passportModal .modal-header button,
+    #passportModal #passportSearchInput,
+    #passportModal .pp-nav{display:none !important;}
+    #passportModal .table-wrap{overflow:visible !important;max-height:none !important;}
+    .pp-spread{page-break-after:always;break-after:page;box-shadow:none;border:1px solid #ccc;}
+    .pp-spread:last-child{page-break-after:auto;break-after:auto;}
+    .pp-cover{page-break-after:always;break-after:page;margin:0 auto;}
+    .pp-page{min-height:420px;}
+    @page{margin:12mm;}
   }
   .stamp{
     position:relative;
@@ -1083,9 +1178,14 @@ window.addEventListener('unhandledrejection', function(e){
     max-width:80%;
     text-align:center;
   }
-  .topo-toggle-btn{
+  /* элементы управления Leaflet используют z-index 1000 — свои кнопки держим выше,
+     иначе они окажутся под масштабом карты и станут не видны и не нажимаемы */
+  .map-controls{
     position:absolute;top:16px;right:16px;
-    z-index:500;
+    z-index:1001;
+    display:flex;gap:8px;align-items:flex-start;
+  }
+  .topo-toggle-btn{
     background:rgba(231,223,199,0.95);
     border:1px solid var(--line);
     color:var(--text);
@@ -1096,7 +1196,6 @@ window.addEventListener('unhandledrejection', function(e){
     cursor:pointer;
   }
   .map-full-btn{
-    right:auto;left:16px;top:16px;
     font-size:14px;line-height:1;
     padding:7px 10px;
   }
@@ -1170,8 +1269,9 @@ window.addEventListener('unhandledrejection', function(e){
     .legend div{gap:5px;margin-top:3px;}
     .timeline-year{font-size:16px;min-width:40px;}
     #timelineModeBtn{padding:0 8px;font-size:10.5px;}
-    .topo-toggle-btn{top:10px;right:10px;padding:6px 9px;font-size:11px;}
-    .map-full-btn{left:10px;right:auto;top:10px;padding:6px 8px;font-size:13px;}
+    .map-controls{top:10px;right:10px;gap:6px;}
+    .topo-toggle-btn{padding:6px 9px;font-size:11px;}
+    .map-full-btn{padding:6px 8px;font-size:13px;}
     .service-status{top:10px;font-size:11px;padding:6px 10px;max-width:70%;}
     header{flex-wrap:wrap;padding:10px 14px;gap:8px;}
     header h1{font-size:16px;width:100%;}
@@ -1219,6 +1319,7 @@ window.addEventListener('unhandledrejection', function(e){
     <button id="openCalendarBtn" class="header-btn">Календарь</button>
     <button id="openDiagnosticsBtn" class="header-btn">Проверка данных</button>
     <button id="openGalleryBtn" class="header-btn">Фотогалерея</button>
+    <button id="openRecapBtn" class="header-btn">Год в путешествиях</button>
     <button id="themeToggleBtn" class="header-btn" title="Переключить тему" aria-label="Переключить тёмную/светлую тему">🌙</button>
   </div>
 </header>
@@ -1485,6 +1586,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div class="stat-row"><span>Пропутешествовано лет</span><b id="statYearsF">0</b></div>
         <div class="stat-row"><span>Пропутешествовано месяцев</span><b id="statMonthsTraveledF">0</b></div>
         <div class="stat-row"><span>Месяцев подряд (макс.)</span><b id="statMonthsStreakF">0</b></div>
+        <div class="stat-row"><span>Самый долгий перерыв</span><b id="statGapF">—</b></div>
         <div class="stat-row"><span>Посещено стран</span><b id="statCountriesF">0</b></div>
         <div class="stat-row"><span>Открыто карты мира</span><b id="statWorldPct">0%</b></div>
         <div class="stat-row"><span>Посещено городов</span><b id="statCitiesF">0</b></div>
@@ -1499,6 +1601,13 @@ window.addEventListener('unhandledrejection', function(e){
 
       <p class="section-title" style="margin-top:16px;">По годам</p>
       <div class="year-chart" id="yearChart"></div>
+
+      <p class="section-title" style="margin-top:16px;">Новых стран в год <span style="font-style:italic;color:var(--text-dim);text-transform:none;letter-spacing:0;">(по всем данным, фильтры не влияют)</span></p>
+      <div class="year-chart" id="newCountriesChart"></div>
+      <div class="hint" id="newCountriesHint"></div>
+
+      <p class="section-title" style="margin-top:16px;">Сезонность <span style="font-style:italic;color:var(--text-dim);text-transform:none;letter-spacing:0;">(за все годы вместе)</span></p>
+      <div class="season-chart" id="seasonChart"></div>
 
       <p class="section-title" style="margin-top:16px;">Темп бега по годам <span style="font-style:italic;color:var(--text-dim);text-transform:none;letter-spacing:0;">(ниже столбик — быстрее темп)</span></p>
       <div class="year-chart" id="paceTrendChart"></div>
@@ -1531,16 +1640,19 @@ window.addEventListener('unhandledrejection', function(e){
     <div id="map"></div>
     <div class="compass-rose"><span>N</span></div>
     <div class="service-status" id="serviceStatus" style="display:none;"></div>
-    <button id="topoToggleBtn" class="topo-toggle-btn" title="Переключить на рельефную карту" aria-label="Переключить на рельефную карту">🏔 Рельеф</button>
-    <button id="mapFullBtn" class="topo-toggle-btn map-full-btn" title="Развернуть карту на весь экран" aria-label="Развернуть карту на весь экран">⤢</button>
+    <div class="map-controls">
+      <button id="mapFullBtn" class="topo-toggle-btn map-full-btn" title="Развернуть карту на весь экран" aria-label="Развернуть карту на весь экран">⤢</button>
+      <button id="topoToggleBtn" class="topo-toggle-btn" title="Переключить на рельефную карту" aria-label="Переключить на рельефную карту">🏔 Рельеф</button>
+    </div>
     <div class="legend">
       <div><span class="dot country"></span> Страна (заливка)</div>
       <div><span class="dot city"></span> Город (точка)</div>
       <div><span class="dot route"></span> Маршрут</div>
       <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-style:italic;">пунктир — план / маршрут по прямой</div>
+      <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
       <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
       <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.69</div>
+      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.76</div>
     </div>
     <div class="toast" id="toast"></div>
     <div class="timeline-bar" id="timelineBar" style="display:none;">
@@ -1612,7 +1724,10 @@ window.addEventListener('unhandledrejection', function(e){
   <div class="modal-panel">
     <div class="modal-header">
       <h2>Паспорт путешественника</h2>
-      <button id="closePassportModal" title="Закрыть" aria-label="Закрыть">✕</button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button id="ppPrint" class="cancel-edit" style="margin-top:0;padding:5px 10px;font-size:11px;">Печать / PDF</button>
+        <button id="closePassportModal" title="Закрыть" aria-label="Закрыть">✕</button>
+      </div>
     </div>
     <div class="modal-sub" id="passportCount"></div>
     <div style="padding:0 20px 12px;">
@@ -1624,6 +1739,25 @@ window.addEventListener('unhandledrejection', function(e){
         <button id="ppPrev" aria-label="Предыдущий разворот">‹</button>
         <span id="ppPos"></span>
         <button id="ppNext" aria-label="Следующий разворот">›</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="recapModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Год в путешествиях</h2>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <select id="recapYear" style="margin:0;padding:5px 8px;font-size:12px;width:auto;"></select>
+        <button id="closeRecapModal" title="Закрыть" aria-label="Закрыть">✕</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <div id="recapBody"></div>
+      <div style="padding:4px 20px 18px;">
+        <button class="cancel-edit" id="recapDownload" style="margin-top:0;">Скачать картинкой</button>
+        <div class="hint">Картинка вертикальная, подходит для сторис.</div>
       </div>
     </div>
   </div>
@@ -3249,6 +3383,15 @@ function cityIcon(color, favorite, isWishlist){
 let migrationChanged = false;
 function migrateEntry(entry){
   if(!entry.purpose) entry.purpose = 'tourism';
+  // Повреждённый или частичный бэкап может принести маршрут без дистанции:
+  // проверка при импорте смотрит только id/тип/название, а дальше форматирование
+  // числа роняло отрисовку списка целиком. Чиним здесь, а не в восьми местах вывода.
+  if(entry.type === 'route'){
+    if(typeof entry.distanceKm !== 'number' || !isFinite(entry.distanceKm)) entry.distanceKm = 0;
+    if(entry.elevationGain != null && (typeof entry.elevationGain !== 'number' || !isFinite(entry.elevationGain))) entry.elevationGain = null;
+    if(entry.durationMin != null && (typeof entry.durationMin !== 'number' || !isFinite(entry.durationMin))) entry.durationMin = null;
+    if(entry.maxElevation != null && (typeof entry.maxElevation !== 'number' || !isFinite(entry.maxElevation))) entry.maxElevation = null;
+  }
   // покрытие для уже сохранённых забегов выводим из набора высоты —
   // иначе разделение шоссе/трейл заработало бы только для новых записей
   if(entry.type === 'route' && entry.activity === 'running' && !entry.terrain){
@@ -3266,6 +3409,18 @@ function migrateEntry(entry){
     if(entry.photos.join('\n') !== before) migrationChanged = true;
   }
   return entry;
+}
+
+// Заливка страны по числу визитов, а не «был / не был»: одна поездка и десять
+// выглядели одинаково, хотя это разные истории. Шкала пологая, чтобы страна
+// с одним визитом оставалась хорошо заметной.
+function countryFillOpacity(countryKey){
+  const visits = allEntries.filter(e => e.type === 'country' && e.countryKey === countryKey && e.status !== 'wishlist').length;
+  if(visits <= 1) return 0.28;
+  if(visits === 2) return 0.40;
+  if(visits === 3) return 0.52;
+  if(visits === 4) return 0.62;
+  return 0.72;
 }
 
 function syncLayers(){
@@ -3297,7 +3452,7 @@ function syncLayers(){
         layer = L.geoJSON(geom, {
           style: isWishlist
             ? { color: entry.color, weight:1.5, fillOpacity:0, dashArray:'4,4' }
-            : { color: entry.color, weight:1.5, fillColor: entry.color, fillOpacity:0.35, dashArray:null }
+            : { color: entry.color, weight:1.5, fillColor: entry.color, fillOpacity: countryFillOpacity(entry.countryKey), dashArray:null }
         });
       }
       layers[entry.id] = layer;
@@ -3311,7 +3466,7 @@ function syncLayers(){
       } else {
         layer.setStyle(isWishlist
           ? { color: entry.color, weight:1.5, fillOpacity:0, dashArray:'4,4' }
-          : { color: entry.color, weight:1.5, fillColor: entry.color, fillOpacity:0.35, dashArray:null });
+          : { color: entry.color, weight:1.5, fillColor: entry.color, fillOpacity: countryFillOpacity(entry.countryKey), dashArray:null });
       }
     }
     layer.bindPopup(buildPopup(entry));
@@ -3350,6 +3505,7 @@ function rebuildAll(){
   updateTimelineRange();
   applyFilters();
   updateStats();
+  renderNewCountriesChart();
   updateDiagnosticsBadge();
 }
 
@@ -4035,7 +4191,7 @@ function timelineTargetStyle(entry, included){
     const isWishlist = entry.status === 'wishlist';
     return isWishlist
       ? { opacity: included ? 1 : 0 }
-      : { opacity: included ? 1 : 0, fillOpacity: included ? 0.35 : 0 };
+      : { opacity: included ? 1 : 0, fillOpacity: included ? (entry.type === 'country' ? countryFillOpacity(entry.countryKey) : 0.35) : 0 };
   }
   return null;
 }
@@ -4125,6 +4281,19 @@ function updateFilteredStats(precomputedVisible){
     if(curStreak > monthsStreak) monthsStreak = curStreak;
   }
 
+  // Самый долгий перерыв — обратная величина к серии месяцев подряд.
+  // Считаем по тем же ключам, чтобы две цифры не могли разойтись.
+  // Разрыв между январём и мартом = один пропущенный месяц, поэтому «−1».
+  let longestGap = 0, gapFrom = null, gapTo = null;
+  for(let i = 1; i < sortedMonths.length; i++){
+    const gap = sortedMonths[i] - sortedMonths[i-1] - 1;
+    if(gap > longestGap){ longestGap = gap; gapFrom = sortedMonths[i-1]; gapTo = sortedMonths[i]; }
+  }
+  const keyToLabel = k => {
+    const y = Math.floor((k - 1) / 12), m = k - y * 12;
+    return `${monthLabel(m) || m} ${y}`;
+  };
+
   const countryKeys = new Set(visited.filter(e => e.type === 'country').map(e => e.countryKey));
   const cityVisits = getAllCityVisits(visited);
   const cityKeys = new Set(cityVisits.map(c => c.name.trim().toLowerCase()));
@@ -4145,6 +4314,9 @@ function updateFilteredStats(precomputedVisible){
   document.getElementById('statYearsF').textContent = years.size;
   document.getElementById('statMonthsTraveledF').textContent = monthsTraveled;
   document.getElementById('statMonthsStreakF').textContent = monthsStreak;
+  document.getElementById('statGapF').textContent = longestGap > 0
+    ? `${longestGap} ${longestGap === 1 ? 'месяц' : (longestGap < 5 ? 'месяца' : 'месяцев')} · ${keyToLabel(gapFrom)} → ${keyToLabel(gapTo)}`
+    : (sortedMonths.length > 1 ? 'без перерывов' : '—');
   document.getElementById('statCountriesF').textContent = countryKeys.size;
   document.getElementById('statWorldPct').textContent = `${Math.round((countryKeys.size / COUNTRY_LIST.length) * 100)}%`;
   document.getElementById('statCitiesF').textContent = cityKeys.size;
@@ -4157,6 +4329,7 @@ function updateFilteredStats(precomputedVisible){
   document.getElementById('statFarthestF').textContent = farthest ? `${farthest.countryKey ? countryFlag(farthest.countryKey) + ' ' : ''}${farthest.name} · ${Math.round(farthestDist).toLocaleString('ru-RU')} км` : '—';
 
   renderYearChart(visited);
+  renderSeasonChart(visited);
   renderPaceTrend(visited);
   renderBestPaces(visited);
   renderContinentStats(visited);
@@ -4236,6 +4409,80 @@ function renderBestPaces(visited){
   container.innerHTML = html || `<div class="hint">Нет забегов, попадающих в стандартные дистанции (5 км, 10 км, полумарафон, марафон).</div>`;
 }
 
+
+// Сезонность: сколько отметок приходится на каждый месяц, сложенные за все
+// годы. Календарь показывает конкретные месяцы конкретных лет, а здесь видно
+// общую привычку — когда вы обычно уезжаете, а когда почти никогда.
+// Новых стран в год: для каждой страны берём самый ранний год визита и считаем,
+// сколько стран «открылось» в каждом году. Отличается от графика «По годам»,
+// который считает все отметки: повторные поездки сюда не попадают.
+//
+// Считаем по ВСЕМ записям, а не по отфильтрованным, и это осознанно: «впервые»
+// имеет смысл только относительно полной истории. При фильтре по одному году
+// каждая страна в нём выглядела бы новой, что попросту неверно. В заголовке
+// раздела это оговорено, чтобы расхождение с остальными графиками не удивляло.
+function renderNewCountriesChart(){
+  const container = document.getElementById('newCountriesChart');
+  const hint = document.getElementById('newCountriesHint');
+  if(!container) return;
+  const firstYear = {};
+  allEntries.forEach(e=>{
+    if(e.type !== 'country' || e.status === 'wishlist' || !e.year || !e.countryKey) return;
+    if(firstYear[e.countryKey] === undefined || e.year < firstYear[e.countryKey]) firstYear[e.countryKey] = e.year;
+  });
+  const keys = Object.keys(firstYear);
+  if(keys.length === 0){
+    container.innerHTML = `<div class="hint">Пока нет отмеченных стран с указанным годом</div>`;
+    if(hint) hint.textContent = '';
+    return;
+  }
+  const counts = {};
+  keys.forEach(k=>{ counts[firstYear[k]] = (counts[firstYear[k]] || 0) + 1; });
+  const years = Object.keys(counts).map(Number).sort((a,b)=>a-b);
+  // непрерывный ряд лет: год без новых стран — тоже часть картины, пропуск в
+  // ряду создавал бы ложное впечатление, что открытия шли без паузы
+  const full = [];
+  for(let y = years[0]; y <= years[years.length-1]; y++) full.push(y);
+  const max = Math.max(...full.map(y => counts[y] || 0));
+  let running = 0;
+  container.innerHTML = full.map(y=>{
+    const n = counts[y] || 0;
+    running += n;
+    const h = n === 0 ? 0 : Math.max(4, Math.round((n / max) * 44));
+    const title = n === 0
+      ? `${y}: новых стран нет, всего к концу года: ${running}`
+      : `${y}: +${n} ${n === 1 ? 'страна' : (n < 5 ? 'страны' : 'стран')}, всего к концу года: ${running}`;
+    return `<div class="year-bar-wrap" title="${title}">
+      <div class="pace-value-label">${n || ''}</div>
+      <div class="year-bar" style="height:${h}px;${n === 0 ? 'background:repeating-linear-gradient(45deg,var(--line),var(--line) 2px,transparent 2px 4px);min-height:3px;' : 'background:var(--amber);'}"></div>
+      <div class="year-bar-label">${String(y).slice(2)}</div>
+    </div>`;
+  }).join('');
+  const best = full.reduce((a,y) => (counts[y] || 0) > (counts[a] || 0) ? y : a, full[0]);
+  if(hint) hint.textContent = `Всего стран: ${keys.length} · самый насыщенный год — ${best} (+${counts[best] || 0})`;
+}
+
+function renderSeasonChart(visited){
+  const container = document.getElementById('seasonChart');
+  if(!container) return;
+  const counts = new Array(13).fill(0);
+  visited.forEach(e=>{ if(e.month >= 1 && e.month <= 12) counts[e.month]++; });
+  const max = Math.max(...counts.slice(1));
+  if(max === 0){
+    container.innerHTML = `<div class="hint" style="grid-column:1/-1;">Ни у одной записи не указан месяц — сезонность посчитать не из чего</div>`;
+    return;
+  }
+  container.innerHTML = MONTHS.map(m=>{
+    const n = counts[m.key];
+    const h = n === 0 ? 0 : Math.max(4, Math.round((n / max) * 44));
+    const cls = n === 0 ? 'zero' : (n === max ? 'peak' : '');
+    return `<div class="season-col" title="${m.ru}: ${n}">
+      <div class="season-cnt">${n || ''}</div>
+      <div class="season-bar ${cls}" style="height:${h}px;"></div>
+      <div class="season-lbl">${m.short}</div>
+    </div>`;
+  }).join('');
+}
 
 function renderPaceTrend(visited){
   const container = document.getElementById('paceTrendChart');
@@ -4442,12 +4689,55 @@ document.getElementById('entryList').addEventListener('click', async (ev)=>{
   else if(act === 'del') deleteEntry(entry.id);
 });
 
+let routeAnimLayer = null;
+let routeAnimTimer = null;
+
+// Прорисовка маршрута от точки к точке при открытии. Анимируем не сам слой,
+// а временную линию поверх него: так исходный маршрут остаётся нетронутым,
+// и прерванная анимация не может оставить его в половинчатом виде.
+function animateRouteDraw(entry){
+  stopRouteAnim();
+  const coords = getEntryCoords(entry);
+  if(!coords || coords.length < 3) return;
+  // на длинных треках рисуем по нескольку точек за кадр, чтобы время было
+  // примерно одинаковым независимо от числа точек
+  const FRAMES = 46;
+  const step = Math.max(1, Math.ceil(coords.length / FRAMES));
+  let i = step;
+  try{
+    routeAnimLayer = L.polyline(coords.slice(0, i), {
+      color: entry.color, weight: 5, opacity: 0.95, lineCap: 'round'
+    }).addTo(map);
+  }catch(e){ routeAnimLayer = null; return; }
+  routeAnimTimer = setInterval(()=>{
+    i += step;
+    if(!routeAnimLayer){ stopRouteAnim(); return; }
+    if(i >= coords.length){
+      try{ routeAnimLayer.setLatLngs(coords); }catch(e){}
+      // короткая пауза на полной линии, затем убираем — под ней настоящий маршрут
+      clearInterval(routeAnimTimer); routeAnimTimer = null;
+      setTimeout(stopRouteAnim, 260);
+      return;
+    }
+    try{ routeAnimLayer.setLatLngs(coords.slice(0, i)); }catch(e){ stopRouteAnim(); }
+  }, 16);
+}
+
+function stopRouteAnim(){
+  if(routeAnimTimer){ clearInterval(routeAnimTimer); routeAnimTimer = null; }
+  if(routeAnimLayer){
+    try{ map.removeLayer(routeAnimLayer); }catch(e){}
+    routeAnimLayer = null;
+  }
+}
+
 function focusEntry(entry){
   const layer = layers[entry.id];
   if(!layer) return;
   if(entry.type === 'route' || entry.type === 'country'){
     map.fitBounds(layer.getBounds(), {padding:[40,40]});
     layer.openPopup();
+    if(entry.type === 'route') animateRouteDraw(entry);
   } else if(typeof cityCluster.zoomToShowLayer === 'function'){
     cityCluster.zoomToShowLayer(layer, () => layer.openPopup());
   } else {
@@ -5211,6 +5501,7 @@ globalSearchInput.addEventListener('keydown', (e)=>{
 // ---------- passport modal ----------
 document.getElementById('openPassportBtn').addEventListener('click', ()=>{
   passportSearchQuery = '';
+  passportSpread = 0; // открываем с обложки, как настоящую книжку
   document.getElementById('passportSearchInput').value = '';
   renderPassport();
   document.getElementById('passportModal').style.display = 'flex';
@@ -5331,6 +5622,44 @@ function computeDiagnostics(){
     });
   });
 
+  // Похоже на одну поездку. Точных дат в записях нет — только год и месяц,
+  // поэтому «рядом по времени» = тот же месяц. Одного этого мало: в один месяц
+  // могли быть две разные поездки, поэтому внутри месяца ещё делим по географии.
+  const TRIP_CLUSTER_KM = 1200;
+  const tripSuggestions = [];
+  const byMonth = {};
+  allEntries.forEach(e=>{
+    if(e.trip || e.status === 'wishlist' || !e.year || !e.month) return;
+    const k = `${e.year}-${e.month}`;
+    (byMonth[k] = byMonth[k] || []).push(e);
+  });
+  Object.values(byMonth).forEach(group=>{
+    if(group.length < 2) return;
+    // простая кластеризация: запись присоединяется к кластеру, если она рядом
+    // хотя бы с одной его записью
+    const pts = group.map(e => ({ e, p: getEntryRepresentativePoint(e) }));
+    const clusters = [];
+    pts.forEach(item=>{
+      if(!item.p){ // без координат географию не проверить — кладём в общий кластер месяца
+        const any = clusters.find(c => c.noGeo);
+        if(any) any.items.push(item); else clusters.push({ noGeo:true, items:[item] });
+        return;
+      }
+      const near = clusters.find(c => !c.noGeo && c.items.some(x => x.p && haversine(x.p, item.p) <= TRIP_CLUSTER_KM));
+      if(near) near.items.push(item); else clusters.push({ noGeo:false, items:[item] });
+    });
+    clusters.forEach(c=>{
+      if(c.items.length < 2) return;
+      const entries = c.items.map(x => x.e);
+      // имя предлагаем по стране, если она одна на всю группу
+      const keys = [...new Set(entries.map(e => e.countryKey).filter(Boolean))];
+      const base = keys.length === 1 ? (COUNTRY_RU[keys[0]] || keys[0]) : 'Поездка';
+      const first = entries[0];
+      const suggested = `${base} · ${monthLabel(first.month) || first.month} ${first.year}`;
+      tripSuggestions.push({ entries, suggested, month: first.month, year: first.year });
+    });
+  });
+
   const dupeGroups = {};
   allEntries.forEach(e=>{
     const key = `${e.type}|${e.name.trim().toLowerCase()}|${e.year}|${e.month || 'none'}`;
@@ -5389,7 +5718,7 @@ function computeDiagnostics(){
 
   const typeLabel = e => e.type === 'country' ? 'страна' : e.type === 'city' ? 'город' : 'маршрут';
 
-  return { countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs, missingCoords, brokenLinks, nonImagePhotos, duplicateGroups, noCountry, typeLabel };
+  return { countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs, missingCoords, brokenLinks, nonImagePhotos, duplicateGroups, noCountry, tripSuggestions, typeLabel };
 }
 
 // суммарное число находок — для бейджа на кнопке, чтобы не приходилось
@@ -5418,7 +5747,8 @@ function updateDiagnosticsBadge(){
 function renderDiagnostics(){
   const container = document.getElementById('diagnosticsBody');
   const { countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs,
-          missingCoords, brokenLinks, nonImagePhotos, duplicateGroups, noCountry, typeLabel } = computeDiagnostics();
+          missingCoords, brokenLinks, nonImagePhotos, duplicateGroups, noCountry,
+          tripSuggestions, typeLabel } = computeDiagnostics();
 
   let html = '';
   html += buildDiagSection(
@@ -5481,6 +5811,19 @@ function renderDiagnostics(){
     noCountry, 'У всех городов определена страна.',
     e => `<div class="diag-row" data-diag-id="${e.id}">${escapeHtml(e.name)}<div class="diag-row-meta">${e.year}</div></div>`
   );
+  html += buildDiagSection(
+    'Похоже на одну поездку',
+    'Записи одного месяца, расположенные рядом друг с другом и пока не собранные в поездку. Название можно изменить перед объединением.',
+    tripSuggestions, 'Все записи либо уже собраны в поездки, либо не похожи на одну.',
+    (s, i) => `<div class="diag-row" style="cursor:default;">
+      ${s.entries.map(e => escapeHtml(e.name)).join(' · ')}
+      <div class="diag-row-meta">${monthLabel(s.month) || s.month} ${s.year} · записей: ${s.entries.length}</div>
+      <div class="diag-merge">
+        <input type="text" value="${escapeAttr(s.suggested)}" data-merge-name="${i}" aria-label="Название поездки">
+        <button data-merge-idx="${i}">Объединить</button>
+      </div>
+    </div>`
+  );
 
   container.innerHTML = html;
   container.querySelectorAll('[data-diag-id]').forEach(row=>{
@@ -5489,6 +5832,26 @@ function renderDiagnostics(){
       if(!entry) return;
       document.getElementById('diagnosticsModal').style.display = 'none';
       startEdit(entry);
+    });
+  });
+
+  container.querySelectorAll('[data-merge-idx]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const idx = parseInt(btn.dataset.mergeIdx, 10);
+      const s = tripSuggestions[idx];
+      if(!s) return;
+      const input = container.querySelector(`[data-merge-name="${idx}"]`);
+      const name = (input && input.value.trim()) || s.suggested;
+      // порядок остановок задаём последовательно, как при добавлении вручную
+      s.entries.forEach(e=>{
+        e.trip = name;
+        e.tripOrder = nextTripOrder(name);
+      });
+      btn.disabled = true;
+      const saved = await saveData();
+      rebuildAll();
+      renderDiagnostics(); // пересчитываем: эта группа больше не предложение
+      if(saved) toast(`Собрано в поездку «${name}»: ${s.entries.length}`);
     });
   });
 }
@@ -5559,7 +5922,9 @@ function buildPageHtml(stamps, pageNum, side){
   </div>`;
 }
 
-function renderPassport(){
+// Разбивка печатей на страницы и развороты — одна на отрисовку и на печать,
+// чтобы количество страниц нигде не разошлось
+function passportPages(){
   const countries = allEntries.filter(e => e.type === 'country' && e.status !== 'wishlist');
   const byKey = {};
   countries.forEach(e=>{
@@ -5567,8 +5932,20 @@ function renderPassport(){
     byKey[e.countryKey].years.push(e.year);
     byKey[e.countryKey].count++;
   });
-  const allStamps = Object.values(byKey).sort((a,b) => a.name.localeCompare(b.name, 'ru'));
-  const stamps = passportSearchQuery ? allStamps.filter(s => s.name.toLowerCase().includes(passportSearchQuery)) : allStamps;
+  const all = Object.values(byKey).sort((a,b) => a.name.localeCompare(b.name, 'ru'));
+  const shown = passportSearchQuery ? all.filter(s => s.name.toLowerCase().includes(passportSearchQuery)) : all;
+  const pages = [];
+  for(let i = 0; i < shown.length; i += PP_PER_PAGE) pages.push(shown.slice(i, i + PP_PER_PAGE));
+  if(pages.length === 0) pages.push([]);
+  if(pages.length % 2) pages.push([]);
+  return { all, shown, pages };
+}
+function passportTotalSpreads(){
+  return passportPages().pages.length / 2 + 1; // + обложка
+}
+
+function renderPassport(){
+  const { all: allStamps, shown: stamps, pages } = passportPages();
 
   document.getElementById('passportCount').textContent =
     `Собрано печатей: ${allStamps.length} из ${COUNTRY_LIST.length} (${Math.round((allStamps.length/COUNTRY_LIST.length)*100)}% карты мира)` +
@@ -5579,13 +5956,8 @@ function renderPassport(){
   const prev = document.getElementById('ppPrev');
   const next = document.getElementById('ppNext');
 
-  // разбиваем печати по страницам, страницы — по разворотам (2 страницы на разворот)
-  const pages = [];
-  for(let i = 0; i < stamps.length; i += PP_PER_PAGE) pages.push(stamps.slice(i, i + PP_PER_PAGE));
-  if(pages.length === 0) pages.push([]);
-  if(pages.length % 2) pages.push([]); // чтобы разворот всегда был из двух страниц
   const spreadsCount = pages.length / 2;
-  const totalSpreads = spreadsCount + 1; // + обложка
+  const totalSpreads = spreadsCount + 1;
 
   if(passportSpread > totalSpreads - 1) passportSpread = totalSpreads - 1;
   if(passportSpread < 0) passportSpread = 0;
@@ -5709,6 +6081,207 @@ document.getElementById('closeGalleryModal').addEventListener('click', ()=>{
 });
 document.getElementById('galleryModal').addEventListener('click', (e)=>{
   if(e.target.id === 'galleryModal') document.getElementById('galleryModal').style.display = 'none';
+});
+
+// Печать выводит весь паспорт целиком, а не текущий разворот: на время печати
+// подставляем все развороты подряд, затем возвращаем обычный вид.
+document.getElementById('ppPrint').addEventListener('click', ()=>{
+  const book = document.getElementById('passportBook');
+  const restore = book.innerHTML;
+  const restoreSpread = passportSpread;
+  const parts = [];
+  const total = passportTotalSpreads();
+  for(let s = 0; s < total; s++){
+    passportSpread = s;
+    renderPassport();
+    parts.push(book.innerHTML);
+  }
+  book.innerHTML = parts.join('');
+  const cleanup = ()=>{
+    book.innerHTML = restore;
+    passportSpread = restoreSpread;
+    renderPassport();
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
+  window.print();
+  // Safari на некоторых версиях не шлёт afterprint — подстраховываемся таймером,
+  // иначе паспорт остался бы в «печатном» виде со всеми разворотами сразу
+  setTimeout(()=>{ if(book.innerHTML !== restore) cleanup(); }, 1500);
+});
+
+// Итоги года. Считаем по тем же функциям, что и общая статистика, — иначе
+// цифры в итогах и в панели разошлись бы, а это худшее, что может случиться
+// с таким экраном.
+function computeRecap(year){
+  const inYear = allEntries.filter(e => e.year === year && e.status !== 'wishlist');
+  const before = allEntries.filter(e => e.year < year && e.status !== 'wishlist');
+  const seenBefore = new Set(before.filter(e => e.type === 'country').map(e => e.countryKey));
+  const countries = [...new Set(inYear.filter(e => e.type === 'country').map(e => e.countryKey))];
+  const newCountries = countries.filter(k => !seenBefore.has(k));
+  const cityVisits = getAllCityVisits(inYear);
+  const cities = new Set(cityVisits.map(c => c.name.trim().toLowerCase()));
+  const routes = inYear.filter(e => e.type === 'route');
+  const km = routes.reduce((s,r) => s + (r.distanceKm || 0), 0);
+  const gain = routes.reduce((s,r) => s + (r.elevationGain || 0), 0);
+  const months = new Set(inYear.filter(e => e.month).map(e => e.month));
+  const longest = routes.slice().sort((a,b) => (b.distanceKm||0) - (a.distanceKm||0))[0];
+  const trips = new Set(inYear.map(e => e.trip).filter(Boolean));
+
+  // самый частый город года
+  const freq = {};
+  cityVisits.forEach(c=>{
+    const k = c.name.trim();
+    if(k.toLowerCase() === HOME_CITY_NAME.toLowerCase()) return;
+    freq[k] = (freq[k] || 0) + 1;
+  });
+  const topCity = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0];
+
+  // лучший темп бега за год
+  const runs = routes.filter(r => r.activity === 'running' && r.durationMin && r.distanceKm);
+  const bestRun = runs.slice().sort((a,b)=>(a.durationMin/a.distanceKm)-(b.durationMin/b.distanceKm))[0];
+
+  return { year, countries, newCountries, cities, km, gain, months, longest, trips, topCity, bestRun,
+           entries: inYear.length };
+}
+
+function renderRecap(){
+  const sel = document.getElementById('recapYear');
+  const year = parseInt(sel.value, 10);
+  const body = document.getElementById('recapBody');
+  if(!year){ body.innerHTML = `<div class="hint recap-empty">Нет данных с указанным годом.</div>`; return; }
+  const r = computeRecap(year);
+  if(r.entries === 0){
+    body.innerHTML = `<div class="hint recap-empty">За ${year} год отметок нет.</div>`;
+    return;
+  }
+  const cards = [
+    [r.countries.length, 'стран'],
+    [r.newCountries.length, 'из них впервые'],
+    [r.cities.size, 'городов'],
+    [r.trips.size, 'поездок'],
+    [r.months.size, 'месяцев в пути'],
+    [r.km >= 1 ? Math.round(r.km).toLocaleString('ru-RU') : '—', 'километров'],
+  ];
+  const hi = [];
+  if(r.longest) hi.push(['Самый длинный маршрут', `${escapeHtml(r.longest.name)} · ${(r.longest.distanceKm||0).toFixed(1)} км`]);
+  if(r.gain > 0) hi.push(['Набор высоты', `${Math.round(r.gain).toLocaleString('ru-RU')} м`]);
+  if(r.topCity) hi.push(['Чаще всего', `${escapeHtml(r.topCity[0])} · ${r.topCity[1]} ${r.topCity[1]===1?'визит':'визита'}`]);
+  if(r.bestRun) hi.push(['Лучший темп бега', `${formatPace(r.bestRun.durationMin / r.bestRun.distanceKm)}`]);
+  if(r.newCountries.length) hi.push(['Новые страны', r.newCountries.map(k => (countryFlag(k) ? countryFlag(k)+' ' : '') + escapeHtml(COUNTRY_RU[k] || k)).join(', ')]);
+
+  body.innerHTML = `
+    <div class="recap-grid">
+      ${cards.map(([n,l]) => `<div class="recap-card"><div class="recap-num">${n}</div><div class="recap-label">${l}</div></div>`).join('')}
+    </div>
+    ${hi.length ? `<div class="recap-hi stat-grid">${hi.map(([l,v]) => `<div class="stat-row"><span>${l}</span><b>${v}</b></div>`).join('')}</div>` : ''}
+  `;
+}
+
+function fillRecapYears(){
+  const sel = document.getElementById('recapYear');
+  const years = [...new Set(allEntries.filter(e => e.status !== 'wishlist' && e.year).map(e => e.year))].sort((a,b)=>b-a);
+  sel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('') || `<option value="">—</option>`;
+}
+
+document.getElementById('openRecapBtn').addEventListener('click', ()=>{
+  fillRecapYears();
+  renderRecap();
+  document.getElementById('recapModal').style.display = 'flex';
+});
+document.getElementById('recapYear').addEventListener('change', renderRecap);
+document.getElementById('closeRecapModal').addEventListener('click', ()=>{
+  document.getElementById('recapModal').style.display = 'none';
+});
+document.getElementById('recapModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'recapModal') document.getElementById('recapModal').style.display = 'none';
+});
+
+// Выгрузка итогов картинкой — вертикальный формат под сторис, оформление
+// то же, что у снимка карты, чтобы обе картинки смотрелись как одна серия
+document.getElementById('recapDownload').addEventListener('click', ()=>{
+  const year = parseInt(document.getElementById('recapYear').value, 10);
+  if(!year){ toast('Нет данных за выбранный год'); return; }
+  const r = computeRecap(year);
+  if(r.entries === 0){ toast('За этот год отметок нет'); return; }
+
+  const W = 1080, H = 1920;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+
+  ctx.fillStyle = '#E7DFC7'; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle = 'rgba(160,140,95,0.30)'; ctx.lineWidth = 2;
+  ctx.strokeRect(38,38,W-76,H-76);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#2B3B2E';
+  ctx.font = "italic 700 62px 'Playfair Display'";
+  ctx.fillText('Год в путешествиях', W/2, 210);
+  ctx.font = "italic 700 150px 'Playfair Display'";
+  ctx.fillStyle = '#A6592E';
+  ctx.fillText(String(year), W/2, 380);
+
+  const cards = [
+    [r.countries.length, 'стран'],
+    [r.newCountries.length, 'впервые'],
+    [r.cities.size, 'городов'],
+    [r.trips.size, 'поездок'],
+    [r.months.size, 'месяцев в пути'],
+    [r.km >= 1 ? Math.round(r.km).toLocaleString('ru-RU') : '—', 'километров'],
+  ];
+  let y = 520;
+  for(let i = 0; i < cards.length; i += 2){
+    for(let j = 0; j < 2 && i + j < cards.length; j++){
+      const cx = j === 0 ? W*0.29 : W*0.71;
+      ctx.fillStyle = '#2B3B2E';
+      ctx.font = "italic 700 92px 'Playfair Display'";
+      ctx.fillText(String(cards[i+j][0]), cx, y);
+      ctx.fillStyle = '#6E6547';
+      ctx.font = "26px 'EB Garamond'";
+      ctx.fillText(cards[i+j][1], cx, y + 44);
+    }
+    y += 190;
+  }
+
+  const hi = [];
+  if(r.longest) hi.push(['самый длинный маршрут', `${r.longest.name} · ${(r.longest.distanceKm||0).toFixed(1)} км`]);
+  if(r.gain > 0) hi.push(['набор высоты', `${Math.round(r.gain).toLocaleString('ru-RU')} м`]);
+  if(r.topCity) hi.push(['чаще всего', `${r.topCity[0]} · ${r.topCity[1]}`]);
+  if(r.bestRun) hi.push(['лучший темп бега', formatPace(r.bestRun.durationMin / r.bestRun.distanceKm)]);
+
+  y += 10;
+  ctx.strokeStyle = 'rgba(160,140,95,0.45)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(W*0.18, y); ctx.lineTo(W*0.82, y); ctx.stroke();
+  y += 62;
+  hi.slice(0,4).forEach(([label, value])=>{
+    ctx.fillStyle = '#6E6547';
+    ctx.font = "24px 'Courier Prime'";
+    ctx.fillText(label.toUpperCase(), W/2, y);
+    ctx.fillStyle = '#2B3B2E';
+    ctx.font = "italic 700 38px 'Playfair Display'";
+    // длинные названия ужимаем, чтобы не выходили за поля
+    let v = value, m = ctx.measureText(v);
+    while(m.width > W - 180 && v.length > 8){ v = v.slice(0, -4) + '…'; m = ctx.measureText(v); }
+    ctx.fillText(v, W/2, y + 48);
+    y += 128;
+  });
+
+  ctx.fillStyle = '#6E6547';
+  ctx.font = "italic 30px 'Playfair Display'";
+  ctx.fillText('Карта путешествий', W/2, H - 96);
+  ctx.font = "22px 'Courier Prime'";
+  ctx.fillText(new Date().toLocaleDateString('ru-RU'), W/2, H - 60);
+
+  cv.toBlob(blob=>{
+    if(!blob){ toast('Не удалось создать картинку'); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `год-${year}.png`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=> URL.revokeObjectURL(url), 1000);
+    toast('Картинка сохранена');
+  }, 'image/png');
 });
 
 document.getElementById('ppPrev').addEventListener('click', ()=>{ passportSpread--; renderPassport(); });
