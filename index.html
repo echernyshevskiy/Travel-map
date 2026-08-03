@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.81
+  Версия: v1.83
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -614,8 +614,13 @@ window.addEventListener('unhandledrejection', function(e){
   .table-wrap{
     overflow:auto;
     padding:0 20px 20px;
+    -webkit-overflow-scrolling:touch;
   }
-  #entriesTable{width:100%;border-collapse:collapse;font-size:12.5px;}
+  /* width:100% заставлял таблицу ужиматься под экран, хотя ячейки не переносятся:
+     раскладка ломалась, разделители строк рвались при прокрутке вбок.
+     min-width:100% растягивает таблицу на весь контейнер, но позволяет ей быть
+     шире, если содержимое требует. */
+  #entriesTable{min-width:100%;border-collapse:collapse;font-size:12.5px;}
   #entriesTable th, #entriesTable td{
     text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);
     white-space:nowrap;
@@ -627,6 +632,9 @@ window.addEventListener('unhandledrejection', function(e){
     font-family:'Courier Prime',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;
   }
   #entriesTable td.name-cell{white-space:normal;max-width:220px;color:var(--text);font-weight:500;}
+  /* колонка ссылок может содержать несколько подписей подряд и растягивает
+     строку далеко за экран — ограничиваем и переносим */
+  #entriesTable td.links-cell{white-space:normal;max-width:190px;}
   #entriesTable a{color:var(--sage);text-decoration:none;}
   #entriesTable a:hover{text-decoration:underline;}
   .table-actions{display:flex;align-items:center;gap:2px;}
@@ -1676,7 +1684,7 @@ window.addEventListener('unhandledrejection', function(e){
       <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
       <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
       <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.81</div>
+      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.83</div>
     </div>
     <div class="toast" id="toast"></div>
     <div class="timeline-bar" id="timelineBar" style="display:none;">
@@ -5190,7 +5198,7 @@ function renderTable(){
       <td>${activityOrDist}</td>
       <td>${entry.status === 'wishlist' ? 'План' : 'Посещено'}</td>
       <td>${entry.trip ? escapeHtml(entry.trip) : '—'}</td>
-      <td>${[
+      <td class="links-cell">${[
         entry.photos && entry.photos.length ? entry.photos.map((u,i) => `<a href="${escapeAttr(safeUrl(u))}" target="_blank" rel="noopener">Фото${entry.photos.length>1 ? ' '+(i+1) : ''}</a>`).join(' · ') : null,
         entry.instagramUrl ? `<a href="${escapeAttr(safeUrl(entry.instagramUrl))}" target="_blank" rel="noopener">📷 Instagram</a>` : null,
         entry.mapLinkUrl ? `<a href="${escapeAttr(safeUrl(entry.mapLinkUrl))}" target="_blank" rel="noopener">🗺️ Карта</a>` : null,
@@ -5781,7 +5789,7 @@ function computeDiagnostics(){
       const feature = findCountryFeature({ lat: e.lat, lng: e.lng });
       const actualKey = feature ? feature.properties.name : null;
       if(actualKey && actualKey !== e.countryKey){
-        countryMismatches.push({ entry: e, label: e.name, saved: COUNTRY_RU[e.countryKey] || e.countryKey, actual: COUNTRY_RU[actualKey] || actualKey });
+        countryMismatches.push({ entry: e, label: e.name, saved: COUNTRY_RU[e.countryKey] || e.countryKey, actual: COUNTRY_RU[actualKey] || actualKey, actualKey, wpIndex: null });
       }
     } else if(e.type === 'route' && e.waypointCoords && e.waypointCountryKeys){
       e.waypointCoords.forEach((c, i)=>{
@@ -5790,7 +5798,7 @@ function computeDiagnostics(){
         const feature = findCountryFeature({ lat: c[0], lng: c[1] });
         const actualKey = feature ? feature.properties.name : null;
         if(actualKey && actualKey !== savedKey){
-          countryMismatches.push({ entry: e, label: `${e.waypointNames[i]} (${e.name})`, saved: COUNTRY_RU[savedKey] || savedKey, actual: COUNTRY_RU[actualKey] || actualKey });
+          countryMismatches.push({ entry: e, label: `${e.waypointNames[i]} (${e.name})`, saved: COUNTRY_RU[savedKey] || savedKey, actual: COUNTRY_RU[actualKey] || actualKey, actualKey, wpIndex: i });
         }
       });
     }
@@ -5836,8 +5844,21 @@ function renderDiagnostics(){
     'Несовпадение сохранённой и фактической страны',
     'Координаты записи на самом деле попадают в границы другой страны, чем сохранено — обычно значит, что при поиске подтянулся не тот город (например, одноимённый в другой стране).',
     countryMismatches, 'У всех записей сохранённая страна совпадает с той, где реально находятся координаты.',
-    m => `<div class="diag-row" data-diag-id="${m.entry.id}">${escapeHtml(m.label)}<div class="diag-row-meta">записано: ${escapeHtml(m.saved)} · по факту: ${escapeHtml(m.actual)}</div></div>`
+    (m, i) => `<div class="diag-row" style="cursor:default;">
+      <span data-diag-id="${m.entry.id}" style="cursor:pointer;">${escapeHtml(m.label)}</span>
+      <div class="diag-row-meta">записано: ${escapeHtml(m.saved)} · по факту: ${escapeHtml(m.actual)}</div>
+      <div class="diag-merge">
+        <button data-fixcountry-idx="${i}">Исправить на «${escapeHtml(m.actual)}»</button>
+      </div>
+    </div>`
   );
+  if(countryMismatches.length > 1){
+    // все находки этой секции обычно относятся к одной причине (сместившаяся
+    // граница, неверно выбранный город), поэтому чинить их по одной утомительно
+    html += `<div style="padding:0 20px 14px;margin-top:-8px;">
+      <button class="cancel-edit" id="fixAllCountriesBtn" style="margin-top:0;">Исправить все ${countryMismatches.length} на фактическую страну</button>
+    </div>`;
+  }
   html += buildDiagSection(
     'Точки маршрута далеко от остальных',
     'Похоже на ошибку геокодирования — одноимённый город на другом континенте (например, «Дублин, Огайо» вместо «Дублин, Ирландия»). Откройте маршрут и пересоздайте именно эту точку через поиск, явно выбрав нужную страну из списка вариантов.',
@@ -5927,6 +5948,45 @@ function renderDiagnostics(){
       startEdit(entry);
     });
   });
+
+  // применяет фактическую страну: у города это поле записи, у маршрута —
+  // страна конкретной точки в массиве
+  function applyCountryFix(m){
+    if(!m || !m.actualKey) return false;
+    if(m.wpIndex === null || m.wpIndex === undefined){
+      m.entry.countryKey = m.actualKey;
+    } else {
+      if(!Array.isArray(m.entry.waypointCountryKeys)) return false;
+      m.entry.waypointCountryKeys[m.wpIndex] = m.actualKey;
+    }
+    return true;
+  }
+
+  container.querySelectorAll('[data-fixcountry-idx]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const m = countryMismatches[parseInt(btn.dataset.fixcountryIdx, 10)];
+      if(!applyCountryFix(m)) return;
+      btn.disabled = true;
+      const saved = await saveData();
+      rebuildAll();
+      renderDiagnostics();
+      if(saved) toast(`Страна исправлена: ${m.label} → ${m.actual}`);
+    });
+  });
+
+  const fixAllBtn = document.getElementById('fixAllCountriesBtn');
+  if(fixAllBtn){
+    fixAllBtn.addEventListener('click', async ()=>{
+      let n = 0;
+      countryMismatches.forEach(m => { if(applyCountryFix(m)) n++; });
+      if(n === 0) return;
+      fixAllBtn.disabled = true;
+      const saved = await saveData();
+      rebuildAll();
+      renderDiagnostics();
+      if(saved) toast(`Исправлено записей: ${n}`);
+    });
+  }
 
   container.querySelectorAll('[data-addcountry-idx]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
