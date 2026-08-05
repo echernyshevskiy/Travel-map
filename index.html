@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.83
+  Версия: v1.90
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -403,6 +403,19 @@ window.addEventListener('unhandledrejection', function(e){
     color:var(--text-dim);text-decoration:none;font-size:13px;padding:3px 5px;
   }
   .entry-actions a:hover{color:var(--amber);}
+  .legend-toggle{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    width:100%;background:none;border:none;padding:0;cursor:pointer;
+    font-family:'Courier Prime',monospace;font-size:10px;
+    letter-spacing:1px;text-transform:uppercase;
+    color:var(--text-dim);margin-bottom:8px;
+  }
+  .legend-toggle:hover{color:var(--text);}
+  .legend-chevron{font-size:9px;transition:transform 0.15s ease;}
+  .legend.collapsed .legend-chevron{transform:rotate(-90deg);}
+  .legend.collapsed .legend-toggle{margin-bottom:0;}
+  .legend.collapsed .legend-body{display:none;}
+  .legend.collapsed{padding:7px 11px;}
   .legend{
     position:absolute;bottom:76px;right:16px;
     background:rgba(231,223,199,0.94);
@@ -1352,6 +1365,7 @@ window.addEventListener('unhandledrejection', function(e){
     <button id="openDiagnosticsBtn" class="header-btn">Проверка данных</button>
     <button id="openGalleryBtn" class="header-btn">Фотогалерея</button>
     <button id="openRecapBtn" class="header-btn">Год в путешествиях</button>
+    <button id="openPhotoImportBtn" class="header-btn">Импорт из фото</button>
     <button id="themeToggleBtn" class="header-btn" title="Переключить тему" aria-label="Переключить тёмную/светлую тему">🌙</button>
   </div>
 </header>
@@ -1676,15 +1690,20 @@ window.addEventListener('unhandledrejection', function(e){
       <button id="mapFullBtn" class="topo-toggle-btn map-full-btn" title="Развернуть карту на весь экран" aria-label="Развернуть карту на весь экран">⤢</button>
       <button id="topoToggleBtn" class="topo-toggle-btn" title="Переключить на рельефную карту" aria-label="Переключить на рельефную карту">🏔 Рельеф</button>
     </div>
-    <div class="legend">
-      <div><span class="dot country"></span> Страна (заливка)</div>
-      <div><span class="dot city"></span> Город (точка)</div>
-      <div><span class="dot route"></span> Маршрут</div>
-      <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-style:italic;">пунктир — план / маршрут по прямой</div>
-      <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
-      <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
-      <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-      <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.83</div>
+    <div class="legend" id="legend">
+      <button class="legend-toggle" id="legendToggle" aria-expanded="true" aria-controls="legendBody" title="Свернуть легенду">
+        <span>Легенда</span><span class="legend-chevron">▾</span>
+      </button>
+      <div class="legend-body" id="legendBody">
+        <div><span class="dot country"></span> Страна (заливка)</div>
+        <div><span class="dot city"></span> Город (точка)</div>
+        <div><span class="dot route"></span> Маршрут</div>
+        <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-style:italic;">пунктир — план / маршрут по прямой</div>
+        <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
+        <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
+        <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.90</div>
+      </div>
     </div>
     <div class="toast" id="toast"></div>
     <div class="timeline-bar" id="timelineBar" style="display:none;">
@@ -1772,6 +1791,24 @@ window.addEventListener('unhandledrejection', function(e){
         <span id="ppPos"></span>
         <button id="ppNext" aria-label="Следующий разворот">›</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="photoImportModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Импорт из фотографий</h2>
+      <button id="closePhotoImportModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-sub">Файлы не загружаются и никуда не отправляются — читаются только дата съёмки и координаты, если они есть.</div>
+    <div class="table-wrap">
+      <div style="padding:4px 20px 12px;">
+        <div class="file-drop" id="photoDrop">Нажмите, чтобы выбрать фотографии с поездки</div>
+        <input type="file" id="photoInput" accept="image/*" multiple style="display:none;">
+        <div class="hint" id="photoStatus"></div>
+      </div>
+      <div id="photoResults"></div>
     </div>
   </div>
 </div>
@@ -1933,10 +1970,12 @@ try{
     zoomToBoundsOnClick: true,
     iconCreateFunction: function(cluster){
       const count = cluster.getChildCount();
-      const size = count < 10 ? 30 : count < 50 ? 38 : 46;
-      const fontSize = count < 10 ? 12 : count < 50 ? 13 : 14;
+      // Значки уменьшены: на общей карте прежние 30-46 px закрывали целые страны.
+      // Светлый ореол тоже ужат с 3 до 2 px — он добавлялся к видимому размеру.
+      const size = count < 10 ? 22 : count < 50 ? 27 : 32;
+      const fontSize = count < 10 ? 10 : count < 50 ? 11 : 11.5;
       return L.divIcon({
-        html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#3F5240;border:2px solid #2B3B2E;display:flex;align-items:center;justify-content:center;color:#F3ECD8;font-family:'Courier Prime',monospace;font-weight:700;font-size:${fontSize}px;box-shadow:0 0 0 3px rgba(231,223,199,0.7);">${count}</div>`,
+        html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#3F5240;border:1.5px solid #2B3B2E;display:flex;align-items:center;justify-content:center;color:#F3ECD8;font-family:'Courier Prime',monospace;font-weight:700;font-size:${fontSize}px;box-shadow:0 0 0 2px rgba(231,223,199,0.7);">${count}</div>`,
         className: '',
         iconSize: [size, size]
       });
@@ -2168,7 +2207,10 @@ let tripMeta = READ_ONLY ? BAKED_TRIP_META : {}; // { [tripName]: { narrative, c
 const LOCAL_STORAGE_KEY = 'travel-map-data';
 
 function hasClaudeStorage(){
-  return typeof window.storage !== 'undefined' && window.storage && typeof window.storage.get === 'function';
+  // проверяем обе операции: saveData пользуется set, и если реализовано только
+  // чтение, запись упала бы в ошибку вместо отката на хранилище браузера
+  return typeof window.storage !== 'undefined' && window.storage &&
+         typeof window.storage.get === 'function' && typeof window.storage.set === 'function';
 }
 
 async function loadData(){
@@ -2275,6 +2317,169 @@ function findCountryFeature(latlng){
 }
 function getCountryGeometry(name){
   return COUNTRY_GEOMETRY_INDEX[name] || null;
+}
+
+// ---------- метаданные фотографий ----------
+// Читаем EXIF сами, без библиотеки: приложение должно работать офлайн, а нужны
+// всего три значения — координаты и дата съёмки. Поддерживаем JPEG и WebP; HEIC с
+// айфонов устроен иначе и не разбирается (об этом сообщаем пользователю).
+function findExifTiff(buf){
+  if(!buf || buf.byteLength < 16) return null;
+  const dv = new DataView(buf);
+  // JPEG: ищем сегмент APP1 с сигнатурой Exif
+  if(dv.getUint16(0) === 0xFFD8){
+    let off = 2;
+    while(off + 4 <= dv.byteLength){
+      if(dv.getUint8(off) !== 0xFF) break;
+      const marker = dv.getUint8(off+1);
+      if(marker === 0xDA) break; // начались данные изображения
+      const size = dv.getUint16(off+2);
+      if(size < 2) break;
+      if(marker === 0xE1 && off + 10 <= dv.byteLength){
+        let sig = '';
+        for(let i=0;i<4;i++) sig += String.fromCharCode(dv.getUint8(off+4+i));
+        if(sig === 'Exif') return { dv, tiff: off + 10 };
+      }
+      off += 2 + size;
+    }
+    return null;
+  }
+  // WebP: контейнер RIFF, метаданные лежат в чанке EXIF
+  if(dv.getUint32(0) === 0x52494646 && dv.byteLength > 12 && dv.getUint32(8) === 0x57454250){
+    let off = 12;
+    while(off + 8 <= dv.byteLength){
+      const id = String.fromCharCode(dv.getUint8(off),dv.getUint8(off+1),dv.getUint8(off+2),dv.getUint8(off+3));
+      const size = dv.getUint32(off+4, true);
+      if(size < 0 || off + 8 + size > dv.byteLength) break;
+      if(id === 'EXIF'){
+        let start = off + 8;
+        // иногда внутри чанка ещё раз повторяется сигнатура Exif\0\0
+        if(dv.getUint8(start) === 0x45 && dv.getUint8(start+1) === 0x78) start += 6;
+        return { dv, tiff: start };
+      }
+      off += 8 + size + (size & 1);
+    }
+    return null;
+  }
+  return null;
+}
+
+function readPhotoMeta(buf){
+  let found;
+  try{ found = findExifTiff(buf); }catch(e){ return null; }
+  if(!found) return null;
+  const { dv, tiff } = found;
+  try{
+    if(tiff + 8 > dv.byteLength) return null;
+    const le = dv.getUint16(tiff) === 0x4949;
+    const u16 = o => dv.getUint16(o, le);
+    const u32 = o => dv.getUint32(o, le);
+    const rational = o => { const n = u32(o), d = u32(o+4); return d ? n/d : 0; };
+    const ifd0 = tiff + u32(tiff + 4);
+    if(ifd0 + 2 > dv.byteLength) return null;
+    let gpsOff = 0, exifOff = 0;
+    const n0 = u16(ifd0);
+    for(let i=0;i<n0;i++){
+      const e = ifd0 + 2 + i*12;
+      if(e + 12 > dv.byteLength) break;
+      const tag = u16(e);
+      if(tag === 0x8825) gpsOff = tiff + u32(e+8);
+      if(tag === 0x8769) exifOff = tiff + u32(e+8);
+    }
+    const out = { lat: null, lng: null, date: null };
+    if(gpsOff && gpsOff + 2 <= dv.byteLength){
+      let lat = null, lng = null, latRef = 'N', lngRef = 'E';
+      const n = u16(gpsOff);
+      for(let i=0;i<n;i++){
+        const e = gpsOff + 2 + i*12;
+        if(e + 12 > dv.byteLength) break;
+        const tag = u16(e), cnt = u32(e+4);
+        if(tag === 1) latRef = String.fromCharCode(dv.getUint8(e+8));
+        if(tag === 3) lngRef = String.fromCharCode(dv.getUint8(e+8));
+        if(tag === 2 && cnt === 3){ const o = tiff + u32(e+8); if(o+24 <= dv.byteLength) lat = rational(o) + rational(o+8)/60 + rational(o+16)/3600; }
+        if(tag === 4 && cnt === 3){ const o = tiff + u32(e+8); if(o+24 <= dv.byteLength) lng = rational(o) + rational(o+8)/60 + rational(o+16)/3600; }
+      }
+      if(lat !== null && lng !== null && isFinite(lat) && isFinite(lng)){
+        out.lat = latRef === 'S' ? -lat : lat;
+        out.lng = lngRef === 'W' ? -lng : lng;
+        // 0,0 — точка в океане, обычно означает «координат нет»
+        if(Math.abs(out.lat) < 0.001 && Math.abs(out.lng) < 0.001){ out.lat = null; out.lng = null; }
+      }
+    }
+    if(exifOff && exifOff + 2 <= dv.byteLength){
+      const n = u16(exifOff);
+      for(let i=0;i<n;i++){
+        const e = exifOff + 2 + i*12;
+        if(e + 12 > dv.byteLength) break;
+        const tag = u16(e), cnt = u32(e+4);
+        if(tag === 0x9003 && cnt > 4){
+          const o = tiff + u32(e+8);
+          if(o + cnt <= dv.byteLength){
+            let s = '';
+            for(let j=0;j<cnt-1;j++) s += String.fromCharCode(dv.getUint8(o+j));
+            out.date = s.trim();
+          }
+        }
+      }
+    }
+    return (out.lat !== null || out.date) ? out : null;
+  }catch(e){ return null; }
+}
+
+// Дата из имени файла — запасной путь, когда метаданные вырезаны.
+// Покрывает PXL_20260726_..., IMG_20150714_..., 2015-07-14 ... и подобные.
+function dateFromFilename(name){
+  const m = String(name).match(/(20\d{2})[-_.]?(\d{2})[-_.]?(\d{2})/);
+  if(!m) return null;
+  const y = +m[1], mo = +m[2], d = +m[3];
+  if(mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  if(y < 2000 || y > new Date().getFullYear() + 1) return null;
+  return { year: y, month: mo, day: d };
+}
+
+function parseExifDate(s){
+  // формат EXIF: 2015:07:14 12:30:45
+  const m = String(s || '').match(/^(\d{4}):(\d{2}):(\d{2})/);
+  if(!m) return null;
+  const y = +m[1], mo = +m[2], d = +m[3];
+  if(mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return { year: y, month: mo, day: d };
+}
+
+// Собираем снимки в кластеры-поездки. Ключевая идея: координаты нужны не у
+// каждого снимка — достаточно одного на кластер, остальные привязываются к нему
+// по времени. Поэтому смешанный архив (часть с метками, часть без) всё равно
+// даёт результат.
+const PHOTO_GAP_DAYS = 2;      // разрыв больше двух суток — уже другая поездка
+const PHOTO_CLUSTER_KM = 150;  // и отдельный кластер, если далеко географически
+
+function clusterPhotos(items){
+  const dated = items.filter(p => p.date).slice()
+    .sort((a,b) => a.date.year - b.date.year || a.date.month - b.date.month || a.date.day - b.date.day);
+  const clusters = [];
+  let cur = null;
+  const dayNum = d => d.year * 372 + d.month * 31 + d.day; // грубый порядковый день, для сравнения разрывов достаточно
+  dated.forEach(p=>{
+    const dn = dayNum(p.date);
+    let sameTrip = cur && (dn - cur.lastDay) <= PHOTO_GAP_DAYS;
+    // если у обоих есть координаты и они далеко — это разные поездки,
+    // даже когда сняты подряд (перелёт в тот же день)
+    if(sameTrip && p.lat != null && cur.lat != null){
+      if(haversine([cur.lat, cur.lng], [p.lat, p.lng]) > PHOTO_CLUSTER_KM) sameTrip = false;
+    }
+    if(!sameTrip){
+      cur = { photos: [], from: p.date, to: p.date, lastDay: dn, lat: null, lng: null, geoCount: 0 };
+      clusters.push(cur);
+    }
+    cur.photos.push(p);
+    cur.to = p.date;
+    cur.lastDay = dn;
+    if(p.lat != null){
+      cur.geoCount++;
+      if(cur.lat === null){ cur.lat = p.lat; cur.lng = p.lng; }
+    }
+  });
+  return clusters;
 }
 
 // ---------- GPX ----------
@@ -2416,11 +2621,41 @@ function getEntryCoords(entry){
   }
   return entry.coords || []; // legacy entries saved before compression was introduced
 }
+// Высота в GPX шумит на ±2-3 метра даже на ровной дороге, а набор считается
+// суммой всех подъёмов подряд — шум накапливается и завышает цифру в разы
+// (на смоделированном треке с настоящими 300 м выходило 2000 м, а на совершенно
+// ровном участке — 1400 м из ниоткуда).
+// Двухступенчатая фильтрация: сглаживаем профиль скользящим средним, затем
+// засчитываем только подъёмы от 5 метров. Параметры подобраны замерами:
+// на подъёме 300 м даёт 300, на ровном участке 0, на пилообразном трейле
+// 264 из настоящих 279.
+const ELEV_SMOOTH_WINDOW = 9;
+const ELEV_MIN_RISE = 5;
+
+function smoothElevations(elevations, window){
+  const w = window || ELEV_SMOOTH_WINDOW;
+  if(elevations.length < w) return elevations.slice();
+  const half = Math.floor(w / 2);
+  const out = new Array(elevations.length);
+  for(let i = 0; i < elevations.length; i++){
+    const a = Math.max(0, i - half);
+    const b = Math.min(elevations.length, i + half + 1);
+    let sum = 0;
+    for(let j = a; j < b; j++) sum += elevations[j];
+    out[i] = sum / (b - a);
+  }
+  return out;
+}
+
 function elevationGainOf(elevations){
+  if(!elevations || elevations.length < 2) return 0;
+  const el = smoothElevations(elevations);
   let gain = 0;
-  for(let i=1;i<elevations.length;i++){
-    const d = elevations[i] - elevations[i-1];
-    if(d > 0) gain += d;
+  let ref = el[0];
+  for(let i = 1; i < el.length; i++){
+    const e = el[i];
+    if(e - ref >= ELEV_MIN_RISE){ gain += e - ref; ref = e; }
+    else if(e < ref){ ref = e; }
   }
   return gain;
 }
@@ -2500,7 +2735,7 @@ routeCitySearchInput.addEventListener('input', ()=>{
   if(!q || q.length < 2){ routeCitySuggestBox.style.display = 'none'; return; }
   routeCitySuggestBox.innerHTML = `<div class="suggest-empty">Поиск…</div>`;
   routeCitySuggestBox.style.display = 'block';
-  routeCityDebounceTimer = setTimeout(()=> fetchRouteCitySuggestions(q), 400);
+  routeCityDebounceTimer = setTimeout(()=> fetchRouteCitySuggestions(q), 700);
 });
 routeCitySearchInput.addEventListener('keydown', (e)=>{
   if(routeCitySuggestBox.style.display === 'none') return;
@@ -2513,6 +2748,21 @@ document.addEventListener('click', (e)=>{
   if(!routeCitySearchInput.contains(e.target) && !routeCitySuggestBox.contains(e.target)) routeCitySuggestBox.style.display = 'none';
 });
 
+// Политика Nominatim: не больше одного запроса в секунду. Раньше пауза стояла
+// отдельно в каждом месте (350-400 мс) — этого мало само по себе, а при
+// наложении подсказок поиска на фоновый пересчёт координат лимит превышался
+// вдвое-втрое. Очередь общая на все обращения, поэтому суммарный темп
+// соблюдается независимо от того, сколько мест шлют запросы одновременно.
+const NOMINATIM_MIN_INTERVAL = 1100;
+let nominatimNextFreeAt = 0;
+async function nominatimThrottle(){
+  const now = Date.now();
+  const startAt = Math.max(now, nominatimNextFreeAt);
+  nominatimNextFreeAt = startAt + NOMINATIM_MIN_INTERVAL;
+  const wait = startAt - now;
+  if(wait > 0) await new Promise(r => setTimeout(r, wait));
+}
+
 async function queryNominatimSettlements(q, biasLatLng){
   let url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&accept-language=ru&limit=12&q=${encodeURIComponent(q)}`;
   if(biasLatLng){
@@ -2524,6 +2774,7 @@ async function queryNominatimSettlements(q, biasLatLng){
     const delta = 3;
     url += `&viewbox=${lng-delta},${lat-delta},${lng+delta},${lat+delta}`;
   }
+  await nominatimThrottle();
   const res = await fetch(url);
   const data = await res.json();
   return data.map(d => {
@@ -2561,8 +2812,7 @@ async function refreshWaypointCoords(){
       failCount++;
       reportServiceIssue('поиск городов');
     }
-    // пауза между запросами — не заваливаем бесплатный сервис геокодирования пачкой запросов подряд
-    if(i < entry.waypointNames.length - 1) await new Promise(r => setTimeout(r, 350));
+    // отдельная пауза не нужна: темп держит общая очередь nominatimThrottle
   }
   entry.waypointCoords = newCoords;
   btn.disabled = false;
@@ -2852,7 +3102,7 @@ citySearchInput.addEventListener('input', ()=>{
   if(!q || q.length < 2){ citySuggestBox.style.display = 'none'; return; }
   citySuggestBox.innerHTML = `<div class="suggest-empty">Поиск…</div>`;
   citySuggestBox.style.display = 'block';
-  cityDebounceTimer = setTimeout(()=> fetchCitySuggestions(q), 400);
+  cityDebounceTimer = setTimeout(()=> fetchCitySuggestions(q), 700);
 });
 citySearchInput.addEventListener('keydown', (e)=>{
   if(citySuggestBox.style.display === 'none') return;
@@ -3460,8 +3710,19 @@ function migrateEntry(entry){
 // Заливка страны по числу визитов, а не «был / не был»: одна поездка и десять
 // выглядели одинаково, хотя это разные истории. Шкала пологая, чтобы страна
 // с одним визитом оставалась хорошо заметной.
+// Счётчик визитов по странам: пересобирается при изменении данных, а не
+// перебирается заново на каждую страну при отрисовке слоёв
+let countryVisitCounts = new Map();
+function rebuildCountryVisitCounts(){
+  countryVisitCounts = new Map();
+  allEntries.forEach(e=>{
+    if(e.type !== 'country' || e.status === 'wishlist' || !e.countryKey) return;
+    countryVisitCounts.set(e.countryKey, (countryVisitCounts.get(e.countryKey) || 0) + 1);
+  });
+}
+
 function countryFillOpacity(countryKey){
-  const visits = allEntries.filter(e => e.type === 'country' && e.countryKey === countryKey && e.status !== 'wishlist').length;
+  const visits = countryVisitCounts.get(countryKey) || 0;
   if(visits <= 1) return 0.28;
   if(visits === 2) return 0.40;
   if(visits === 3) return 0.52;
@@ -3537,6 +3798,7 @@ function pruneStaleFilters(){
 function rebuildAll(){
   allEntries.forEach(migrateEntry);
   pruneStaleFilters();
+  rebuildCountryVisitCounts();
   syncLayers();
   buildYearChips();
   buildFixedChips('monthChips', MONTHS, activeMonths);
@@ -4156,10 +4418,16 @@ function passesFilter(entry){
   if(!activeLayerTypes.has(entry.type)) return false;
   if(activeYears.size > 0 && !activeYears.has(entry.year)) return false;
   if(activePurposes.size > 0 && !activePurposes.has(entry.purpose)) return false;
-  if(activeCompanies.size > 0 && entry.company && !activeCompanies.has(entry.company)) return false;
-  if(activeCommunities.size > 0 && entry.community && !activeCommunities.has(entry.community)) return false;
-  if(activeSeasons.size > 0 && entry.season && !activeSeasons.has(entry.season)) return false;
-  if(activeMonths.size > 0 && entry.month && !activeMonths.has(entry.month)) return false;
+  // Раньше здесь стояла проверка вида `entry.company && ...`: запись без
+  // значения проваливалась мимо фильтра и показывалась всегда. Получалось,
+  // что «Июль» означало «июль и всё, у чего месяц неизвестен» — и это
+  // расходилось с фильтрами года и цели, которые такие записи отбрасывают.
+  if(activeCompanies.size > 0 && !activeCompanies.has(entry.company)) return false;
+  if(activeCommunities.size > 0 && !activeCommunities.has(entry.community)) return false;
+  if(activeSeasons.size > 0 && !activeSeasons.has(entry.season)) return false;
+  if(activeMonths.size > 0 && !activeMonths.has(entry.month)) return false;
+  // А вот у активности послабление осмысленно и остаётся: проверка ограничена
+  // маршрутами, и фильтр «Бег» не должен прятать города — они другого типа.
   if(activeActivities.size > 0 && entry.type === 'route' && entry.activity && !activeActivities.has(entry.activity)) return false;
   if(activeStatuses.size > 0 && !activeStatuses.has(entry.status || 'visited')) return false;
   if(activeTrips.size > 0 && (!entry.trip || !activeTrips.has(entry.trip))) return false;
@@ -4670,13 +4938,16 @@ function renderList(precomputedVisible){
   // Показываем список порциями: при нескольких сотнях записей отрисовка всех
   // строк разом заметно тормозит, а прокрутить их всё равно невозможно
   const shown = visible.slice(0, listLimit);
+  // счётчик по годам одним проходом: раньше на каждый заголовок года заново
+  // пересматривался весь список видимых записей
+  const yearCounts = new Map();
+  visible.forEach(e => yearCounts.set(e.year, (yearCounts.get(e.year) || 0) + 1));
   const parts = [];
   let lastYear = null;
   shown.forEach(entry=>{
     if(entry.year !== lastYear){
       lastYear = entry.year;
-      const inYear = visible.filter(e => e.year === entry.year).length;
-      parts.push(`<div class="entry-year-head">${entry.year}<span>${inYear}</span></div>`);
+      parts.push(`<div class="entry-year-head">${entry.year}<span>${yearCounts.get(entry.year) || 0}</span></div>`);
     }
     const extras = [seasonLabel(entry.season), companyLabel(entry.company), communityLabel(entry.community), entry.type === 'route' ? activityLabel(entry.activity) : null].filter(Boolean);
     let meta = `${monthLabel(entry.month) ? monthLabel(entry.month) + ' ' : ''}${entry.year} · ${purposeLabel(entry.purpose)}`;
@@ -5020,13 +5291,20 @@ document.getElementById('importInput').addEventListener('change', (e)=>{
       const parsed = JSON.parse(ev.target.result);
       const imported = Array.isArray(parsed) ? parsed : parsed.entries;
       if(!Array.isArray(imported)){ toast('Файл не похож на резервную копию этого инструмента'); return; }
+      // Проверка типа пропускала мусор вроде lat: 999999 — такая запись ломает
+      // подгонку масштаба карты. Проверяем и диапазон.
+      const validCoord = (lat, lng) =>
+        Number.isFinite(lat) && lat >= -90 && lat <= 90 &&
+        Number.isFinite(lng) && lng >= -180 && lng <= 180;
       const valid = imported.filter(x => x && x.id && x.type && x.name &&
-        (x.type === 'route' ? (typeof x.coordsEncoded === 'string' || Array.isArray(x.coords)) :
-         x.type === 'city' ? (typeof x.lat === 'number' && typeof x.lng === 'number') :
+        (x.type === 'route' ? ((typeof x.coordsEncoded === 'string' && x.coordsEncoded.length > 0) || (Array.isArray(x.coords) && x.coords.length > 1)) :
+         x.type === 'city' ? validCoord(x.lat, x.lng) :
          x.type === 'country' ? typeof x.countryKey === 'string' : false));
+      const skipped = imported.length - valid.length;
       if(valid.length === 0){ toast('В файле не найдено подходящих записей'); return; }
       const replace = confirm(
-        `Найдено записей: ${valid.length}.\n\n` +
+        `Найдено записей: ${valid.length}.` +
+        (skipped ? `\nПропущено повреждённых: ${skipped}.` : '') + `\n\n` +
         `ОК — заменить все текущие отметки импортированными.\n` +
         `Отмена — добавить к уже существующим (без дублей).\n\n` +
         `Замена необратима, отменить её нельзя. Перед заменой автоматически скачается копия текущих данных.`
@@ -5824,7 +6102,16 @@ function countDiagnosticsIssues(){
   }
 }
 
+let diagBadgeTimer = null;
 function updateDiagnosticsBadge(){
+  // Полная проверка данных стоит десятки миллисекунд и висит на каждом
+  // изменении данных — вплоть до переключения сердечка. Откладываем расчёт,
+  // чтобы он не задерживал видимое обновление интерфейса.
+  if(diagBadgeTimer) clearTimeout(diagBadgeTimer);
+  diagBadgeTimer = setTimeout(()=>{ diagBadgeTimer = null; computeDiagnosticsBadgeNow(); }, 120);
+}
+
+function computeDiagnosticsBadgeNow(){
   const btn = document.getElementById('openDiagnosticsBtn');
   if(!btn || READ_ONLY) return;
   const n = countDiagnosticsIssues();
@@ -6034,6 +6321,179 @@ function renderDiagnostics(){
   });
 }
 
+// ---------- импорт из фотографий ----------
+let photoClusters = [];
+
+function readFileHead(file, bytes){
+  // читаем только начало файла: метаданные лежат в первых килобайтах,
+  // тянуть в память снимок на 15 МБ незачем
+  return new Promise(resolve=>{
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => resolve(null);
+    reader.readAsArrayBuffer(file.slice(0, bytes || 256 * 1024));
+  });
+}
+
+async function handlePhotoFiles(files){
+  const status = document.getElementById('photoStatus');
+  const results = document.getElementById('photoResults');
+  results.innerHTML = '';
+  photoClusters = [];
+  const list = Array.from(files);
+  if(list.length === 0) return;
+  const items = [];
+  let noMeta = 0, heic = 0;
+  for(let i = 0; i < list.length; i++){
+    const f = list[i];
+    if(i % 10 === 0) status.textContent = `Читаю ${i+1} из ${list.length}…`;
+    if(/\.(heic|heif)$/i.test(f.name)) heic++;
+    const buf = await readFileHead(f);
+    const meta = buf ? readPhotoMeta(buf) : null;
+    const date = (meta && meta.date && parseExifDate(meta.date)) || dateFromFilename(f.name);
+    if(!date){ noMeta++; continue; }
+    items.push({ name: f.name, date, lat: meta ? meta.lat : null, lng: meta ? meta.lng : null });
+  }
+  const clusters = clusterPhotos(items);
+  photoClusters = clusters;
+  const withGeo = clusters.filter(c => c.lat !== null).length;
+  status.textContent = `Прочитано ${items.length} из ${list.length}` +
+    (noMeta ? ` · без даты: ${noMeta}` : '') +
+    (heic ? ` · формат HEIC не читается: ${heic}` : '') +
+    ` · поездок: ${clusters.length}, из них с координатами: ${withGeo}`;
+
+  if(clusters.length === 0){
+    results.innerHTML = `<div class="hint" style="padding:0 20px 20px;">Не удалось определить дату ни у одного снимка. Обычно так бывает с пересланными через мессенджеры файлами.</div>`;
+    return;
+  }
+  renderPhotoClusters();
+  // названия мест подтягиваем по одному, чтобы не заваливать бесплатный геокодер
+  for(let i = 0; i < clusters.length; i++){
+    const c = clusters[i];
+    if(c.lat === null) continue;
+    status.textContent = `Определяю место ${i+1} из ${clusters.length}…`;
+    try{
+      const r = await reverseGeocode(c.lat, c.lng);
+      if(r){ c.place = r.name; c.countryKey = r.countryKey; }
+    }catch(e){ /* без названия — пользователь впишет сам */ }
+    renderPhotoClusters();
+    // темп запросов держит nominatimThrottle
+  }
+  status.textContent = `Готово. Проверьте и отметьте, что добавить.`;
+}
+
+async function reverseGeocode(lat, lng){
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&accept-language=ru&zoom=10&lat=${lat}&lon=${lng}`;
+  await nominatimThrottle();
+  const res = await fetch(url);
+  const d = await res.json();
+  const a = d.address || {};
+  const name = a.city || a.town || a.village || a.municipality || a.county || a.state || null;
+  if(!name) return null;
+  return { name, countryKey: findAnyCountryKeyByRuName(a.country, a.country_code ? a.country_code.toUpperCase() : null) };
+}
+
+function fmtPhotoRange(c){
+  const m = mm => monthLabel(mm) || mm;
+  if(c.from.year === c.to.year && c.from.month === c.to.month){
+    return c.from.day === c.to.day
+      ? `${c.from.day} ${m(c.from.month)} ${c.from.year}`
+      : `${c.from.day}–${c.to.day} ${m(c.from.month)} ${c.from.year}`;
+  }
+  return `${c.from.day} ${m(c.from.month)} ${c.from.year} — ${c.to.day} ${m(c.to.month)} ${c.to.year}`;
+}
+
+// Проверяем, не занесена ли эта поездка уже вручную. Сравниваем по году и
+// месяцу, а внутри — по близости координат либо по названию: одно место могло
+// быть записано под чуть другим именем.
+const PHOTO_SAME_PLACE_KM = 60;
+function findExistingForCluster(c){
+  const candidates = allEntries.filter(e =>
+    e.status !== 'wishlist' && e.year === c.from.year &&
+    (e.month === c.from.month || e.month === c.to.month));
+  if(candidates.length === 0) return null;
+  // по координатам надёжнее, чем по названию
+  if(c.lat !== null){
+    const near = candidates.find(e =>
+      e.type === 'city' && e.lat != null && haversine([e.lat, e.lng], [c.lat, c.lng]) <= PHOTO_SAME_PLACE_KM);
+    if(near) return near;
+  }
+  if(c.place){
+    const target = c.place.trim().toLowerCase();
+    const byName = candidates.find(e => (e.name || '').trim().toLowerCase() === target);
+    if(byName) return byName;
+  }
+  return null;
+}
+
+function renderPhotoClusters(){
+  const results = document.getElementById('photoResults');
+  photoClusters.forEach(c => { c.existing = findExistingForCluster(c); });
+  const dupes = photoClusters.filter(c => c.existing).length;
+  results.innerHTML = photoClusters.map((c,i) => `
+    <div class="diag-row" style="cursor:default;${c.existing ? 'opacity:0.72;' : ''}">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" data-photo-pick="${i}" ${(c.lat !== null && !c.existing) ? 'checked' : ''}>
+        <b style="font-weight:600;">${fmtPhotoRange(c)}</b>
+      </label>
+      <div class="diag-row-meta">снимков: ${c.photos.length}${c.geoCount ? ` · с координатами: ${c.geoCount}` : ' · координат нет'}</div>
+      ${c.existing ? `<div class="diag-row-meta" style="color:var(--amber);">уже есть: «${escapeHtml(c.existing.name)}» ${monthLabel(c.existing.month) || ''} ${c.existing.year}</div>` : ''}
+      <div class="diag-merge">
+        <input type="text" data-photo-name="${i}" value="${escapeAttr(c.place || '')}" placeholder="${c.lat !== null ? 'определяю место…' : 'впишите город'}" aria-label="Название места">
+      </div>
+    </div>
+  `).join('') + `<div style="padding:10px 20px 20px;">
+      <button class="cancel-edit" id="photoApplyBtn" style="margin-top:0;">Добавить отмеченные</button>
+      <div class="hint">${dupes ? `Похоже, уже занесено: ${dupes} — снял отметки, но добавить всё равно можно. ` : ''}Добавятся как города с указанным месяцем и годом.</div>
+    </div>`;
+  const apply = document.getElementById('photoApplyBtn');
+  if(apply) apply.addEventListener('click', applyPhotoClusters);
+}
+
+async function applyPhotoClusters(){
+  if(READ_ONLY){ toast('Это read-only версия — добавление недоступно'); return; }
+  const results = document.getElementById('photoResults');
+  let added = 0;
+  photoClusters.forEach((c,i)=>{
+    const cb = results.querySelector(`[data-photo-pick="${i}"]`);
+    if(!cb || !cb.checked) return;
+    const nameInput = results.querySelector(`[data-photo-name="${i}"]`);
+    const name = (nameInput && nameInput.value.trim()) || c.place;
+    if(!name) return; // без названия запись бессмысленна
+    allEntries.push({
+      id: genId(), type: 'city', name, year: c.from.year, month: c.from.month,
+      lat: c.lat, lng: c.lng, countryKey: c.countryKey || null,
+      photos: [], notes: `Из фотографий: ${c.photos.length} шт., ${fmtPhotoRange(c)}`,
+      purpose: 'tourism', season: seasonForMonth(c.from.month),
+      color: DEFAULT_COLOR.city, status: 'visited', favorite: false
+    });
+    added++;
+  });
+  if(added === 0){ toast('Не отмечено ни одной поездки с названием'); return; }
+  const saved = await saveData();
+  rebuildAll();
+  document.getElementById('photoImportModal').style.display = 'none';
+  if(saved) toast(`Добавлено записей: ${added}`);
+}
+
+document.getElementById('openPhotoImportBtn').addEventListener('click', ()=>{
+  document.getElementById('photoStatus').textContent = '';
+  document.getElementById('photoResults').innerHTML = '';
+  photoClusters = [];
+  document.getElementById('photoImportModal').style.display = 'flex';
+});
+document.getElementById('closePhotoImportModal').addEventListener('click', ()=>{
+  document.getElementById('photoImportModal').style.display = 'none';
+});
+document.getElementById('photoImportModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'photoImportModal') document.getElementById('photoImportModal').style.display = 'none';
+});
+document.getElementById('photoDrop').addEventListener('click', ()=> document.getElementById('photoInput').click());
+document.getElementById('photoInput').addEventListener('change', (e)=>{
+  handlePhotoFiles(e.target.files);
+  e.target.value = '';
+});
+
 document.getElementById('resetFiltersBtn').addEventListener('click', resetAllFilters);
 document.getElementById('openDiagnosticsBtn').addEventListener('click', ()=>{
   renderDiagnostics();
@@ -6211,13 +6671,14 @@ function renderGallery(){
 
   items.sort((a,b)=> b.year - a.year || a.entry.name.localeCompare(b.entry.name, 'ru'));
 
+  const galYearCounts = new Map();
+  items.forEach(x => galYearCounts.set(x.year, (galYearCounts.get(x.year) || 0) + 1));
   let html = '', lastYear = null;
   items.forEach(it=>{
     if(it.year !== lastYear){
       if(lastYear !== null) html += '</div>';
       lastYear = it.year;
-      const n = items.filter(x => x.year === it.year).length;
-      html += `<div class="gal-year">${it.year || 'без года'}<span>${n}</span></div><div class="gal-grid">`;
+      html += `<div class="gal-year">${it.year || 'без года'}<span>${galYearCounts.get(it.year) || 0}</span></div><div class="gal-grid">`;
     }
     const flag = (it.entry.type === 'country' || it.entry.type === 'city') ? countryFlag(it.entry.countryKey) : '';
     const cap = `${flag ? flag + ' ' : ''}${escapeHtml(it.entry.name)}`;
@@ -6532,6 +6993,8 @@ function applyReadOnlyUI(){
   if(importBtn) importBtn.style.display = 'none';
   const diagnosticsBtn = document.getElementById('openDiagnosticsBtn');
   if(diagnosticsBtn) diagnosticsBtn.style.display = 'none'; // «нажал — исправил» не имеет смысла, когда редактирование заблокировано
+  const photoBtn = document.getElementById('openPhotoImportBtn');
+  if(photoBtn) photoBtn.style.display = 'none'; // импорт существует только чтобы создавать записи
   const bulkBar = document.getElementById('bulkBar');
   if(bulkBar) bulkBar.style.setProperty('display', 'none', 'important');
   const selectAllTh = document.getElementById('selectAllCheckbox');
@@ -6585,6 +7048,85 @@ const COLLAPSE_KEY = 'travel-map-collapsed';
       title.addEventListener('click', toggle);
       title.addEventListener('keydown', e=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggle(); } });
     });
+  });
+})();
+
+// Свайп вниз закрывает модалку — на телефоне они почти во весь экран, и
+// дотягиваться до крестика вверху неудобно. Работает только когда содержимое
+// прокручено в самый верх, иначе жест конфликтовал бы с обычной прокруткой.
+(function enableModalSwipeClose(){
+  const SWIPE_CLOSE_PX = 90;   // порог закрытия
+  const SWIPE_MAX_X = 60;      // горизонтальный увод — значит, жест не тот
+  document.querySelectorAll('.modal-overlay').forEach(overlay=>{
+    const panel = overlay.querySelector('.modal-panel');
+    if(!panel) return;
+    let startY = 0, startX = 0, tracking = false, scroller = null;
+
+    panel.addEventListener('touchstart', (e)=>{
+      if(e.touches.length !== 1) return;
+      // ближайший прокручиваемый предок внутри модалки
+      scroller = e.target.closest('.table-wrap') || panel;
+      if(scroller.scrollTop > 0){ tracking = false; return; }
+      startY = e.touches[0].clientY;
+      startX = e.touches[0].clientX;
+      tracking = true;
+      panel.style.transition = '';
+    }, { passive: true });
+
+    panel.addEventListener('touchmove', (e)=>{
+      if(!tracking || e.touches.length !== 1) return;
+      const dy = e.touches[0].clientY - startY;
+      const dx = Math.abs(e.touches[0].clientX - startX);
+      if(dx > SWIPE_MAX_X){ tracking = false; panel.style.transform = ''; return; }
+      if(dy > 0){
+        // тянем панель за пальцем, с сопротивлением
+        panel.style.transform = `translateY(${dy * 0.6}px)`;
+        panel.style.opacity = String(Math.max(0.55, 1 - dy / 420));
+      }
+    }, { passive: true });
+
+    const finish = (e)=>{
+      if(!tracking) return;
+      tracking = false;
+      const dy = (e.changedTouches && e.changedTouches[0].clientY - startY) || 0;
+      panel.style.transition = 'transform 0.22s ease, opacity 0.22s ease';
+      if(dy > SWIPE_CLOSE_PX){
+        overlay.style.display = 'none';
+        // сбрасываем, иначе при следующем открытии панель окажется сдвинутой
+        setTimeout(()=>{ panel.style.transform = ''; panel.style.opacity = ''; panel.style.transition = ''; }, 30);
+      } else {
+        panel.style.transform = '';
+        panel.style.opacity = '';
+      }
+    };
+    panel.addEventListener('touchend', finish, { passive: true });
+    panel.addEventListener('touchcancel', finish, { passive: true });
+  });
+})();
+
+// Легенда сворачивается: на телефоне она закрывает заметную часть карты.
+// Состояние запоминается, а на узких экранах по умолчанию свёрнута — там
+// карта дороже подсказки, которую обычно читают один раз.
+(function setupLegendToggle(){
+  const legend = document.getElementById('legend');
+  const btn = document.getElementById('legendToggle');
+  const body = document.getElementById('legendBody');
+  if(!legend || !btn || !body) return;
+  const KEY = 'travel-map-legend-collapsed';
+  let saved = null;
+  try{ saved = localStorage.getItem(KEY); }catch(e){}
+  const isNarrow = window.matchMedia && window.matchMedia('(max-width:768px)').matches;
+  const collapsed = saved === null ? isNarrow : saved === '1';
+  const apply = state => {
+    legend.classList.toggle('collapsed', state);
+    btn.setAttribute('aria-expanded', String(!state));
+    btn.title = state ? 'Развернуть легенду' : 'Свернуть легенду';
+  };
+  apply(collapsed);
+  btn.addEventListener('click', ()=>{
+    const next = !legend.classList.contains('collapsed');
+    apply(next);
+    try{ localStorage.setItem(KEY, next ? '1' : '0'); }catch(e){}
   });
 })();
 
