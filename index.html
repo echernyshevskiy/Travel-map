@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.90
+  Версия: v1.94
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -476,6 +476,11 @@ window.addEventListener('unhandledrejection', function(e){
     background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;
   }
   .selected-tag button:hover{color:var(--danger);}
+  .waypoint-row.wp-editing{
+    outline:1.5px solid var(--amber);
+    outline-offset:-1px;
+    border-radius:4px;
+  }
   .waypoint-row{
     display:flex;align-items:center;gap:8px;
     padding:6px 8px;
@@ -804,6 +809,13 @@ window.addEventListener('unhandledrejection', function(e){
   }
   .diag-merge button:hover{background:var(--amber);color:var(--on-accent);}
   .diag-merge button:disabled{opacity:0.45;cursor:default;}
+  .backup-reminder{
+    margin-top:8px;padding:8px 10px;
+    border:1px solid var(--amber-dim);border-radius:4px;
+    background:var(--panel-raised);
+    font-size:11.5px;color:var(--text);line-height:1.5;
+  }
+  .backup-reminder b{font-family:'Courier Prime',monospace;font-weight:700;}
   .diag-badge{
     display:inline-block;margin-left:6px;
     font-family:'Courier Prime',monospace;font-size:10px;font-weight:700;
@@ -1445,6 +1457,16 @@ window.addEventListener('unhandledrejection', function(e){
           <input type="number" id="fieldTrackDays" min="1" max="365" step="1">
         </div>
 
+        <div id="editWaypointsField" style="display:none;">
+          <label>Точки маршрута</label>
+          <div id="editWaypointsList"></div>
+          <div class="search-wrap">
+            <input type="text" id="editWaypointSearch" placeholder="Заменить выбранную точку — введите город…" autocomplete="off">
+            <div class="suggest-box" id="editWaypointSuggest" style="display:none;"></div>
+          </div>
+          <div class="hint">Нажмите ✎ у точки, затем найдите правильный город. Сама линия маршрута не перестраивается — меняются координаты точки для статистики и снимка.</div>
+        </div>
+
         <div id="refreshWaypointsField" style="display:none;">
           <button type="button" class="cancel-edit" id="refreshWaypointsBtn" style="margin-top:0;">Обновить координаты точек маршрута</button>
           <div class="hint">Заново найдёт сохранённые названия городов и подставит координаты — нужно, чтобы эти города учитывались в статистике и на PNG-снимке.</div>
@@ -1623,6 +1645,7 @@ window.addEventListener('unhandledrejection', function(e){
       <button class="cancel-edit" id="exportXlsxBtn">Скачать таблицу (XLSX)</button>
       <button class="cancel-edit" id="importBtn">Загрузить из файла</button>
       <input type="file" id="importInput" accept=".json" style="display:none;">
+      <div class="backup-reminder" id="backupReminder" style="display:none;"></div>
       <div class="hint" id="backupHint">Отметки хранятся в облаке артефакта. Файл — подстраховка на случай, если она станет недоступна: храните его у себя.</div>
     </div>
 
@@ -1702,7 +1725,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.90</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.94</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -1741,6 +1764,14 @@ window.addEventListener('unhandledrejection', function(e){
         <option value="business">Бизнес</option>
       </select>
       <button id="bulkApplyPurpose" class="cancel-edit" style="margin-top:0;">Цель</button>
+      <select id="bulkCompanyValue">
+        <option value="alone">Один</option>
+        <option value="couple">С парой</option>
+        <option value="group">Сообщество</option>
+        <option value="friends">Друзья</option>
+        <option value="parents">Родители</option>
+      </select>
+      <button id="bulkApplyCompany" class="cancel-edit" style="margin-top:0;">Компания</button>
       <input type="text" id="bulkTripValue" list="tripDatalist" placeholder="Название поездки" style="width:150px;">
       <button id="bulkApplyTrip" class="cancel-edit" style="margin-top:0;">Поездка</button>
       <button id="bulkApplyVisited" class="cancel-edit" style="margin-top:0;color:var(--amber);border-color:var(--amber-dim);">✓ Отметить посещёнными</button>
@@ -2242,6 +2273,50 @@ async function loadData(){
     tripMeta = {};
   }
 }
+// Данные живут в хранилище браузера: очистка данных сайта, переустановка
+// приложения или нехватка места на телефоне — и всё пропадёт. Экспорт есть,
+// но о нём надо вспомнить. Считаем изменения с последней копии и мягко
+// напоминаем — без модальных окон, просто строкой в разделе копий.
+const BACKUP_STATE_KEY = 'travel-map-backup-state';
+const BACKUP_REMIND_CHANGES = 25;   // столько изменений — уже жаль потерять
+const BACKUP_REMIND_DAYS = 30;
+
+function readBackupState(){
+  try{ return JSON.parse(localStorage.getItem(BACKUP_STATE_KEY) || '{}') || {}; }
+  catch(e){ return {}; }
+}
+function writeBackupState(s){
+  try{ localStorage.setItem(BACKUP_STATE_KEY, JSON.stringify(s)); }catch(e){}
+}
+function noteDataChanged(){
+  if(READ_ONLY) return;
+  const s = readBackupState();
+  s.changes = (s.changes || 0) + 1;
+  writeBackupState(s);
+}
+function markBackupDone(){
+  writeBackupState({ changes: 0, lastAt: new Date().toISOString() });
+  renderBackupReminder();
+}
+
+function renderBackupReminder(){
+  const el = document.getElementById('backupReminder');
+  if(!el || READ_ONLY) return;
+  const s = readBackupState();
+  const changes = s.changes || 0;
+  const days = s.lastAt ? Math.floor((Date.now() - new Date(s.lastAt).getTime()) / 86400000) : null;
+  const manyChanges = changes >= BACKUP_REMIND_CHANGES;
+  const longAgo = s.lastAt && days >= BACKUP_REMIND_DAYS && changes > 0;
+  const neverSaved = !s.lastAt && changes >= BACKUP_REMIND_CHANGES;
+  if(!manyChanges && !longAgo && !neverSaved){ el.style.display = 'none'; return; }
+  const wordChanges = changes === 1 ? 'изменение' : (changes < 5 ? 'изменения' : 'изменений');
+  const when = s.lastAt
+    ? (days === 0 ? 'сегодня' : days === 1 ? 'вчера' : `${days} дн. назад`)
+    : 'копия ещё не скачивалась';
+  el.innerHTML = `С последней копии: <b>${changes}</b> ${wordChanges} · ${escapeHtml(when)}.<br>Стоит скачать файл — данные хранятся только в этом браузере.`;
+  el.style.display = 'block';
+}
+
 async function saveData(){
   if(READ_ONLY){
     toast('Это read-only версия карты — изменения не сохраняются');
@@ -2252,9 +2327,13 @@ async function saveData(){
     if(hasClaudeStorage()){
       const res = await window.storage.set('travel-data', payload, false);
       if(!res){ toast('Не удалось сохранить — попробуйте ещё раз'); return false; }
+      noteDataChanged();
+      renderBackupReminder();
       return true;
     }
     localStorage.setItem(LOCAL_STORAGE_KEY, payload);
+    noteDataChanged();
+    renderBackupReminder();
     return true;
   }catch(e){
     toast('Ошибка сохранения — изменения видны только в этой сессии и не сохранятся при перезагрузке');
@@ -2692,6 +2771,7 @@ document.querySelectorAll('.type-btn[data-type]').forEach(btn=>{
     document.getElementById('routeFields').style.display = currentType === 'route' ? 'block' : 'none';
     updateHikingDaysVisibility();
     document.getElementById('refreshWaypointsField').style.display = 'none';
+    document.getElementById('editWaypointsField').style.display = 'none';
     const statusToggle = document.getElementById('statusToggle');
     const statusLabel = document.getElementById('statusLabel');
     const isRoute = currentType === 'route';
@@ -3606,6 +3686,8 @@ function exitEditMode(fullReset){
   document.getElementById('fieldTrackDays').value = 1;
   updateHikingDaysVisibility();
   document.getElementById('refreshWaypointsField').style.display = 'none';
+  document.getElementById('editWaypointsField').style.display = 'none';
+  editWaypointIndex = -1;
   document.getElementById('fieldFavorite').checked = false;
   document.getElementById('fieldColor').value = DEFAULT_COLOR[currentType];
   currentStatus = 'visited';
@@ -5089,6 +5171,10 @@ function startEdit(entry){
     document.getElementById('fieldTerrain').value = entry.terrain || guessTerrain(entry.distanceKm, entry.elevationGain);
     updateHikingDaysVisibility();
     document.getElementById('refreshWaypointsField').style.display = (entry.waypointNames && entry.waypointNames.length) ? 'block' : 'none';
+    editWaypointIndex = -1;
+    document.getElementById('editWaypointSearch').value = '';
+    document.getElementById('editWaypointSuggest').style.display = 'none';
+    renderEditWaypoints();
   }
   if(entry.type === 'city'){
     document.getElementById('fieldFavorite').checked = !!entry.favorite;
@@ -5150,9 +5236,49 @@ function showUndoToast(message){
   }, 7000);
 }
 
+// Массовые действия (импорт из фото, объединение в поездку, исправление стран)
+// меняют десятки записей разом. Универсальный снимок: запоминаем, какие записи
+// были созданы, и прежнее состояние тех, что менялись.
+function snapshotEntries(entries, fields){
+  return entries.map(e => {
+    const snap = { id: e.id };
+    fields.forEach(f => { snap[f] = e[f]; });
+    return snap;
+  });
+}
+
+function recordBulkAction(label, changed, fields, createdIds){
+  lastAction = {
+    type: 'bulk', label,
+    snapshot: changed ? snapshotEntries(changed, fields) : [],
+    fields: fields || [],
+    createdIds: createdIds || []
+  };
+}
+
 async function undoLastAction(){
   if(!lastAction) return;
   document.getElementById('toast').style.display = 'none';
+  if(lastAction.type === 'bulk'){
+    // сначала убираем созданное, затем возвращаем прежние значения изменённым
+    if(lastAction.createdIds.length){
+      const drop = new Set(lastAction.createdIds);
+      allEntries = allEntries.filter(e => !drop.has(e.id));
+      drop.forEach(id => decodedCoordsCache.delete(id));
+    }
+    lastAction.snapshot.forEach(snap=>{
+      const entry = allEntries.find(e => e.id === snap.id);
+      if(!entry) return;
+      lastAction.fields.forEach(f => { entry[f] = snap[f]; });
+    });
+    const label = lastAction.label;
+    lastAction = null;
+    const saved = await saveData();
+    rebuildAll();
+    renderTable();
+    if(saved) toast(label ? `Отменено: ${label}` : 'Отменено');
+    return;
+  }
   if(lastAction.type === 'delete'){
     const items = [...lastAction.items].sort((a,b) => a.index - b.index);
     items.forEach(({entry, index}) => {
@@ -5189,7 +5315,7 @@ function updateStats(){
 // ---------- export / import ----------
 // общая выгрузка резервной копии — используется и кнопкой экспорта,
 // и автоматически перед импортом с заменой
-function downloadBackup(suffix){
+function downloadBackup(suffix, isAuto){
   const data = JSON.stringify({ entries: allEntries, tripMeta, exportedAt: new Date().toISOString() }, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -5200,6 +5326,9 @@ function downloadBackup(suffix){
   a.click();
   document.body.removeChild(a);
   setTimeout(()=> URL.revokeObjectURL(url), 1000);
+  // автоматическая копия перед импортом не считается: пользователь её не
+  // выбирал и мог даже не заметить, напоминание должно остаться
+  if(!isAuto) markBackupDone();
 }
 
 document.getElementById('exportBtn').addEventListener('click', ()=>{
@@ -5315,7 +5444,7 @@ document.getElementById('importInput').addEventListener('change', (e)=>{
         // поэтому перед заменой сохраняем текущее состояние отдельным файлом
         if(allEntries.length > 0){
           try{
-            downloadBackup('-до-импорта');
+            downloadBackup('-до-импорта', true);
             toast('Скачана копия текущих данных перед заменой');
           }catch(err){
             console.error('pre-import backup failed', err);
@@ -5371,44 +5500,67 @@ document.getElementById('bulkClear').addEventListener('click', ()=>{
 
 document.getElementById('bulkApplySeason').addEventListener('click', async ()=>{
   const value = document.getElementById('bulkSeasonValue').value;
-  allEntries.forEach(e=>{ if(selectedIds.has(e.id)) e.season = value; });
+  const touched = allEntries.filter(e => selectedIds.has(e.id));
+  if(touched.length === 0){ toast('Ничего не выбрано'); return; }
+  recordBulkAction('сезон для нескольких записей', touched, ['season'], []);
+  touched.forEach(e => { e.season = value; });
   const saved = await saveData();
   rebuildAll();
   renderTable();
-  if(saved) toast(`Сезон «${seasonLabel(value)}» проставлен для ${selectedIds.size} записей`);
+  if(saved) showUndoToast(`Сезон «${seasonLabel(value)}» проставлен для ${selectedIds.size} записей`);
 });
 
 document.getElementById('bulkApplyPurpose').addEventListener('click', async ()=>{
   const value = document.getElementById('bulkPurposeValue').value;
-  allEntries.forEach(e=>{ if(selectedIds.has(e.id)) e.purpose = value; });
+  const touched = allEntries.filter(e => selectedIds.has(e.id));
+  if(touched.length === 0){ toast('Ничего не выбрано'); return; }
+  recordBulkAction('цель для нескольких записей', touched, ['purpose'], []);
+  touched.forEach(e => { e.purpose = value; });
   const saved = await saveData();
   rebuildAll();
   renderTable();
-  if(saved) toast(`Цель «${purposeLabel(value)}» проставлена для ${selectedIds.size} записей`);
+  if(saved) showUndoToast(`Цель «${purposeLabel(value)}» проставлена для ${selectedIds.size} записей`);
 });
 
 document.getElementById('bulkApplyTrip').addEventListener('click', async ()=>{
   const value = document.getElementById('bulkTripValue').value.trim();
   if(!value){ toast('Введите название поездки'); return; }
+  const touched = allEntries.filter(e => selectedIds.has(e.id));
+  if(touched.length === 0){ toast('Ничего не выбрано'); return; }
+  recordBulkAction('поездку для нескольких записей', touched, ['trip','tripOrder'], []);
   const oldTrips = new Set();
-  allEntries.forEach(e=>{ if(selectedIds.has(e.id)){ if(e.trip && e.trip !== value) oldTrips.add(e.trip); e.trip = value; } });
+  touched.forEach(e=>{ if(e.trip && e.trip !== value) oldTrips.add(e.trip); e.trip = value; });
   oldTrips.forEach(cleanupTripMetaIfOrphaned);
   const saved = await saveData();
   rebuildAll();
   renderTable();
-  if(saved) toast(`Поездка «${value}» проставлена для ${selectedIds.size} записей`);
+  if(saved) showUndoToast(`Поездка «${value}» проставлена для ${selectedIds.size} записей`);
 });
 
-document.getElementById('bulkApplyVisited').addEventListener('click', async ()=>{
-  let count = 0;
-  allEntries.forEach(e=>{
-    if(selectedIds.has(e.id) && e.type !== 'route' && e.status === 'wishlist'){ e.status = 'visited'; count++; }
-  });
-  if(count === 0){ toast('Среди выбранного нет записей в статусе «Хочу посетить»'); return; }
+document.getElementById('bulkApplyCompany').addEventListener('click', async ()=>{
+  const value = document.getElementById('bulkCompanyValue').value;
+  const touched = allEntries.filter(e => selectedIds.has(e.id));
+  if(touched.length === 0){ toast('Ничего не выбрано'); return; }
+  // сообщество имеет смысл только при компании «Сообщество» — иначе снимаем,
+  // чтобы в данных не осталось висящего значения без основания
+  recordBulkAction('компанию для нескольких записей', touched, ['company','community'], []);
+  touched.forEach(e => { e.company = value; if(value !== 'group') e.community = undefined; });
   const saved = await saveData();
   rebuildAll();
   renderTable();
-  if(saved) toast(`Отмечено посещёнными: ${count}`);
+  if(saved) showUndoToast(`Компания «${companyLabel(value)}» проставлена для ${touched.length} записей`);
+});
+
+document.getElementById('bulkApplyVisited').addEventListener('click', async ()=>{
+  const touched = allEntries.filter(e => selectedIds.has(e.id) && e.type !== 'route' && e.status === 'wishlist');
+  if(touched.length === 0){ toast('Среди выбранного нет записей в статусе «Хочу посетить»'); return; }
+  recordBulkAction('отметку посещёнными', touched, ['status'], []);
+  touched.forEach(e => { e.status = 'visited'; });
+  const count = touched.length;
+  const saved = await saveData();
+  rebuildAll();
+  renderTable();
+  if(saved) showUndoToast(`Отмечено посещёнными: ${count}`);
 });
 
 document.getElementById('bulkDelete').addEventListener('click', async ()=>{
@@ -6252,18 +6404,22 @@ function renderDiagnostics(){
   container.querySelectorAll('[data-fixcountry-idx]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const m = countryMismatches[parseInt(btn.dataset.fixcountryIdx, 10)];
+      if(!m || !m.actualKey) return;
+      recordBulkAction('исправление страны', [m.entry], ['countryKey','waypointCountryKeys'], []);
       if(!applyCountryFix(m)) return;
       btn.disabled = true;
       const saved = await saveData();
       rebuildAll();
       renderDiagnostics();
-      if(saved) toast(`Страна исправлена: ${m.label} → ${m.actual}`);
+      if(saved) showUndoToast(`Страна исправлена: ${m.label} → ${m.actual}`);
     });
   });
 
   const fixAllBtn = document.getElementById('fixAllCountriesBtn');
   if(fixAllBtn){
     fixAllBtn.addEventListener('click', async ()=>{
+      const touched = [...new Set(countryMismatches.map(m => m.entry))];
+      recordBulkAction('исправление стран', touched, ['countryKey','waypointCountryKeys'], []);
       let n = 0;
       countryMismatches.forEach(m => { if(applyCountryFix(m)) n++; });
       if(n === 0) return;
@@ -6271,7 +6427,7 @@ function renderDiagnostics(){
       const saved = await saveData();
       rebuildAll();
       renderDiagnostics();
-      if(saved) toast(`Исправлено записей: ${n}`);
+      if(saved) showUndoToast(`Исправлено записей: ${n}`);
     });
   }
 
@@ -6292,11 +6448,12 @@ function renderDiagnostics(){
         trip: src.trip, tripOrder: src.trip ? nextTripOrder(src.trip) : undefined,
         countryKey: m.countryKey
       });
+      recordBulkAction('отметку страны', null, [], [allEntries[allEntries.length-1].id]);
       btn.disabled = true;
       const saved = await saveData();
       rebuildAll();
       renderDiagnostics();
-      if(saved) toast(`Отмечена страна: ${ruName}, ${m.year}`);
+      if(saved) showUndoToast(`Отмечена страна: ${ruName}, ${m.year}`);
     });
   });
 
@@ -6308,6 +6465,7 @@ function renderDiagnostics(){
       const input = container.querySelector(`[data-merge-name="${idx}"]`);
       const name = (input && input.value.trim()) || s.suggested;
       // порядок остановок задаём последовательно, как при добавлении вручную
+      recordBulkAction(`объединение в «${name}»`, s.entries, ['trip','tripOrder'], []);
       s.entries.forEach(e=>{
         e.trip = name;
         e.tripOrder = nextTripOrder(name);
@@ -6316,7 +6474,7 @@ function renderDiagnostics(){
       const saved = await saveData();
       rebuildAll();
       renderDiagnostics(); // пересчитываем: эта группа больше не предложение
-      if(saved) toast(`Собрано в поездку «${name}»: ${s.entries.length}`);
+      if(saved) showUndoToast(`Собрано в поездку «${name}»: ${s.entries.length}`);
     });
   });
 }
@@ -6454,6 +6612,7 @@ async function applyPhotoClusters(){
   if(READ_ONLY){ toast('Это read-only версия — добавление недоступно'); return; }
   const results = document.getElementById('photoResults');
   let added = 0;
+  const createdIds = [];
   photoClusters.forEach((c,i)=>{
     const cb = results.querySelector(`[data-photo-pick="${i}"]`);
     if(!cb || !cb.checked) return;
@@ -6467,13 +6626,15 @@ async function applyPhotoClusters(){
       purpose: 'tourism', season: seasonForMonth(c.from.month),
       color: DEFAULT_COLOR.city, status: 'visited', favorite: false
     });
+    createdIds.push(allEntries[allEntries.length-1].id);
     added++;
   });
   if(added === 0){ toast('Не отмечено ни одной поездки с названием'); return; }
+  recordBulkAction(`импорт из фото (${added})`, null, [], createdIds);
   const saved = await saveData();
   rebuildAll();
   document.getElementById('photoImportModal').style.display = 'none';
-  if(saved) toast(`Добавлено записей: ${added}`);
+  if(saved) showUndoToast(`Добавлено записей: ${added}`);
 }
 
 document.getElementById('openPhotoImportBtn').addEventListener('click', ()=>{
@@ -6492,6 +6653,133 @@ document.getElementById('photoDrop').addEventListener('click', ()=> document.get
 document.getElementById('photoInput').addEventListener('change', (e)=>{
   handlePhotoFiles(e.target.files);
   e.target.value = '';
+});
+
+// Правка отдельной точки сохранённого маршрута. Раньше, чтобы исправить один
+// неверно определившийся город, приходилось пересоздавать весь маршрут.
+let editWaypointIndex = -1;
+let editWaypointMatches = [];
+let editWaypointTimer = null;
+
+function renderEditWaypoints(){
+  const field = document.getElementById('editWaypointsField');
+  const list = document.getElementById('editWaypointsList');
+  const entry = allEntries.find(e => e.id === editingId);
+  if(!entry || entry.type !== 'route' || !entry.waypointNames || entry.waypointNames.length === 0){
+    field.style.display = 'none';
+    return;
+  }
+  field.style.display = 'block';
+  list.innerHTML = entry.waypointNames.map((name,i)=>{
+    const c = entry.waypointCoords && entry.waypointCoords[i];
+    const key = entry.waypointCountryKeys && entry.waypointCountryKeys[i];
+    const flag = key ? countryFlag(key) : '';
+    const coordText = (c && c[0] != null) ? `${c[0].toFixed(2)}, ${c[1].toFixed(2)}` : 'координат нет';
+    return `<div class="waypoint-row${i === editWaypointIndex ? ' wp-editing' : ''}">
+      <span class="waypoint-index">${i+1}</span>
+      <span class="waypoint-name">${flag ? flag + ' ' : ''}${escapeHtml(name)}
+        <span style="display:block;font-family:'Courier Prime',monospace;font-size:9px;color:var(--text-dim);">${coordText}</span>
+      </span>
+      <div class="waypoint-actions">
+        <button data-wp-edit="${i}" title="Заменить точку" aria-label="Заменить точку">✎</button>
+        <button data-wp-del="${i}" title="Убрать точку" aria-label="Убрать точку">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  list.querySelectorAll('[data-wp-edit]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const i = parseInt(btn.dataset.wpEdit, 10);
+      editWaypointIndex = editWaypointIndex === i ? -1 : i;
+      renderEditWaypoints();
+      const search = document.getElementById('editWaypointSearch');
+      if(editWaypointIndex >= 0){
+        search.value = entry.waypointNames[editWaypointIndex];
+        search.focus();
+      } else {
+        search.value = '';
+        document.getElementById('editWaypointSuggest').style.display = 'none';
+      }
+    });
+  });
+  list.querySelectorAll('[data-wp-del]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const i = parseInt(btn.dataset.wpDel, 10);
+      if(entry.waypointNames.length <= 2){ toast('В маршруте должно остаться хотя бы две точки'); return; }
+      recordBulkAction('удаление точки маршрута', [entry], ['waypointNames','waypointCoords','waypointCountryKeys'], []);
+      entry.waypointNames = entry.waypointNames.filter((_,j) => j !== i);
+      if(entry.waypointCoords) entry.waypointCoords = entry.waypointCoords.filter((_,j) => j !== i);
+      if(entry.waypointCountryKeys) entry.waypointCountryKeys = entry.waypointCountryKeys.filter((_,j) => j !== i);
+      editWaypointIndex = -1;
+      const saved = await saveData();
+      rebuildAll();
+      renderEditWaypoints();
+      if(saved) showUndoToast('Точка удалена');
+    });
+  });
+}
+
+function renderEditWaypointSuggest(){
+  const box = document.getElementById('editWaypointSuggest');
+  if(editWaypointMatches.length === 0){
+    box.innerHTML = `<div class="suggest-empty">Ничего не найдено</div>`;
+    box.style.display = 'block';
+    return;
+  }
+  box.innerHTML = editWaypointMatches.map((m,i) => `<div class="suggest-item" data-wp-pick="${i}">${escapeHtml(m.full)}</div>`).join('');
+  box.style.display = 'block';
+  box.querySelectorAll('[data-wp-pick]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const m = editWaypointMatches[parseInt(el.dataset.wpPick, 10)];
+      const entry = allEntries.find(e => e.id === editingId);
+      if(!entry || editWaypointIndex < 0) return;
+      recordBulkAction('замену точки маршрута', [entry], ['waypointNames','waypointCoords','waypointCountryKeys'], []);
+      // массивы координат и стран могли не существовать у старых маршрутов
+      if(!Array.isArray(entry.waypointCoords)) entry.waypointCoords = entry.waypointNames.map(()=> null);
+      if(!Array.isArray(entry.waypointCountryKeys)) entry.waypointCountryKeys = entry.waypointNames.map(()=> null);
+      entry.waypointNames = entry.waypointNames.slice();
+      entry.waypointCoords = entry.waypointCoords.slice();
+      entry.waypointCountryKeys = entry.waypointCountryKeys.slice();
+      entry.waypointNames[editWaypointIndex] = m.name;
+      entry.waypointCoords[editWaypointIndex] = [m.lat, m.lng];
+      entry.waypointCountryKeys[editWaypointIndex] = findAnyCountryKeyByRuName(m.country, m.countryCode);
+      editWaypointIndex = -1;
+      editWaypointMatches = [];
+      document.getElementById('editWaypointSearch').value = '';
+      box.style.display = 'none';
+      const saved = await saveData();
+      rebuildAll();
+      renderEditWaypoints();
+      if(saved) showUndoToast(`Точка заменена на «${m.name}»`);
+    });
+  });
+}
+
+document.getElementById('editWaypointSearch').addEventListener('input', (e)=>{
+  const q = e.target.value.trim();
+  const box = document.getElementById('editWaypointSuggest');
+  if(editWaypointIndex < 0){ toast('Сначала выберите точку кнопкой ✎'); box.style.display = 'none'; return; }
+  clearTimeout(editWaypointTimer);
+  if(q.length < 2){ box.style.display = 'none'; return; }
+  editWaypointTimer = setTimeout(async ()=>{
+    try{
+      // смещаем поиск к соседним точкам маршрута — как при создании,
+      // чтобы не подхватить одноимённый город на другом континенте
+      const entry = allEntries.find(x => x.id === editingId);
+      let bias = null;
+      if(entry && Array.isArray(entry.waypointCoords)){
+        const near = entry.waypointCoords.find((c,j) => c && c[0] != null && j !== editWaypointIndex);
+        if(near) bias = near;
+      }
+      editWaypointMatches = await queryNominatimSettlements(q, bias);
+      renderEditWaypointSuggest();
+      clearServiceIssue('поиск городов');
+    }catch(err){
+      box.innerHTML = `<div class="suggest-empty">Нет соединения — попробуйте позже</div>`;
+      box.style.display = 'block';
+      reportServiceIssue('поиск городов');
+    }
+  }, 700);
 });
 
 document.getElementById('resetFiltersBtn').addEventListener('click', resetAllFilters);
@@ -7157,6 +7445,11 @@ const COLLAPSE_KEY = 'travel-map-collapsed';
     applyTripFromUrl();
   }catch(err){
     console.error('applyTripFromUrl failed', err);
+  }
+  try{
+    renderBackupReminder();
+  }catch(err){
+    console.error('renderBackupReminder failed', err);
   }
 
   // если при загрузке пришлось переписать ссылки на фото — сохраняем один раз,
