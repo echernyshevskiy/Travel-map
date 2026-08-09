@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.94
+  Версия: v1.95
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -1725,7 +1725,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.94</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.95</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -6596,8 +6596,11 @@ function renderPhotoClusters(){
       </label>
       <div class="diag-row-meta">снимков: ${c.photos.length}${c.geoCount ? ` · с координатами: ${c.geoCount}` : ' · координат нет'}</div>
       ${c.existing ? `<div class="diag-row-meta" style="color:var(--amber);">уже есть: «${escapeHtml(c.existing.name)}» ${monthLabel(c.existing.month) || ''} ${c.existing.year}</div>` : ''}
-      <div class="diag-merge">
-        <input type="text" data-photo-name="${i}" value="${escapeAttr(c.place || '')}" placeholder="${c.lat !== null ? 'определяю место…' : 'впишите город'}" aria-label="Название места">
+      <div class="diag-merge" style="flex-direction:column;align-items:stretch;">
+        <div class="search-wrap" style="width:100%;">
+          <input type="text" data-photo-name="${i}" value="${escapeAttr(c.place || '')}" placeholder="${c.lat !== null ? 'определяю место…' : 'начните вводить город…'}" aria-label="Название места" autocomplete="off">
+          <div class="suggest-box" data-photo-suggest="${i}" style="display:none;"></div>
+        </div>
       </div>
     </div>
   `).join('') + `<div style="padding:10px 20px 20px;">
@@ -6606,6 +6609,52 @@ function renderPhotoClusters(){
     </div>`;
   const apply = document.getElementById('photoApplyBtn');
   if(apply) apply.addEventListener('click', applyPhotoClusters);
+
+  // Подсказки городов. Без них у поездки без геометок оставалось голое название:
+  // запись создавалась без координат и на карту не попадала вовсе.
+  results.querySelectorAll('[data-photo-name]').forEach(input=>{
+    const idx = parseInt(input.dataset.photoName, 10);
+    const box = results.querySelector(`[data-photo-suggest="${idx}"]`);
+    let timer = null;
+    input.addEventListener('input', ()=>{
+      const q = input.value.trim();
+      const cluster = photoClusters[idx];
+      if(cluster){ cluster.place = q; cluster.lat = null; cluster.lng = null; cluster.countryKey = null; }
+      clearTimeout(timer);
+      if(q.length < 2){ box.style.display = 'none'; return; }
+      timer = setTimeout(async ()=>{
+        try{
+          const matches = await queryNominatimSettlements(q);
+          if(matches.length === 0){
+            box.innerHTML = `<div class="suggest-empty">Ничего не найдено</div>`;
+            box.style.display = 'block';
+            return;
+          }
+          box.innerHTML = matches.map((m,j) => `<div class="suggest-item" data-pick="${j}">${escapeHtml(m.full)}</div>`).join('');
+          box.style.display = 'block';
+          box.querySelectorAll('[data-pick]').forEach(el=>{
+            el.addEventListener('click', ()=>{
+              const m = matches[parseInt(el.dataset.pick, 10)];
+              const cl = photoClusters[idx];
+              if(!cl) return;
+              cl.place = m.name;
+              cl.lat = m.lat;
+              cl.lng = m.lng;
+              cl.countryKey = findAnyCountryKeyByRuName(m.country, m.countryCode);
+              input.value = m.name;
+              box.style.display = 'none';
+              renderPhotoClusters(); // перерисовываем: место найдено, проверка на дубли могла измениться
+            });
+          });
+          clearServiceIssue('поиск городов');
+        }catch(err){
+          box.innerHTML = `<div class="suggest-empty">Нет соединения — попробуйте позже</div>`;
+          box.style.display = 'block';
+          reportServiceIssue('поиск городов');
+        }
+      }, 700);
+    });
+  });
 }
 
 async function applyPhotoClusters(){
@@ -6631,10 +6680,17 @@ async function applyPhotoClusters(){
   });
   if(added === 0){ toast('Не отмечено ни одной поездки с названием'); return; }
   recordBulkAction(`импорт из фото (${added})`, null, [], createdIds);
+  // запись без координат не получит точку на карте — предупреждаем, а не молчим
+  const noCoords = createdIds.filter(id => {
+    const e = allEntries.find(x => x.id === id);
+    return e && (e.lat == null || e.lng == null);
+  }).length;
   const saved = await saveData();
   rebuildAll();
   document.getElementById('photoImportModal').style.display = 'none';
-  if(saved) showUndoToast(`Добавлено записей: ${added}`);
+  if(saved) showUndoToast(noCoords
+    ? `Добавлено: ${added}, без координат: ${noCoords} — их не будет на карте`
+    : `Добавлено записей: ${added}`);
 }
 
 document.getElementById('openPhotoImportBtn').addEventListener('click', ()=>{
