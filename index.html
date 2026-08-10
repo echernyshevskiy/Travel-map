@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.00
+  Версия: v2.01
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -1821,7 +1821,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.00</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.01</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -4644,6 +4644,7 @@ function applyFilters(){
   });
   applyTimelineOpacity();
   listLimit = LIST_PAGE; // новый набор результатов показываем с первой порции
+  tableLimit = LIST_PAGE;
   renderList(visible);
   updateFilteredStats(visible);
   // именно здесь, а не в rebuildAll: клики по чипам фильтров вызывают applyFilters(),
@@ -5694,6 +5695,7 @@ function closeTableModal(){
   document.getElementById('tableModal').style.display = 'none';
 }
 
+let tableLimit = LIST_PAGE;
 function renderTable(){
   const visible = allEntries.filter(passesFilter).sort((a,b)=> b.year - a.year || a.name.localeCompare(b.name, 'ru'));
   const countText = (activeYears.size || activeMonths.size || activePurposes.size || activeCompanies.size || activeCommunities.size || activeSeasons.size || activeActivities.size || activeStatuses.size || activeTrips.size || searchQuery || activeLayerTypes.size < 3)
@@ -5707,7 +5709,14 @@ function renderTable(){
     tbody.innerHTML = `<tr><td colspan="12" style="color:var(--text-dim);white-space:normal;">Нет записей под текущие фильтры.</td></tr>`;
     return;
   }
-  visible.forEach(entry=>{
+  // Раньше на каждую строку создавался элемент и вешалось по четыре обработчика:
+  // при 1000 записей это давало около двух секунд. Собираем разметку одной
+  // строкой и вставляем разом, клики — делегированием, как уже сделано в списке.
+  // Показываем порциями: строим 1000 строк — почти 2 секунды, а пролистать
+  // их всё равно невозможно. Порог тот же, что в списке записей.
+  const shownRows = visible.slice(0, tableLimit);
+  const rows = [];
+  shownRows.forEach(entry=>{
     const typeLabel = entry.type === 'country' ? 'Страна' : entry.type === 'city' ? 'Город' : 'Маршрут';
     const activityOrDist = entry.type === 'route'
       ? [
@@ -5717,8 +5726,7 @@ function renderTable(){
           (entry.durationMin !== null && entry.durationMin !== undefined) ? formatDuration(entry.durationMin) : null
         ].filter(Boolean).join(' · ')
       : '—';
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
+    rows.push(`<tr data-row-id="${escapeAttr(entry.id)}">
       <td>${READ_ONLY ? '' : `<input type="checkbox" class="row-checkbox" ${selectedIds.has(entry.id) ? 'checked' : ''}>`}</td>
       <td><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${entry.color};margin-right:6px;"></span>${typeLabel}</td>
       <td class="name-cell">${((entry.type === 'country' || entry.type === 'city') && countryFlag(entry.countryKey)) ? countryFlag(entry.countryKey) + ' ' : ''}${(entry.type === 'city' && entry.favorite) ? '❤ ' : ''}${escapeHtml(entry.name)}</td>
@@ -5740,31 +5748,46 @@ function renderTable(){
         ${READ_ONLY ? '' : `<button title="Редактировать" aria-label="Редактировать" data-act="edit">✎</button>
         <button title="Удалить" aria-label="Удалить" data-act="del">✕</button>`}
       </td>
-    `;
-    const rowCheckbox = tr.querySelector('.row-checkbox');
-    if(rowCheckbox){
-      rowCheckbox.addEventListener('change', (e)=>{
-        if(e.target.checked) selectedIds.add(entry.id); else selectedIds.delete(entry.id);
-        updateBulkBar();
-      });
-    }
-    const tableVisitBtn = tr.querySelector('[data-act="visit"]');
-    if(tableVisitBtn){
-      tableVisitBtn.addEventListener('click', async ()=>{
-        await upgradeToVisited(entry.id);
-        renderTable();
-      });
-    }
-    const tableEditBtn = tr.querySelector('[data-act="edit"]');
-    if(tableEditBtn) tableEditBtn.addEventListener('click', ()=>{ startEdit(entry); closeTableModal(); });
-    const tableDelBtn = tr.querySelector('[data-act="del"]');
-    if(tableDelBtn) tableDelBtn.addEventListener('click', async ()=>{ await deleteEntry(entry.id); renderTable(); });
-    tbody.appendChild(tr);
+    </tr>`);
   });
+  tbody.innerHTML = rows.join('');
+  if(visible.length > shownRows.length){
+    const rest = visible.length - shownRows.length;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="12" style="white-space:normal;text-align:center;padding:12px;">
+      <button class="cancel-edit" id="tableShowMoreBtn" style="margin-top:0;width:auto;padding:6px 14px;">Показать ещё ${Math.min(rest, LIST_PAGE)} из ${rest}</button>
+    </td>`;
+    tbody.appendChild(tr);
+    const more = document.getElementById('tableShowMoreBtn');
+    if(more) more.addEventListener('click', ()=>{ tableLimit += LIST_PAGE; renderTable(); });
+  }
   const selectAllCb = document.getElementById('selectAllCheckbox');
   if(selectAllCb) selectAllCb.checked = false;
   updateBulkBar();
 }
+
+// Один обработчик на всю таблицу вместо четырёх на каждую строку: раньше при
+// 1000 записей навешивалось 4000 обработчиков, и каждая перерисовка таблицы
+// создавала их заново.
+document.getElementById('entriesTableBody').addEventListener('click', async (ev)=>{
+  const actEl = ev.target.closest('[data-act]');
+  const tr = ev.target.closest('[data-row-id]');
+  if(!actEl || !tr) return;
+  const id = tr.dataset.rowId;
+  const entry = allEntries.find(e => e.id === id);
+  if(!entry) return;
+  const act = actEl.dataset.act;
+  if(act === 'visit'){ await upgradeToVisited(id); renderTable(); }
+  else if(act === 'edit'){ startEdit(entry); closeTableModal(); }
+  else if(act === 'del'){ await deleteEntry(id); renderTable(); }
+});
+document.getElementById('entriesTableBody').addEventListener('change', (ev)=>{
+  const cb = ev.target.closest('.row-checkbox');
+  const tr = ev.target.closest('[data-row-id]');
+  if(!cb || !tr) return;
+  if(cb.checked) selectedIds.add(tr.dataset.rowId); else selectedIds.delete(tr.dataset.rowId);
+  updateBulkBar();
+});
 
 // ---------- PNG snapshot export (map + stats, hand-projected, no tile images) ----------
 document.getElementById('exportSnapshotBtn').addEventListener('click', async ()=>{
