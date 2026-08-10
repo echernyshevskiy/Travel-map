@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.95
+  Версия: v1.96
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -1725,7 +1725,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.95</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.96</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -4018,6 +4018,10 @@ function normalizePhotoUrl(raw){
         || url.match(/drive\.google\.com\/open\?id=([-\w]{10,})/)
         || url.match(/drive\.google\.com\/uc\?(?:[^#]*&)?id=([-\w]{10,})/);
   if(m) return 'https://lh3.googleusercontent.com/d/' + m[1];
+  // GitHub: ссылка вида /blob/ ведёт на страницу просмотра, а не на файл.
+  // Тот же случай, что с Google Drive — переписываем на прямой адрес.
+  const gh = url.match(/^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)$/i);
+  if(gh) return `https://raw.githubusercontent.com/${gh[1]}/${gh[2]}/${gh[3]}/${gh[4].split('?')[0]}`;
   return url;
 }
 
@@ -4028,6 +4032,7 @@ const NON_IMAGE_HOST_PATTERNS = [
   { re: /photos\.app\.goo\.gl|photos\.google\.com/i, ru: 'Google Фото — ссылка на альбом' },
   { re: /drive\.google\.com\/drive\/folders/i, ru: 'Google Drive — ссылка на папку' },
   { re: /drive\.google\.com/i, ru: 'Google Drive — ссылка не на файл изображения' },
+  { re: /^https?:\/\/github\.com\/.+\/blob\//i, ru: 'GitHub — ссылка на страницу, нужна прямая на файл (raw)' },
   { re: /dropbox\.com\/(s|scl)\//i, ru: 'Dropbox — нужен параметр raw=1' },
 ];
 function photoLinkProblem(raw){
