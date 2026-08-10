@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v1.98
+  Версия: v1.99
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -630,6 +630,7 @@ window.addEventListener('unhandledrejection', function(e){
   .bulk-bar .cancel-edit{width:auto;padding:6px 12px;font-size:11.5px;}
   #entriesTable td:first-child, #entriesTable th:first-child{width:28px;}
   .table-wrap{
+    flex:1;min-height:0;
     overflow:auto;
     padding:0 20px 20px;
     -webkit-overflow-scrolling:touch;
@@ -1060,9 +1061,10 @@ window.addEventListener('unhandledrejection', function(e){
     #passportModal #passportSearchInput,
     #passportModal .pp-nav{display:none !important;}
     #passportModal .table-wrap{overflow:visible !important;max-height:none !important;}
-    .pp-spread{page-break-after:always;break-after:page;box-shadow:none;border:1px solid #ccc;}
-    .pp-spread:last-child{page-break-after:auto;break-after:auto;}
-    .pp-cover{page-break-after:always;break-after:page;margin:0 auto;}
+    .pp-print-page{page-break-after:always;break-after:page;}
+    .pp-print-page:last-child{page-break-after:auto;break-after:auto;}
+    .pp-spread{box-shadow:none;border:1px solid #ccc;}
+    .pp-cover{margin:0 auto;}
     .pp-page{min-height:420px;}
     @page{margin:12mm;}
   }
@@ -1801,7 +1803,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.98</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v1.99</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -7238,7 +7240,11 @@ document.getElementById('ppPrint').addEventListener('click', ()=>{
   for(let s = 0; s < total; s++){
     passportSpread = s;
     renderPassport();
-    parts.push(book.innerHTML);
+    // Разрыв страницы вешаем на простой блочный контейнер, а не на сам
+    // .pp-spread/.pp-cover: они одновременно ещё и flex-контейнеры для своих
+    // колонок, а разрыв страницы на flex-элементе печатные движки поддерживают
+    // ненадёжно — часть разворотов схлопывалась в печати без видимого содержимого.
+    parts.push(`<div class="pp-print-page">${book.innerHTML}</div>`);
   }
   book.innerHTML = parts.join('');
   const cleanup = ()=>{
