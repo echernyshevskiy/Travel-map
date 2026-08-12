@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.04
+  Версия: v2.05
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -1477,6 +1477,23 @@ window.addEventListener('unhandledrejection', function(e){
     }
     .header-actions::-webkit-scrollbar{display:none;}
     .header-btn{padding:6px 10px;font-size:10.5px;white-space:nowrap;flex-shrink:0;}
+    /* Шапка на телефоне прокручивается горизонтально, а такой контейнер обрезает
+       содержимое и по вертикали — выпадающее меню оказывалось за пределами
+       видимой области. Показываем его снизу экрана, вне потока шапки. */
+    .header-menu{
+      position:fixed;
+      left:12px;right:12px;bottom:12px;top:auto;
+      min-width:0;
+      border-radius:8px;
+      box-shadow:0 -6px 28px rgba(24,18,10,0.35);
+      z-index:2500;
+    }
+    .header-menu-item{padding:14px 16px;font-size:15px;}
+    .header-menu-backdrop{
+      position:fixed;inset:0;
+      background:rgba(24,18,10,0.45);
+      z-index:2400;
+    }
     /* полоса прокрутки скрыта — без этой подсказки не видно, что справа есть ещё кнопки */
     header{position:relative;}
     header::after{
@@ -1887,7 +1904,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.04</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.05</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -7082,12 +7099,29 @@ document.getElementById('editWaypointSearch').addEventListener('input', (e)=>{
   const btn = document.getElementById('openSummaryMenu');
   const menu = document.getElementById('summaryMenu');
   if(!btn || !menu) return;
-  const close = ()=>{ menu.style.display = 'none'; btn.setAttribute('aria-expanded','false'); };
+  let backdrop = null;
+  const removeBackdrop = ()=>{ if(backdrop){ backdrop.remove(); backdrop = null; } };
+  const close = ()=>{
+    menu.style.display = 'none';
+    btn.setAttribute('aria-expanded','false');
+    removeBackdrop();
+  };
+  const open = ()=>{
+    menu.style.display = 'block';
+    btn.setAttribute('aria-expanded','true');
+    // на телефоне меню показывается снизу экрана — затемнение делает понятным,
+    // что это слой поверх интерфейса и куда нажать, чтобы закрыть
+    const narrow = window.matchMedia && window.matchMedia('(max-width:768px)').matches;
+    if(narrow && !backdrop){
+      backdrop = document.createElement('div');
+      backdrop.className = 'header-menu-backdrop';
+      backdrop.addEventListener('click', close);
+      document.body.appendChild(backdrop);
+    }
+  };
   btn.addEventListener('click', (e)=>{
     e.stopPropagation();
-    const open = menu.style.display === 'none';
-    menu.style.display = open ? 'block' : 'none';
-    btn.setAttribute('aria-expanded', String(open));
+    if(menu.style.display === 'none') open(); else close();
   });
   // пункт выбран или клик мимо — закрываем
   menu.addEventListener('click', close);
