@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.07
+  Версия: v2.08
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -851,6 +851,99 @@ window.addEventListener('unhandledrejection', function(e){
   }
   .diag-merge button:hover{background:var(--amber);color:var(--on-accent);}
   .diag-merge button:disabled{opacity:0.45;cursor:default;}
+  /* страница поездки — оформление ближе к журнальному развороту */
+  .tp-hero{position:relative;}
+  .tp-cover{
+    width:100%;max-height:230px;object-fit:cover;display:block;
+    border-bottom:1px solid var(--line);
+  }
+  .tp-head{padding:16px 20px 4px;}
+  .tp-title{
+    font-family:'Playfair Display',serif;font-style:italic;font-weight:700;
+    font-size:26px;line-height:1.15;color:var(--text);
+  }
+  .tp-period{
+    font-family:'Courier Prime',monospace;font-size:11px;
+    color:var(--text-dim);letter-spacing:1px;margin-top:5px;
+  }
+  .tp-flags{margin-top:7px;font-size:15px;line-height:1.5;}
+  .tp-flags span{font-size:12px;color:var(--text-dim);font-family:'EB Garamond',serif;}
+  .tp-intro{
+    padding:12px 20px 0;
+    font-family:'EB Garamond',serif;font-size:15px;line-height:1.65;
+    color:var(--text);font-style:italic;
+  }
+  .tp-intro::first-letter{
+    float:left;font-family:'Playfair Display',serif;font-style:normal;font-weight:700;
+    font-size:44px;line-height:0.85;padding:4px 8px 0 0;color:var(--amber);
+  }
+  .tp-stats{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));
+    gap:8px;padding:16px 20px;
+  }
+  .tp-stat{
+    background:var(--panel-raised);border:1px solid var(--line);
+    border-radius:4px;padding:9px 10px;text-align:center;
+  }
+  .tp-stat b{
+    display:block;font-family:'Playfair Display',serif;font-style:italic;font-weight:700;
+    font-size:21px;color:var(--text);line-height:1.1;
+  }
+  .tp-stat span{
+    display:block;margin-top:3px;
+    font-family:'Courier Prime',monospace;font-size:8.5px;
+    letter-spacing:0.8px;text-transform:uppercase;color:var(--text-dim);
+  }
+  .tp-section{
+    font-family:'Courier Prime',monospace;font-size:9.5px;
+    letter-spacing:1.6px;text-transform:uppercase;color:var(--text-dim);
+    padding:6px 20px 8px;border-bottom:1px solid var(--line);margin-bottom:4px;
+  }
+  /* остановка — «глава» рассказа */
+  .tp-stop{
+    display:flex;gap:12px;
+    padding:14px 20px;border-bottom:1px solid var(--line);
+  }
+  .tp-stop:last-child{border-bottom:none;}
+  .tp-stop-num{
+    flex-shrink:0;width:26px;height:26px;border-radius:50%;
+    border:1px solid var(--amber-dim);color:var(--amber);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Courier Prime',monospace;font-size:11px;
+  }
+  .tp-stop-body{flex:1;min-width:0;}
+  .tp-stop-name{
+    font-size:15px;color:var(--text);font-weight:600;line-height:1.3;
+    cursor:pointer;
+  }
+  .tp-stop-name:hover{color:var(--amber);}
+  .tp-stop-meta{
+    font-family:'Courier Prime',monospace;font-size:9.5px;
+    color:var(--text-dim);margin-top:3px;
+  }
+  .tp-stop-photo{
+    width:100%;max-height:200px;object-fit:cover;
+    border:1px solid var(--line);border-radius:4px;
+    margin-top:8px;display:block;
+  }
+  .tp-stop-note{
+    margin-top:8px;
+    font-family:'EB Garamond',serif;font-size:14px;line-height:1.6;
+    color:var(--text);white-space:pre-wrap;
+    border-left:2px solid var(--amber-dim);padding-left:11px;
+  }
+  .tp-add-note{
+    margin-top:7px;background:none;border:1px dashed var(--line);
+    color:var(--text-dim);border-radius:4px;cursor:pointer;
+    font-family:'EB Garamond',serif;font-size:11.5px;padding:5px 10px;
+  }
+  .tp-add-note:hover{border-color:var(--amber-dim);color:var(--amber);}
+  @media (max-width:768px){
+    .tp-title{font-size:21px;}
+    .tp-cover{max-height:170px;}
+    .tp-stop{padding:12px 14px;gap:9px;}
+    .tp-head,.tp-intro,.tp-stats,.tp-section{padding-left:14px;padding-right:14px;}
+  }
   .milestone{
     display:flex;gap:12px;align-items:flex-start;
     padding:11px 0;border-bottom:1px solid var(--line);
@@ -1925,7 +2018,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.07</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.08</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -2060,6 +2153,16 @@ window.addEventListener('unhandledrejection', function(e){
         <div class="hint">Картинка вертикальная, подходит для сторис.</div>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="tripPageModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2 id="tripPageTitle">Поездка</h2>
+      <button id="closeTripPageModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="table-wrap"><div id="tripPageBody"></div></div>
   </div>
 </div>
 
@@ -4481,7 +4584,8 @@ function renderTripCard(tripName){
       ${cover ? `<img src="${escapeAttr(safeUrl(cover))}" class="trip-cover" alt="" onerror="photoFailed(this)">` : ''}
       <h3>${escapeHtml(tripName)}</h3>
       <div class="trip-years">${yearsLabel}</div>
-      <button id="openStoryBtn" class="cancel-edit" style="margin-top:8px;border-color:var(--amber-dim);color:var(--amber);">📖 История поездки</button>
+      <button id="openTripPageBtn" class="cancel-edit" style="margin-top:8px;border-color:var(--amber-dim);color:var(--amber);">Страница поездки</button>
+      <button id="openStoryBtn" class="cancel-edit" style="margin-top:6px;">📖 История (слайды)</button>
       ${(!READ_ONLY && availablePhotos.length > 1) ? `
         <label class="trip-sublabel">Обложка</label>
         <select id="tripCoverSelect">
@@ -4517,6 +4621,7 @@ function renderTripCard(tripName){
   `;
 
   container.querySelector('#openStoryBtn').addEventListener('click', ()=> openTripStory(tripName));
+  container.querySelector('#openTripPageBtn').addEventListener('click', ()=> openTripPage(tripName));
 
   container.querySelector('.trip-close').addEventListener('click', ()=>{
     activeTrips.clear();
@@ -7542,6 +7647,128 @@ document.getElementById('exportGpxBtn').addEventListener('click', ()=>{
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(()=> URL.revokeObjectURL(url), 1000);
   toast(`GPX: треков ${res.trkCount}, точек ${res.wptCount}`);
+});
+
+// ---------- страница поездки ----------
+// Заметки и фотографии привязаны к отдельным записям, а не к поездке целиком —
+// поэтому переплетение текста, фото и маршрута получается само: каждая
+// остановка работает как глава. Страница осмысленна и без заметок: у любой
+// поездки есть порядок городов, страны и цифры.
+let tripPageName = null;
+
+function openTripPage(tripName){
+  tripPageName = tripName;
+  renderTripPage();
+  document.getElementById('tripPageModal').style.display = 'flex';
+}
+
+function renderTripPage(){
+  const tripName = tripPageName;
+  const body = document.getElementById('tripPageBody');
+  document.getElementById('tripPageTitle').textContent = tripName || 'Поездка';
+  if(!tripName){ body.innerHTML = ''; return; }
+
+  const s = computeTripSummary(tripName);
+  if(s.entries.length === 0){
+    body.innerHTML = `<div class="hint" style="padding:20px;">Записи этой поездки не найдены.</div>`;
+    return;
+  }
+  const meta = tripMeta[tripName] || {};
+  const yearsLabel = s.years.length > 1 ? `${s.years[0]}–${s.years[s.years.length-1]}` : `${s.years[0] || ''}`;
+
+  // период по месяцам, если они указаны
+  const withMonth = s.entries.filter(e => e.month).sort((a,b)=> (a.year-b.year) || (a.month-b.month));
+  let period = yearsLabel;
+  if(withMonth.length){
+    const f = withMonth[0], l = withMonth[withMonth.length-1];
+    period = (f.year === l.year && f.month === l.month)
+      ? `${monthLabel(f.month)} ${f.year}`
+      : `${monthLabel(f.month)} ${f.year} — ${monthLabel(l.month)} ${l.year}`;
+  }
+
+  // страны поездки с флагами
+  const keys = [...new Set(s.entries.map(e => e.countryKey).filter(Boolean))];
+  const routeKeys = [];
+  s.entries.forEach(e => (e.waypointCountryKeys || []).forEach(k => { if(k && !routeKeys.includes(k)) routeKeys.push(k); }));
+  const allKeys = [...new Set([...keys, ...routeKeys])];
+  const flags = allKeys.map(k => `${countryFlag(k) || ''} ${escapeHtml(COUNTRY_RU[k] || k)}`).join(' · ');
+
+  const photos = [];
+  s.entries.forEach(e => (e.photos || []).forEach(p => { if(p && !photos.includes(p)) photos.push(p); }));
+  const coverCandidate = (meta.coverPhoto && photos.includes(meta.coverPhoto)) ? meta.coverPhoto : photos.find(p => !photoLinkProblem(p));
+
+  const stats = [];
+  if(s.cities > 0) stats.push([s.cities, 'городов']);
+  if(s.countries > 0) stats.push([s.countries, 'стран']);
+  if(s.routesCount > 0) stats.push([s.routesCount, 'маршрутов']);
+  if(s.totalKm > 0) stats.push([s.totalKm.toFixed(0), 'км']);
+  if(s.totalElevation > 0) stats.push([Math.round(s.totalElevation).toLocaleString('ru-RU'), 'м набора']);
+  if(photos.length) stats.push([photos.length, 'фото']);
+
+  // остановки в заданном порядке — страны исключаем, они не точки маршрута
+  const stops = s.entries.filter(e => e.type !== 'country').sort((a,b)=> (a.tripOrder||0) - (b.tripOrder||0));
+
+  const stopsHtml = stops.map((e,i)=>{
+    const flag = e.countryKey ? countryFlag(e.countryKey) : '';
+    const photo = (e.photos || []).find(p => p && !photoLinkProblem(p));
+    const note = (e.notes || '').trim();
+    const metaBits = [
+      e.type === 'route' ? (activityLabel(e.activity) || 'маршрут') : null,
+      (e.type === 'route' && e.distanceKm) ? `${e.distanceKm.toFixed(1)} км` : null,
+      monthLabel(e.month) ? `${monthLabel(e.month)} ${e.year}` : (e.year ? String(e.year) : null),
+      e.countryKey ? (COUNTRY_RU[e.countryKey] || e.countryKey) : null,
+    ].filter(Boolean).join(' · ');
+    return `<div class="tp-stop">
+      <div class="tp-stop-num">${i+1}</div>
+      <div class="tp-stop-body">
+        <div class="tp-stop-name" data-tp-focus="${escapeAttr(e.id)}">${flag ? flag + ' ' : ''}${escapeHtml(e.name)}</div>
+        ${metaBits ? `<div class="tp-stop-meta">${escapeHtml(metaBits)}</div>` : ''}
+        ${photo ? `<img class="tp-stop-photo" src="${escapeAttr(safeUrl(photo))}" alt="" loading="lazy" onerror="photoFailed(this)">` : ''}
+        ${note ? `<div class="tp-stop-note">${escapeHtml(note)}</div>`
+               : (READ_ONLY ? '' : `<button class="tp-add-note" data-tp-note="${escapeAttr(e.id)}">+ добавить заметку</button>`)}
+      </div>
+    </div>`;
+  }).join('');
+
+  body.innerHTML = `
+    ${coverCandidate ? `<div class="tp-hero"><img class="tp-cover" src="${escapeAttr(safeUrl(coverCandidate))}" alt="" onerror="photoFailed(this)"></div>` : ''}
+    <div class="tp-head">
+      <div class="tp-title">${escapeHtml(tripName)}</div>
+      <div class="tp-period">${escapeHtml(period)}</div>
+      ${flags ? `<div class="tp-flags">${flags}</div>` : ''}
+    </div>
+    ${meta.narrative ? `<div class="tp-intro">${escapeHtml(meta.narrative)}</div>` : ''}
+    ${stats.length ? `<div class="tp-stats">${stats.map(([v,l]) => `<div class="tp-stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div>` : ''}
+    ${stops.length ? `<div class="tp-section">Маршрут · ${stops.length} ${stops.length === 1 ? 'остановка' : (stops.length < 5 ? 'остановки' : 'остановок')}</div>${stopsHtml}` : ''}
+  `;
+
+  // клик по названию — показать точку на карте
+  body.querySelectorAll('[data-tp-focus]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const entry = allEntries.find(e => e.id === el.dataset.tpFocus);
+      if(!entry) return;
+      document.getElementById('tripPageModal').style.display = 'none';
+      focusEntry(entry);
+    });
+  });
+  // заметки — топливо этой страницы, поэтому предлагаем их добавить прямо здесь
+  body.querySelectorAll('[data-tp-note]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const entry = allEntries.find(e => e.id === btn.dataset.tpNote);
+      if(!entry) return;
+      document.getElementById('tripPageModal').style.display = 'none';
+      startEdit(entry);
+      const notes = document.getElementById('fieldNotes');
+      if(notes){ notes.focus(); notes.scrollIntoView({ block: 'center' }); }
+    });
+  });
+}
+
+document.getElementById('closeTripPageModal').addEventListener('click', ()=>{
+  document.getElementById('tripPageModal').style.display = 'none';
+});
+document.getElementById('tripPageModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'tripPageModal') document.getElementById('tripPageModal').style.display = 'none';
 });
 
 document.getElementById('resetFiltersBtn').addEventListener('click', resetAllFilters);
