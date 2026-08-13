@@ -5,7 +5,7 @@
 // Поиск городов и роутинг по дорогам всё равно требуют интернета — это
 // живые запросы к сторонним сервисам, их кэшировать нет смысла.
 
-const SHELL_CACHE_NAME = 'travel-map-shell-v2';
+const SHELL_CACHE_NAME = 'travel-map-shell-v3';
 const TILE_CACHE_NAME = 'travel-map-tiles-v1';
 const MAX_CACHED_TILES = 600; // ~ 600 тайлов ≈ 8-10 МБ, разумный запас без риска съесть всё хранилище
 
@@ -67,7 +67,25 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // оболочка приложения: кэш в приоритете, сеть — запасной вариант
+  // Сами страницы: сеть в приоритете, кэш — запасной вариант на случай офлайна.
+  // Раньше здесь был кэш в приоритете, и обновлённый файл на сервере не
+  // подхватывался — приходилось чистить данные сайта вручную. Теперь версий
+  // две (index.html и read-only.html), обе обновляются, и устаревание было бы
+  // особенно неприятным.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).then((response) => {
+        if (response && response.ok) {
+          const copy = response.clone();
+          caches.open(SHELL_CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
+        return response;
+      }).catch(() => caches.match(event.request).then((cached) => cached || caches.match(self.registration.scope)))
+    );
+    return;
+  }
+
+  // остальные файлы (иконки, манифест): кэш в приоритете, сеть — запасной путь
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
