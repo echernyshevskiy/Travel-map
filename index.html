@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.05
+  Версия: v2.06
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -11,6 +11,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Карта путешествий</title>
 <link rel="manifest" href="manifest.json">
+<!-- Теги предпросмотра: при отправке ссылки в мессенджер вместо голого адреса
+     показывается карточка с названием и описанием. -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Карта путешествий">
+<meta property="og:description" content="Личный трекер посещённых стран, городов и маршрутов">
+<meta property="og:image" content="icon-512.png">
+<meta property="og:locale" content="ru_RU">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Карта путешествий">
+<meta name="twitter:description" content="Личный трекер посещённых стран, городов и маршрутов">
+<meta name="description" content="Личный трекер посещённых стран, городов и маршрутов">
 <meta name="theme-color" content="#A6592E">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1828,6 +1839,8 @@ window.addEventListener('unhandledrejection', function(e){
       <button class="cancel-edit" id="exportBtn" style="margin-top:0;">Скачать данные (JSON)</button>
       <button class="cancel-edit" id="exportCsvBtn">Скачать таблицу (CSV)</button>
       <button class="cancel-edit" id="exportXlsxBtn">Скачать таблицу (XLSX)</button>
+      <button class="cancel-edit" id="exportGpxBtn">Скачать карту (GPX)</button>
+      <div class="hint">GPX открывается в Google Earth, Garmin, OsmAnd и других приложениях: маршруты — треками, города — точками.</div>
       <button class="cancel-edit" id="importBtn">Загрузить из файла</button>
       <input type="file" id="importInput" accept=".json" style="display:none;">
       <div class="backup-reminder" id="backupReminder" style="display:none;"></div>
@@ -1904,7 +1917,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.05</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.06</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -7404,6 +7417,123 @@ document.getElementById('diaryBody').addEventListener('click', (ev)=>{
   if(!entry) return;
   document.getElementById('diaryModal').style.display = 'none';
   focusEntry(entry);
+});
+
+// ---------- экспорт в GPX ----------
+// Смысл не в красоте, а в сохранности: GPX понимают Google Earth, Garmin,
+// OsmAnd и почти всё остальное. Данные перестают быть заперты в одном
+// приложении, даже если оно однажды перестанет открываться.
+function gpxEscape(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&apos;')
+    // управляющие символы недопустимы в XML и ломают разбор у читающей стороны
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'');
+}
+
+// дата нужна не всем читателям, но с ней треки раскладываются по времени
+function gpxTime(entry){
+  if(!entry.year) return null;
+  const m = String(Math.min(Math.max(entry.month || 1, 1), 12)).padStart(2,'0');
+  return `${entry.year}-${m}-01T12:00:00Z`;
+}
+
+function buildGpx(){
+  const visited = allEntries.filter(e => e.status !== 'wishlist');
+  const parts = [];
+  parts.push('<?xml version="1.0" encoding="UTF-8"?>');
+  parts.push('<gpx version="1.1" creator="Карта путешествий" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">');
+  parts.push('  <metadata>');
+  parts.push(`    <name>${gpxEscape('Карта путешествий')}</name>`);
+  parts.push(`    <time>${new Date().toISOString().replace(/\.\d+Z$/,'Z')}</time>`);
+  parts.push('  </metadata>');
+
+  let wptCount = 0, trkCount = 0;
+
+  // города — точками
+  visited.filter(e => e.type === 'city' && e.lat != null && e.lng != null).forEach(e=>{
+    const t = gpxTime(e);
+    const desc = [
+      purposeLabel(e.purpose),
+      e.trip ? `Поездка: ${e.trip}` : null,
+      (e.notes || '').trim() || null
+    ].filter(Boolean).join(' · ');
+    parts.push(`  <wpt lat="${e.lat}" lon="${e.lng}">`);
+    parts.push(`    <name>${gpxEscape(e.name)}</name>`);
+    if(desc) parts.push(`    <desc>${gpxEscape(desc)}</desc>`);
+    if(t) parts.push(`    <time>${t}</time>`);
+    parts.push('    <sym>Flag, Blue</sym>');
+    parts.push('  </wpt>');
+    wptCount++;
+  });
+
+  // именованные точки маршрутов — тоже точками, иначе они потерялись бы
+  visited.filter(e => e.type === 'route' && Array.isArray(e.waypointNames)).forEach(e=>{
+    e.waypointNames.forEach((nm, i)=>{
+      const c = e.waypointCoords && e.waypointCoords[i];
+      if(!c || c[0] == null || c[1] == null) return;
+      parts.push(`  <wpt lat="${c[0]}" lon="${c[1]}">`);
+      parts.push(`    <name>${gpxEscape(nm)}</name>`);
+      parts.push(`    <desc>${gpxEscape('Точка маршрута: ' + e.name)}</desc>`);
+      parts.push('    <sym>Waypoint</sym>');
+      parts.push('  </wpt>');
+      wptCount++;
+    });
+  });
+
+  // маршруты — треками
+  visited.filter(e => e.type === 'route').forEach(e=>{
+    const coords = getEntryCoords(e);
+    if(!coords || coords.length < 2) return;
+    const t = gpxTime(e);
+    const profile = Array.isArray(e.profile) ? e.profile : null;
+    const desc = [
+      activityLabel(e.activity),
+      e.distanceKm ? `${e.distanceKm.toFixed(1)} км` : null,
+      (e.elevationGain != null && e.elevationGain > 0) ? `набор ${Math.round(e.elevationGain)} м` : null,
+      e.trip ? `Поездка: ${e.trip}` : null
+    ].filter(Boolean).join(' · ');
+    parts.push('  <trk>');
+    parts.push(`    <name>${gpxEscape(e.name)}</name>`);
+    if(desc) parts.push(`    <desc>${gpxEscape(desc)}</desc>`);
+    parts.push('    <trkseg>');
+    coords.forEach((c, i)=>{
+      if(c[0] == null || c[1] == null) return;
+      // профиль высот хранится прореженным — растягиваем его на длину трека
+      let ele = null;
+      if(profile && profile.length > 1){
+        const idx = Math.round(i / (coords.length - 1) * (profile.length - 1));
+        const v = profile[idx];
+        if(typeof v === 'number' && isFinite(v)) ele = v;
+      }
+      parts.push(`      <trkpt lat="${c[0]}" lon="${c[1]}">${ele != null ? `<ele>${ele.toFixed(1)}</ele>` : ''}${(i === 0 && t) ? `<time>${t}</time>` : ''}</trkpt>`);
+    });
+    parts.push('    </trkseg>');
+    parts.push('  </trk>');
+    trkCount++;
+  });
+
+  parts.push('</gpx>');
+  return { xml: parts.join('\n'), wptCount, trkCount };
+}
+
+document.getElementById('exportGpxBtn').addEventListener('click', ()=>{
+  if(allEntries.length === 0){ toast('Пока нечего экспортировать'); return; }
+  let res;
+  try{ res = buildGpx(); }
+  catch(err){ console.error('GPX export failed', err); toast('Не удалось собрать GPX'); return; }
+  if(res.wptCount === 0 && res.trkCount === 0){
+    toast('Нет ни маршрутов, ни точек с координатами');
+    return;
+  }
+  const blob = new Blob([res.xml], { type: 'application/gpx+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `travel-map-${new Date().toISOString().slice(0,10)}.gpx`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=> URL.revokeObjectURL(url), 1000);
+  toast(`GPX: треков ${res.trkCount}, точек ${res.wptCount}`);
 });
 
 document.getElementById('resetFiltersBtn').addEventListener('click', resetAllFilters);
