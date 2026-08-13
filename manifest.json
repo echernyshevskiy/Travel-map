@@ -1,9 +1,9 @@
 {
-  "id": "/Travel-map/?app=edit",
+  "id": "/Travel-map/",
   "name": "Карта путешествий",
   "short_name": "Карта",
   "description": "Личный трекер посещённых стран, городов и маршрутов",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
