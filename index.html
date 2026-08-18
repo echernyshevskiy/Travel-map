@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.08
+  Версия: v2.14
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -932,6 +932,19 @@ window.addEventListener('unhandledrejection', function(e){
     color:var(--text);white-space:pre-wrap;
     border-left:2px solid var(--amber-dim);padding-left:11px;
   }
+  .tp-note-edit{margin-top:8px;}
+  .tp-note-edit textarea{
+    width:100%;min-height:80px;margin:0;
+    font-family:'EB Garamond',serif;font-size:14px;line-height:1.6;
+  }
+  .tp-note-actions{display:flex;gap:6px;margin-top:6px;}
+  .tp-note-actions button{
+    background:var(--panel-raised);border:1px solid var(--line);
+    color:var(--text);border-radius:4px;cursor:pointer;
+    font-family:'EB Garamond',serif;font-size:12px;padding:5px 12px;
+  }
+  .tp-note-actions button[data-act="save"]{border-color:var(--amber-dim);color:var(--amber);}
+  .tp-note-actions button:hover{border-color:var(--amber-dim);}
   .tp-add-note{
     margin-top:7px;background:none;border:1px dashed var(--line);
     color:var(--text-dim);border-radius:4px;cursor:pointer;
@@ -943,6 +956,78 @@ window.addEventListener('unhandledrejection', function(e){
     .tp-cover{max-height:170px;}
     .tp-stop{padding:12px 14px;gap:9px;}
     .tp-head,.tp-intro,.tp-stats,.tp-section{padding-left:14px;padding-right:14px;}
+  }
+  /* попап страны на карте */
+  .popup-photo{display:block;margin-top:7px;}
+  .popup-photo img{
+    width:100%;max-height:150px;object-fit:cover;
+    border:1px solid var(--line);border-radius:4px;display:block;
+  }
+  /* режим без подложки: фон карты — «вода», контуры стран рисуются поверх */
+  #map.plain-base{background:#CFE0DC;}
+  .cpop{font-family:'EB Garamond',serif;text-align:center;min-width:190px;}
+  .cpop-flag{font-size:26px;line-height:1.3;}
+  .cpop-name{font-family:'Playfair Display',serif;font-style:italic;font-size:16px;color:var(--text);}
+  .cpop-status{font-size:12px;color:var(--text-dim);margin-top:3px;}
+  .cpop-place{margin-top:6px;}
+  .cpop-place-btn{
+    background:none;border:1px dashed var(--line);color:var(--text-dim);
+    border-radius:3px;cursor:pointer;
+    font-family:'EB Garamond',serif;font-size:11px;padding:3px 9px;
+  }
+  .cpop-place-btn:hover{border-color:var(--amber-dim);color:var(--amber);}
+  .cpop-place-name{
+    font-family:'Playfair Display',serif;font-style:italic;font-size:14px;
+    color:var(--text);margin-bottom:4px;
+  }
+  .cpop-place-wait{
+    font-family:'Courier Prime',monospace;font-size:9.5px;color:var(--text-dim);
+  }
+  .cpop-sec{
+    font-family:'Courier Prime',monospace;font-size:8.5px;
+    letter-spacing:1.4px;text-transform:uppercase;color:var(--text-dim);
+    margin-top:10px;padding-top:7px;border-top:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    cursor:pointer;user-select:none;
+  }
+  .cpop-sec:hover{color:var(--text);}
+  .cpop-chev{font-size:8px;transition:transform 0.15s ease;}
+  .cpop-sec.closed .cpop-chev{transform:rotate(-90deg);}
+  .cpop-secbody{margin-top:2px;}
+  .cpop-trips{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:6px;}
+  .cpop-trip{
+    background:var(--panel-raised);border:1px solid var(--line);
+    color:var(--sage);border-radius:3px;cursor:pointer;
+    font-family:'EB Garamond',serif;font-size:11.5px;padding:4px 8px;
+    max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .cpop-trip:hover{border-color:var(--amber-dim);color:var(--amber);}
+  .cpop-actions{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:6px;}
+  .cpop-btn{
+    background:var(--panel-raised);border:1px solid var(--amber-dim);
+    color:var(--amber);border-radius:3px;cursor:pointer;
+    font-family:'EB Garamond',serif;font-size:11.5px;padding:4px 9px;
+  }
+  .cpop-btn:hover{background:var(--amber);color:var(--on-accent);}
+  .cl-day{
+    font-family:'Playfair Display',serif;font-style:italic;font-weight:700;
+    font-size:14px;color:var(--text-dim);
+    padding:12px 0 5px;border-bottom:1px solid var(--line);margin-bottom:3px;
+  }
+  .cl-row{display:flex;gap:9px;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--line);}
+  .cl-row:last-child{border-bottom:none;}
+  .cl-act{
+    flex-shrink:0;width:64px;
+    font-family:'Courier Prime',monospace;font-size:9px;
+    letter-spacing:0.8px;text-transform:uppercase;
+  }
+  .cl-act.add{color:var(--sage);}
+  .cl-act.edit{color:var(--amber);}
+  .cl-act.del{color:var(--danger);}
+  .cl-name{flex:1;min-width:0;font-size:13px;color:var(--text);}
+  .cl-name em{font-style:normal;font-family:'Courier Prime',monospace;font-size:9.5px;color:var(--text-dim);display:block;margin-top:2px;}
+  .cl-time{
+    flex-shrink:0;font-family:'Courier Prime',monospace;font-size:9.5px;color:var(--text-dim);
   }
   .milestone{
     display:flex;gap:12px;align-items:flex-start;
@@ -1669,6 +1754,7 @@ window.addEventListener('unhandledrejection', function(e){
         <button id="openMilestonesBtn" class="header-menu-item">Вехи</button>
         <button id="openDiaryBtn" class="header-menu-item">Дневник</button>
         <button id="exportSnapshotBtn" class="header-menu-item">Снимок (Stories)</button>
+        <button id="openChangelogBtn" class="header-menu-item">Журнал изменений</button>
       </div>
     </div>
     <button id="openRunningBtn" class="header-btn" style="display:none;">Бег</button>
@@ -1990,7 +2076,7 @@ window.addEventListener('unhandledrejection', function(e){
     <div class="section" style="flex:0;padding-bottom:10px;">
       <p class="section-title">Поиск</p>
       <div class="search-wrap">
-        <input type="text" id="globalSearch" placeholder="По названию, поездке, заметке…" autocomplete="off" style="padding-right:32px;">
+        <input type="text" id="globalSearch" placeholder="Название, страна, поездка, заметка…" autocomplete="off" style="padding-right:32px;">
         <button id="clearSearchBtn" title="Очистить поиск" aria-label="Очистить поиск" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;display:none;">✕</button>
       </div>
     </div>
@@ -2018,7 +2104,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.08</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.14</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -2153,6 +2239,17 @@ window.addEventListener('unhandledrejection', function(e){
         <div class="hint">Картинка вертикальная, подходит для сторис.</div>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="changelogModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Журнал изменений</h2>
+      <button id="closeChangelogModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-sub" id="changelogSummary"></div>
+    <div class="table-wrap"><div id="changelogBody" style="padding:0 20px 20px;"></div></div>
   </div>
 </div>
 
@@ -2303,6 +2400,63 @@ const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png'
 streetLayer.addTo(map);
 let usingTopoLayer = false;
 
+// Подложка грузится с внешних серверов, а они в некоторых странах блокируются —
+// пользователь видит вместо карты плитки с ошибкой. Но вся геометрия стран уже
+// зашита в файл, поэтому карту можно рисовать без подложки вовсе: контуры на
+// бумажном фоне. Это не запасной вариант «на крайний случай», а полноценный
+// режим, работающий вообще без интернета.
+let plainBaseLayer = null;
+let basemapMode = 'street'; // street | topo | plain
+
+function buildPlainBaseLayer(){
+  if(plainBaseLayer) return plainBaseLayer;
+  plainBaseLayer = L.geoJSON(COUNTRIES_GEOJSON, {
+    style: { color: '#B8A98A', weight: 0.7, fillColor: '#EFE7D2', fillOpacity: 1, interactive: false },
+    interactive: false
+  });
+  return plainBaseLayer;
+}
+
+function setBasemap(mode){
+  [streetLayer, topoLayer].forEach(l => { if(map.hasLayer(l)) map.removeLayer(l); });
+  if(plainBaseLayer && map.hasLayer(plainBaseLayer)) map.removeLayer(plainBaseLayer);
+  basemapMode = mode;
+  if(mode === 'plain'){
+    buildPlainBaseLayer().addTo(map);
+    if(plainBaseLayer.bringToBack) plainBaseLayer.bringToBack();
+    document.getElementById('map').classList.add('plain-base');
+  } else {
+    document.getElementById('map').classList.remove('plain-base');
+    (mode === 'topo' ? topoLayer : streetLayer).addTo(map);
+  }
+  usingTopoLayer = mode === 'topo';
+  const btn = document.getElementById('topoToggleBtn');
+  if(btn){
+    btn.classList.toggle('active', mode !== 'street');
+    btn.textContent = mode === 'plain' ? '📄 Контуры' : mode === 'topo' ? '🏔 Рельеф' : '🏔 Рельеф';
+    btn.title = mode === 'plain' ? 'Карта без подложки — работает без интернета' :
+                mode === 'topo' ? 'Рельефная карта' : 'Переключить на рельефную карту';
+  }
+  try{ localStorage.setItem('travel-map-basemap', mode); }catch(e){}
+}
+
+// Плитки не загрузились — скорее всего подложка недоступна: сеть, блокировка
+// или сбой сервера. Переключаемся на контуры, а не оставляем битую картинку.
+let tileErrorCount = 0;
+let tileFallbackDone = false;
+[streetLayer, topoLayer].forEach(layer=>{
+  layer.on('tileerror', ()=>{
+    if(tileFallbackDone || basemapMode === 'plain') return;
+    tileErrorCount++;
+    // одна-две осечки бывают и при нормальной работе; реагируем на устойчивый отказ
+    if(tileErrorCount >= 6){
+      tileFallbackDone = true;
+      setBasemap('plain');
+      toast('Подложка карты недоступна — включены контуры стран. Переключить обратно можно кнопкой на карте');
+    }
+  });
+});
+
 // make sure Leaflet recalculates size once the container has real dimensions,
 // then re-fit to the world view so the default scale is correct on any screen
 setTimeout(()=>{
@@ -2312,15 +2466,11 @@ setTimeout(()=>{
 window.addEventListener('resize', ()=> map.invalidateSize());
 
 document.getElementById('topoToggleBtn').addEventListener('click', ()=>{
-  if(usingTopoLayer){
-    map.removeLayer(topoLayer);
-    streetLayer.addTo(map);
-  } else {
-    map.removeLayer(streetLayer);
-    topoLayer.addTo(map);
-  }
-  usingTopoLayer = !usingTopoLayer;
-  document.getElementById('topoToggleBtn').classList.toggle('active', usingTopoLayer);
+  // по кругу: обычная → рельеф → контуры без подложки
+  const next = basemapMode === 'street' ? 'topo' : basemapMode === 'topo' ? 'plain' : 'street';
+  tileErrorCount = 0;
+  tileFallbackDone = false;
+  setBasemap(next);
 });
 
 // разворачивание карты на весь экран
@@ -2669,6 +2819,49 @@ function renderBackupReminder(){
   el.style.display = 'block';
 }
 
+// ---------- журнал изменений ----------
+// Сравниваем снимок данных до и после сохранения: так журнал ведётся сам,
+// без правки двух десятков мест, которые меняют записи.
+const CHANGELOG_KEY = 'travel-map-changelog';
+const CHANGELOG_MAX = 300; // храним последние записи, иначе журнал раздуется
+let changelogSnapshot = null;
+
+function snapshotForLog(){
+  const m = new Map();
+  allEntries.forEach(e => m.set(e.id, { name: e.name, type: e.type, year: e.year, month: e.month,
+    status: e.status, trip: e.trip, notes: (e.notes||'').length, photos: (e.photos||[]).length }));
+  return m;
+}
+function readChangelog(){
+  try{ return JSON.parse(localStorage.getItem(CHANGELOG_KEY) || '[]') || []; }catch(e){ return []; }
+}
+function writeChangelog(list){
+  try{ localStorage.setItem(CHANGELOG_KEY, JSON.stringify(list.slice(0, CHANGELOG_MAX))); }catch(e){}
+}
+const LOG_FIELD_RU = { name:'название', type:'тип', year:'год', month:'месяц',
+  status:'статус', trip:'поездка', notes:'заметка', photos:'фото' };
+
+function recordChangelog(){
+  if(READ_ONLY) return;
+  const after = snapshotForLog();
+  const before = changelogSnapshot;
+  changelogSnapshot = after;
+  if(!before) return; // первый снимок — сравнивать не с чем
+  const events = [];
+  const now = new Date().toISOString();
+  after.forEach((v, id)=>{
+    if(!before.has(id)) events.push({ at: now, act: 'add', id, name: v.name, type: v.type });
+  });
+  before.forEach((v, id)=>{
+    if(!after.has(id)){ events.push({ at: now, act: 'del', id, name: v.name, type: v.type }); return; }
+    const now2 = after.get(id);
+    const changed = Object.keys(LOG_FIELD_RU).filter(k => v[k] !== now2[k]);
+    if(changed.length) events.push({ at: now, act: 'edit', id, name: now2.name, type: now2.type, fields: changed });
+  });
+  if(events.length === 0) return;
+  writeChangelog([...events.reverse(), ...readChangelog()]);
+}
+
 async function saveData(){
   if(READ_ONLY){
     toast('Это read-only версия карты — изменения не сохраняются');
@@ -2681,11 +2874,13 @@ async function saveData(){
       if(!res){ toast('Не удалось сохранить — попробуйте ещё раз'); return false; }
       noteDataChanged();
       renderBackupReminder();
+      recordChangelog();
       return true;
     }
     localStorage.setItem(LOCAL_STORAGE_KEY, payload);
     noteDataChanged();
     renderBackupReminder();
+    recordChangelog();
     return true;
   }catch(e){
     toast('Ошибка сохранения — изменения видны только в этой сессии и не сохранятся при перезагрузке');
@@ -3217,6 +3412,38 @@ async function queryNominatimSettlements(q, biasLatLng){
   });
 }
 
+// Общий пересчёт точек маршрута. Раньше обновлялись только координаты, а страны
+// оставались пустыми — из-за этого маршрут не попадал ни в поиск по стране,
+// ни в паспорт, ни в список поездок страны.
+async function refetchRouteWaypoints(entry, onProgress){
+  const names = entry.waypointNames || [];
+  const newCoords = [];
+  const newKeys = [];
+  let failCount = 0;
+  let lastGoodCoord = null; // следующую точку ищем рядом с предыдущей найденной
+  for(let i = 0; i < names.length; i++){
+    if(onProgress) onProgress(i + 1, names.length);
+    try{
+      const matches = await queryNominatimSettlements(names[i], lastGoodCoord);
+      if(matches.length > 0){
+        const m = matches[0];
+        newCoords.push([m.lat, m.lng]);
+        newKeys.push(findAnyCountryKeyByRuName(m.country, m.countryCode) || null);
+        lastGoodCoord = [m.lat, m.lng];
+      } else {
+        newCoords.push(null); newKeys.push(null); failCount++;
+      }
+      clearServiceIssue('поиск городов');
+    }catch(err){
+      newCoords.push(null); newKeys.push(null); failCount++;
+      reportServiceIssue('поиск городов');
+    }
+  }
+  entry.waypointCoords = newCoords;
+  entry.waypointCountryKeys = newKeys;
+  return { failCount, total: names.length };
+}
+
 async function refreshWaypointCoords(){
   if(READ_ONLY){ toast('Это read-only версия — редактирование недоступно'); return; }
   const entry = allEntries.find(e => e.id === editingId);
@@ -3224,29 +3451,10 @@ async function refreshWaypointCoords(){
   const btn = document.getElementById('refreshWaypointsBtn');
   const originalText = btn.textContent;
   btn.disabled = true;
-  const newCoords = [];
-  let failCount = 0;
-  let lastGoodCoord = null; // смещаем поиск каждой следующей точки к предыдущей уже найденной — та же логика, что при живом добавлении маршрута
-  for(let i = 0; i < entry.waypointNames.length; i++){
-    btn.textContent = `Ищу точку ${i+1} из ${entry.waypointNames.length}…`;
-    try{
-      const matches = await queryNominatimSettlements(entry.waypointNames[i], lastGoodCoord);
-      if(matches.length > 0){
-        newCoords.push([matches[0].lat, matches[0].lng]);
-        lastGoodCoord = [matches[0].lat, matches[0].lng];
-      } else {
-        newCoords.push(null);
-        failCount++;
-      }
-      clearServiceIssue('поиск городов');
-    }catch(err){
-      newCoords.push(null);
-      failCount++;
-      reportServiceIssue('поиск городов');
-    }
-    // отдельная пауза не нужна: темп держит общая очередь nominatimThrottle
-  }
-  entry.waypointCoords = newCoords;
+  const res = await refetchRouteWaypoints(entry, (i, total)=>{
+    btn.textContent = `Ищу точку ${i} из ${total}…`;
+  });
+  const failCount = res.failCount;
   btn.disabled = false;
   btn.textContent = originalText;
   const saved = await saveData();
@@ -3427,18 +3635,192 @@ map.on('click', (e)=>{
   // visited or not, purely informational
   const feature = findCountryFeature(e.latlng);
   if(feature){
-    const ruName = COUNTRY_RU[feature.properties.name] || feature.properties.name;
-    const flag = countryFlag(feature.properties.name);
-    L.popup({closeButton:true, minWidth: 170})
-      .setLatLng(e.latlng)
-      .setContent(`<div style="font-family:'EB Garamond',serif;text-align:center;min-width:150px;">
-        <div style="font-size:24px;line-height:1.3;">${flag}</div>
-        <b style="font-family:'Playfair Display',serif;font-style:italic;font-size:15px;color:var(--text);">${escapeHtml(ruName)}</b>
-        ${buildCountryInfoHtml(feature.properties.name)}
-      </div>`)
-      .openOn(map);
+    openCountryPopup(feature.properties.name, e.latlng);
   }
 });
+
+// Попап страны: раньше был только справочным. Теперь показывает связанные
+// поездки и позволяет сразу отметить страну или добавить внутри неё запись —
+// клик по карте был тупиком, из которого приходилось идти в форму вручную.
+let countryPopupKey = null;
+// Попап пересоздаётся при каждом клике, поэтому состояние блоков храним снаружи
+// и в localStorage: иначе пришлось бы раскрывать нужное заново каждый раз.
+const CPOP_SECTIONS_KEY = 'travel-map-cpop-sections';
+let cpopOpen = (()=>{
+  try{ return JSON.parse(localStorage.getItem(CPOP_SECTIONS_KEY) || 'null') || { info:false, trips:true, add:true }; }
+  catch(e){ return { info:false, trips:true, add:true }; }
+})();
+function saveCpopSections(){
+  try{ localStorage.setItem(CPOP_SECTIONS_KEY, JSON.stringify(cpopOpen)); }catch(e){}
+}
+function cpopSection(id, title, inner){
+  const open = !!cpopOpen[id];
+  return `<div class="cpop-sec${open ? '' : ' closed'}" data-cpop-sec="${id}">
+      <span>${escapeHtml(title)}</span><span class="cpop-chev">▾</span>
+    </div>
+    <div class="cpop-secbody" data-cpop-body="${id}" style="${open ? '' : 'display:none;'}">${inner}</div>`;
+}
+
+function openCountryPopup(key, latlng){
+  countryPopupKey = key;
+  const ruName = COUNTRY_RU[key] || key;
+  const flag = countryFlag(key);
+  const isHome = key === HOME_COUNTRY_KEY;
+
+  const own = allEntries.filter(e => e.countryKey === key);
+  const visited = own.filter(e => e.type === 'country' && e.status !== 'wishlist');
+  const planned = own.filter(e => e.type === 'country' && e.status === 'wishlist');
+  const cities = own.filter(e => e.type === 'city');
+  // поездки, связанные со страной, — включая маршруты, проходящие по ней
+  const tripNames = new Set();
+  own.forEach(e => { if(e.trip) tripNames.add(e.trip); });
+  allEntries.forEach(e=>{
+    if(e.type === 'route' && e.trip && (e.waypointCountryKeys || []).includes(key)) tripNames.add(e.trip);
+  });
+  const trips = [...tripNames].sort((a,b)=>a.localeCompare(b,'ru'));
+
+  const years = [...new Set(visited.map(e => e.year).filter(Boolean))].sort((a,b)=>a-b);
+  const statusLine = isHome
+    ? 'Домашний регион — отмечать посещение не нужно'
+    : visited.length ? `Посещено${years.length ? ': ' + years.join(', ') : ''}`
+    : planned.length ? 'В планах' : 'Пока не отмечена';
+
+  const parts = [];
+  parts.push(`<div class="cpop">`);
+  parts.push(`<div class="cpop-flag">${flag}</div>`);
+  parts.push(`<b class="cpop-name">${escapeHtml(ruName)}</b>`);
+  parts.push(`<div class="cpop-status">${escapeHtml(statusLine)}</div>`);
+  // Ближайший населённый пункт спрашиваем у геокодера по требованию: встроить
+  // справочник городов в файл нельзя — он весит мегабайты против 200 КБ границ.
+  parts.push(`<div class="cpop-place" id="cpopPlace"><button class="cpop-place-btn" data-cpop-act="where">Что здесь?</button></div>`);
+  if(cities.length) parts.push(`<div class="cpop-status">Городов отмечено: ${cities.length}</div>`);
+
+  const info = buildCountryInfoHtml(key);
+  if(info) parts.push(cpopSection('info', 'О стране', info));
+
+  if(trips.length){
+    parts.push(cpopSection('trips', `Поездки · ${trips.length}`,
+      `<div class="cpop-trips">${trips.map(t =>
+        `<button class="cpop-trip" data-cpop-trip="${escapeAttr(t)}">${escapeHtml(t)}</button>`).join('')}</div>`));
+  }
+
+  if(!READ_ONLY){
+    const acts = [];
+    if(!isHome && visited.length === 0){
+      acts.push(`<button class="cpop-btn" data-cpop-act="visited">Отметить посещённой</button>`);
+      if(planned.length === 0) acts.push(`<button class="cpop-btn" data-cpop-act="wishlist">Хочу посетить</button>`);
+    }
+    acts.push(`<button class="cpop-btn" data-cpop-act="city">+ город</button>`);
+    acts.push(`<button class="cpop-btn" data-cpop-act="route">+ маршрут</button>`);
+    parts.push(cpopSection('add', 'Добавить', `<div class="cpop-actions">${acts.join('')}</div>`));
+  }
+  parts.push(`</div>`);
+
+  const popup = L.popup({closeButton:true, minWidth: 210, maxWidth: 280})
+    .setLatLng(latlng)
+    .setContent(parts.join(''))
+    .openOn(map);
+
+  // обработчики навешиваем после отрисовки содержимого попапа
+  setTimeout(()=>{
+    document.querySelectorAll('[data-cpop-trip]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        map.closePopup();
+        openTripPage(btn.dataset.cpopTrip);
+      });
+    });
+    document.querySelectorAll('[data-cpop-act]').forEach(btn=>{
+      btn.addEventListener('click', ()=> handleCountryPopupAction(btn.dataset.cpopAct, key, latlng));
+    });
+    document.querySelectorAll('[data-cpop-sec]').forEach(head=>{
+      head.addEventListener('click', ()=>{
+        const id = head.dataset.cpopSec;
+        const bodyEl = document.querySelector(`[data-cpop-body="${id}"]`);
+        cpopOpen[id] = !cpopOpen[id];
+        head.classList.toggle('closed', !cpopOpen[id]);
+        if(bodyEl) bodyEl.style.display = cpopOpen[id] ? '' : 'none';
+        saveCpopSections();
+      });
+    });
+  }, 0);
+}
+
+async function lookupPlaceHere(latlng, key){
+  const box = document.getElementById('cpopPlace');
+  if(!box) return;
+  box.innerHTML = `<span class="cpop-place-wait">определяю…</span>`;
+  try{
+    const r = await reverseGeocode(latlng.lat, latlng.lng);
+    if(!r){ box.innerHTML = `<span class="cpop-place-wait">рядом ничего не найдено</span>`; return; }
+    const sameCountry = !r.countryKey || r.countryKey === key;
+    box.innerHTML = `<div class="cpop-place-name">${escapeHtml(r.name)}</div>` +
+      (sameCountry ? '' : `<div class="cpop-place-wait">по данным сервиса: ${escapeHtml(COUNTRY_RU[r.countryKey] || r.countryKey)}</div>`) +
+      (READ_ONLY ? '' : `<button class="cpop-btn" data-cpop-place-add="1">+ добавить как город</button>`);
+    const add = box.querySelector('[data-cpop-place-add]');
+    if(add){
+      add.addEventListener('click', ()=>{
+        map.closePopup();
+        exitEditMode(true);
+        const typeBtn = document.querySelector('.type-btn[data-type="city"]');
+        if(typeBtn) typeBtn.click();
+        pendingLatLng = latlng;
+        pendingCityCountryKey = r.countryKey || key;
+        const sel = document.getElementById('fieldCityCountry');
+        if(sel) sel.value = r.countryKey || key;
+        const nameField = document.getElementById('fieldName');
+        if(nameField) nameField.value = r.name;
+        setSelectedTag('citySelectedTag', `${r.name}: ${latlng.lat.toFixed(3)}, ${latlng.lng.toFixed(3)}`, clearCitySelection);
+        const section = document.getElementById('addEntrySection');
+        if(section && section.classList.contains('collapsed')) section.classList.remove('collapsed');
+        if(nameField) nameField.scrollIntoView({ block:'center' });
+        toast(`Проверьте год и остальные поля для «${r.name}»`);
+      });
+    }
+    clearServiceIssue('поиск городов');
+  }catch(err){
+    box.innerHTML = `<span class="cpop-place-wait">нет соединения — попробуйте позже</span>`;
+    reportServiceIssue('поиск городов');
+  }
+}
+
+async function handleCountryPopupAction(act, key, latlng){
+  if(act === 'where'){ await lookupPlaceHere(latlng, key); return; }
+  const ruName = COUNTRY_RU[key] || key;
+  map.closePopup();
+  if(act === 'visited' || act === 'wishlist'){
+    const entry = {
+      id: genId(), type: 'country', name: ruName, countryKey: key,
+      year: new Date().getFullYear(), month: undefined,
+      photos: [], notes: '', purpose: 'tourism',
+      color: DEFAULT_COLOR.country,
+      status: act === 'wishlist' ? 'wishlist' : 'visited', favorite: false
+    };
+    allEntries.push(entry);
+    recordBulkAction(act === 'wishlist' ? 'страну в планах' : 'отметку страны', null, [], [entry.id]);
+    const saved = await saveData();
+    rebuildAll();
+    if(saved) showUndoToast(`${ruName}: ${act === 'wishlist' ? 'в планах' : 'отмечена посещённой'}. Год и месяц можно уточнить`);
+    return;
+  }
+  if(act === 'where'){ return; } // обрабатывается отдельно, попап не закрываем
+  // город или маршрут — открываем форму, подставив страну и место клика
+  exitEditMode(true);
+  // переключаем тип через саму кнопку — она уже умеет показывать нужные поля
+  const typeBtn = document.querySelector(`.type-btn[data-type="${act === 'city' ? 'city' : 'route'}"]`);
+  if(typeBtn) typeBtn.click();
+  if(act === 'city'){
+    pendingLatLng = latlng;
+    pendingCityCountryKey = key;
+    const sel = document.getElementById('fieldCityCountry');
+    if(sel) sel.value = key;
+    setSelectedTag('citySelectedTag', `${ruName}: ${latlng.lat.toFixed(3)}, ${latlng.lng.toFixed(3)}`, clearCitySelection);
+  }
+  const section = document.getElementById('addEntrySection');
+  if(section && section.classList.contains('collapsed')) section.classList.remove('collapsed');
+  const nameField = document.getElementById('fieldName');
+  if(nameField){ nameField.focus(); nameField.scrollIntoView({ block:'center' }); }
+  toast(act === 'city' ? `Добавьте город в стране «${ruName}»` : `Добавьте маршрут — точки задайте поиском`);
+}
 
 // ---------- selection tag helper ----------
 function setSelectedTag(containerId, label, onClear){
@@ -4320,13 +4702,27 @@ function buildPopup(entry){
     html += buildSparkline(entry.profile);
   }
   if(entry.notes) html += `<br><span style="font-style:italic;">${escapeHtml(entry.notes)}</span>`;
-  if(entry.photos && entry.photos.length){
-    html += `<br>${entry.photos.map(u => `<a href="${escapeAttr(safeUrl(u))}" target="_blank" rel="noopener">🔗 ${escapeHtml(shortLinkLabel(u))}</a>`).join(' · ')}`;
+  const photos = (entry.photos || []).filter(Boolean);
+  // Первая ссылка, ведущая прямо на изображение, показывается миниатюрой.
+  // Раньше картинка появлялась только вместе со ссылкой на Instagram — без неё
+  // фотография оставалась просто ссылкой, хотя показать её было можно.
+  const cover = photos.find(u => !photoLinkProblem(u));
+  const albums = photos.filter(u => photoLinkProblem(u));
+  if(cover && !entry.instagramUrl){
+    html += `<a class="popup-photo" href="${escapeAttr(safeUrl(cover))}" target="_blank" rel="noopener">
+      <img src="${escapeAttr(safeUrl(cover))}" alt="" loading="lazy" onerror="photoFailed(this)">
+    </a>`;
+  }
+  if(albums.length){
+    html += `<br>${albums.map(u => `<a href="${escapeAttr(safeUrl(u))}" target="_blank" rel="noopener">🗂 ${escapeHtml(shortLinkLabel(u))}</a>`).join(' · ')}`;
+  }
+  if(photos.length > 1 && cover){
+    html += `<div style="font-family:'Courier Prime',monospace;font-size:9px;color:var(--text-dim);margin-top:3px;">фото: ${photos.length}</div>`;
   }
   if(entry.instagramUrl){
-    if(entry.photos && entry.photos.length){
+    if(cover){
       html += `<a class="ig-card" href="${escapeAttr(safeUrl(entry.instagramUrl))}" target="_blank" rel="noopener">
-        <img src="${escapeAttr(safeUrl(entry.photos[0]))}" alt="" loading="lazy" onerror="photoFailed(this)">
+        <img src="${escapeAttr(safeUrl(cover))}" alt="" loading="lazy" onerror="photoFailed(this)">
         <span class="ig-caption">📷 Открыть в Instagram →</span>
       </a>`;
     } else {
@@ -4874,7 +5270,18 @@ function passesFilter(entry){
   if(activeStatuses.size > 0 && !activeStatuses.has(entry.status || 'visited')) return false;
   if(activeTrips.size > 0 && (!entry.trip || !activeTrips.has(entry.trip))) return false;
   if(searchQuery){
-    const haystack = [entry.name, entry.trip, entry.notes].filter(Boolean).join(' ').toLowerCase();
+    // Ищем ещё и по стране, и по названиям точек маршрута: без этого запрос
+    // «Грузия» не находил грузинские города, а «Тбилиси» — маршрут, который
+    // через него проходит, хотя в статистике городов такая точка учитывается.
+    const parts = [entry.name, entry.trip, entry.notes];
+    if(entry.countryKey){
+      parts.push(COUNTRY_RU[entry.countryKey] || entry.countryKey, entry.countryKey);
+    }
+    if(Array.isArray(entry.waypointNames)) parts.push(entry.waypointNames.join(' '));
+    if(Array.isArray(entry.waypointCountryKeys)){
+      entry.waypointCountryKeys.forEach(k => { if(k) parts.push(COUNTRY_RU[k] || k); });
+    }
+    const haystack = parts.filter(Boolean).join(' ').toLowerCase();
     if(!haystack.includes(searchQuery)) return false;
   }
   return true;
@@ -6560,6 +6967,14 @@ function computeDiagnostics(){
   });
   const missingCountryYears = Object.values(missingMap).sort((a,b)=> b.year - a.year);
 
+  // Маршруты, у точек которых не определена страна. Это влияет не только на
+  // поиск: такие точки не дают флага, не попадают в паспорт, в список поездок
+  // страны и в статистику по континентам.
+  const routesNoWpCountry = allEntries.filter(e =>
+    e.type === 'route' && e.status !== 'wishlist' &&
+    Array.isArray(e.waypointNames) && e.waypointNames.length > 0 &&
+    !(e.waypointCountryKeys || []).some(Boolean));
+
   const dupeGroups = {};
   allEntries.forEach(e=>{
     const key = `${e.type}|${e.name.trim().toLowerCase()}|${e.year}|${e.month || 'none'}`;
@@ -6618,7 +7033,7 @@ function computeDiagnostics(){
 
   const typeLabel = e => e.type === 'country' ? 'страна' : e.type === 'city' ? 'город' : 'маршрут';
 
-  return { countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs, missingCoords, brokenLinks, nonImagePhotos, duplicateGroups, noCountry, missingCountryYears, tripSuggestions, typeLabel };
+  return { countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs, missingCoords, brokenLinks, nonImagePhotos, duplicateGroups, noCountry, missingCountryYears, routesNoWpCountry, tripSuggestions, typeLabel };
 }
 
 // суммарное число находок — для бейджа на кнопке, чтобы не приходилось
@@ -6629,7 +7044,7 @@ function countDiagnosticsIssues(){
     return d.countryMismatches.length + d.outlierWaypoints.length + d.noMonth.length +
            d.similarPairs.length + d.similarTripPairs.length + d.missingCoords.length +
            d.brokenLinks.length + d.nonImagePhotos.length + d.duplicateGroups.length + d.noCountry.length +
-           d.missingCountryYears.length;
+           d.missingCountryYears.length + d.routesNoWpCountry.length;
   }catch(err){
     console.error('countDiagnosticsIssues failed', err);
     return 0;
@@ -6658,7 +7073,7 @@ function renderDiagnostics(){
   const container = document.getElementById('diagnosticsBody');
   const { countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs,
           missingCoords, brokenLinks, nonImagePhotos, duplicateGroups, noCountry,
-          missingCountryYears, tripSuggestions, typeLabel } = computeDiagnostics();
+          missingCountryYears, routesNoWpCountry, tripSuggestions, typeLabel } = computeDiagnostics();
 
   let html = '';
   html += buildDiagSection(
@@ -6747,6 +7162,22 @@ function renderDiagnostics(){
     </div>`
   );
   html += buildDiagSection(
+    'У точек маршрута не определена страна',
+    'Такие точки не дают флага, не попадают в паспорт, в список поездок страны и не находятся поиском по стране. Обновление заново находит города по их названиям.',
+    routesNoWpCountry, 'У всех маршрутов с точками страны определены.',
+    (e, i) => `<div class="diag-row" style="cursor:default;">
+      ${escapeHtml(e.name)}
+      <div class="diag-row-meta">${e.year || ''} · точек: ${e.waypointNames.length} — ${escapeHtml(e.waypointNames.slice(0,4).join(', '))}${e.waypointNames.length > 4 ? ' …' : ''}</div>
+    </div>`
+  );
+  if(routesNoWpCountry.length && !READ_ONLY){
+    const totalPts = routesNoWpCountry.reduce((s,e)=> s + e.waypointNames.length, 0);
+    html += `<div style="padding:0 20px 14px;margin-top:-8px;">
+      <button class="cancel-edit" id="fixWpCountriesBtn" style="margin-top:0;">Определить страны для ${routesNoWpCountry.length} ${routesNoWpCountry.length === 1 ? 'маршрута' : 'маршрутов'}</button>
+      <div class="hint">Точек всего ${totalPts}. Поиск идёт по одной точке в секунду — займёт около ${Math.ceil(totalPts * 1.1 / 60)} мин. Окно можно не закрывать.</div>
+    </div>`;
+  }
+  html += buildDiagSection(
     'Похоже на одну поездку',
     'Записи одного месяца, расположенные рядом друг с другом и пока не собранные в поездку. Название можно изменить перед объединением.',
     tripSuggestions, 'Все записи либо уже собраны в поездки, либо не похожи на одну.',
@@ -6796,6 +7227,28 @@ function renderDiagnostics(){
       if(saved) showUndoToast(`Страна исправлена: ${m.label} → ${m.actual}`);
     });
   });
+
+  const fixWpBtn = document.getElementById('fixWpCountriesBtn');
+  if(fixWpBtn){
+    fixWpBtn.addEventListener('click', async ()=>{
+      fixWpBtn.disabled = true;
+      recordBulkAction('определение стран у точек', routesNoWpCountry, ['waypointCoords','waypointCountryKeys'], []);
+      let doneRoutes = 0, failed = 0;
+      for(const entry of routesNoWpCountry){
+        const res = await refetchRouteWaypoints(entry, (i, total)=>{
+          fixWpBtn.textContent = `Маршрут ${doneRoutes + 1} из ${routesNoWpCountry.length}: точка ${i} из ${total}…`;
+        });
+        failed += res.failCount;
+        doneRoutes++;
+      }
+      const saved = await saveData();
+      rebuildAll();
+      renderDiagnostics();
+      if(saved) showUndoToast(failed
+        ? `Обработано маршрутов: ${doneRoutes}, не найдено точек: ${failed}`
+        : `Страны определены для ${doneRoutes} маршрутов`);
+    });
+  }
 
   const fixAllBtn = document.getElementById('fixAllCountriesBtn');
   if(fixAllBtn){
@@ -7724,7 +8177,7 @@ function renderTripPage(){
         <div class="tp-stop-name" data-tp-focus="${escapeAttr(e.id)}">${flag ? flag + ' ' : ''}${escapeHtml(e.name)}</div>
         ${metaBits ? `<div class="tp-stop-meta">${escapeHtml(metaBits)}</div>` : ''}
         ${photo ? `<img class="tp-stop-photo" src="${escapeAttr(safeUrl(photo))}" alt="" loading="lazy" onerror="photoFailed(this)">` : ''}
-        ${note ? `<div class="tp-stop-note">${escapeHtml(note)}</div>`
+        ${note ? `<div class="tp-stop-note" ${READ_ONLY ? '' : `data-tp-edit="${escapeAttr(e.id)}" title="Нажмите, чтобы изменить" style="cursor:text;"`}>${escapeHtml(note)}</div>`
                : (READ_ONLY ? '' : `<button class="tp-add-note" data-tp-note="${escapeAttr(e.id)}">+ добавить заметку</button>`)}
       </div>
     </div>`;
@@ -7751,16 +8204,49 @@ function renderTripPage(){
       focusEntry(entry);
     });
   });
-  // заметки — топливо этой страницы, поэтому предлагаем их добавить прямо здесь
+  // Заметки — топливо этой страницы, поэтому пишем их прямо здесь, не уходя
+  // в форму: иначе на каждую остановку приходится открывать запись, править и
+  // возвращаться, и до конца поездки обычно не доходишь.
   body.querySelectorAll('[data-tp-note]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const entry = allEntries.find(e => e.id === btn.dataset.tpNote);
-      if(!entry) return;
-      document.getElementById('tripPageModal').style.display = 'none';
-      startEdit(entry);
-      const notes = document.getElementById('fieldNotes');
-      if(notes){ notes.focus(); notes.scrollIntoView({ block: 'center' }); }
-    });
+    btn.addEventListener('click', ()=> openInlineNote(btn.dataset.tpNote, btn));
+  });
+  body.querySelectorAll('[data-tp-edit]').forEach(el=>{
+    el.addEventListener('click', ()=> openInlineNote(el.dataset.tpEdit, el));
+  });
+}
+
+function openInlineNote(entryId, anchorEl){
+  const entry = allEntries.find(e => e.id === entryId);
+  if(!entry || READ_ONLY) return;
+  const box = document.createElement('div');
+  box.className = 'tp-note-edit';
+  box.innerHTML = `
+    <textarea placeholder="Что запомнилось в этом месте…">${escapeHtml(entry.notes || '')}</textarea>
+    <div class="tp-note-actions">
+      <button data-act="save">Сохранить</button>
+      <button data-act="cancel">Отмена</button>
+    </div>`;
+  anchorEl.replaceWith(box);
+  const ta = box.querySelector('textarea');
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+
+  const close = ()=> renderTripPage();
+  box.querySelector('[data-act="cancel"]').addEventListener('click', close);
+  box.querySelector('[data-act="save"]').addEventListener('click', async ()=>{
+    const val = ta.value.trim();
+    if(val === (entry.notes || '').trim()){ close(); return; }
+    recordBulkAction('заметку', [entry], ['notes'], []);
+    entry.notes = val;
+    const saved = await saveData();
+    rebuildAll();
+    renderTripPage();
+    if(saved) showUndoToast(val ? 'Заметка сохранена' : 'Заметка удалена');
+  });
+  // Ctrl+Enter — быстрое сохранение, чтобы не тянуться к кнопке
+  ta.addEventListener('keydown', (ev)=>{
+    if((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') box.querySelector('[data-act="save"]').click();
+    if(ev.key === 'Escape') close();
   });
 }
 
@@ -7769,6 +8255,46 @@ document.getElementById('closeTripPageModal').addEventListener('click', ()=>{
 });
 document.getElementById('tripPageModal').addEventListener('click', (e)=>{
   if(e.target.id === 'tripPageModal') document.getElementById('tripPageModal').style.display = 'none';
+});
+
+function renderChangelog(){
+  const list = readChangelog();
+  document.getElementById('changelogSummary').textContent = list.length
+    ? `Событий: ${list.length}${list.length >= CHANGELOG_MAX ? ` (хранятся последние ${CHANGELOG_MAX})` : ''}`
+    : 'Журнал пуст';
+  const body = document.getElementById('changelogBody');
+  if(list.length === 0){
+    body.innerHTML = `<div class="hint">Здесь появятся добавления, правки и удаления записей. Журнал ведётся с момента обновления приложения.</div>`;
+    return;
+  }
+  const actRu = { add: 'добавлено', edit: 'изменено', del: 'удалено' };
+  const typeRu = { country: 'страна', city: 'город', route: 'маршрут' };
+  let html = '', lastDay = null;
+  list.forEach(ev=>{
+    const dt = new Date(ev.at);
+    const day = dt.toLocaleDateString('ru-RU', { day:'numeric', month:'long', year:'numeric' });
+    if(day !== lastDay){ lastDay = day; html += `<div class="cl-day">${escapeHtml(day)}</div>`; }
+    const fields = (ev.fields || []).map(f => LOG_FIELD_RU[f] || f).join(', ');
+    html += `<div class="cl-row">
+      <span class="cl-act ${ev.act}">${actRu[ev.act] || ev.act}</span>
+      <span class="cl-name">${escapeHtml(ev.name || '—')}
+        <em>${escapeHtml(typeRu[ev.type] || ev.type || '')}${fields ? ' · ' + escapeHtml(fields) : ''}</em>
+      </span>
+      <span class="cl-time">${dt.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' })}</span>
+    </div>`;
+  });
+  body.innerHTML = html;
+}
+
+document.getElementById('openChangelogBtn').addEventListener('click', ()=>{
+  renderChangelog();
+  document.getElementById('changelogModal').style.display = 'flex';
+});
+document.getElementById('closeChangelogModal').addEventListener('click', ()=>{
+  document.getElementById('changelogModal').style.display = 'none';
+});
+document.getElementById('changelogModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'changelogModal') document.getElementById('changelogModal').style.display = 'none';
 });
 
 document.getElementById('resetFiltersBtn').addEventListener('click', resetAllFilters);
@@ -8540,6 +9066,14 @@ const COLLAPSE_KEY = 'travel-map-collapsed';
   }catch(err){
     console.error('renderBackupReminder failed', err);
   }
+  // опорный снимок для журнала: изменения считаются относительно него
+  try{ changelogSnapshot = snapshotForLog(); }catch(err){ console.error('changelog init failed', err); }
+  // восстанавливаем выбранную подложку — если человек однажды переключился на
+  // контуры, незачем каждый раз снова упираться в недоступные плитки
+  try{
+    const savedBase = localStorage.getItem('travel-map-basemap');
+    if(savedBase && savedBase !== 'street') setBasemap(savedBase);
+  }catch(err){ console.error('basemap restore failed', err); }
 
   // если при загрузке пришлось переписать ссылки на фото — сохраняем один раз,
   // иначе в резервную копию попадал бы старый, неотображаемый вид
