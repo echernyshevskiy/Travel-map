@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.16
+  Версия: v2.17
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -2104,7 +2104,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.16</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.17</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -3595,6 +3595,7 @@ map.on('click', (e)=>{
   // новому месту и открывала попап заново — «Что здесь?» выглядело как
   // произвольное перемещение по карте. Защита самого попапа оказалась
   // ненадёжной, поэтому отсекаем такие клики здесь, у источника.
+  if(popupJustTouched()) return;
   const src = e.originalEvent && (e.originalEvent.target || e.originalEvent.srcElement);
   if(src && src.closest && src.closest('.leaflet-popup')) return;
   if(placingCity){
@@ -3649,6 +3650,20 @@ map.on('click', (e)=>{
 // поездки и позволяет сразу отметить страну или добавить внутри неё запись —
 // клик по карте был тупиком, из которого приходилось идти в форму вручную.
 let countryPopupKey = null;
+// Проверка «пришло ли событие из попапа» по его цели оказалась ненадёжной:
+// на касаниях Leaflet подменяет цель на слой карты, и клик по кнопке приходил
+// как обычный клик по точке под ней. Поэтому отмечаем сам факт взаимодействия
+// с попапом по времени — это не зависит ни от типа события, ни от того, как
+// браузер разрешил цель.
+let popupTouchedAt = 0;
+function markPopupTouched(){ popupTouchedAt = Date.now(); }
+function popupJustTouched(){ return Date.now() - popupTouchedAt < 800; }
+function guardPopupClicks(root){
+  if(!root) return;
+  ['pointerdown','touchstart','mousedown','click'].forEach(ev=>{
+    root.addEventListener(ev, markPopupTouched, true);
+  });
+}
 // Попап пересоздаётся при каждом клике, поэтому состояние блоков храним снаружи
 // и в localStorage: иначе пришлось бы раскрывать нужное заново каждый раз.
 const CPOP_SECTIONS_KEY = 'travel-map-cpop-sections';
@@ -3722,7 +3737,12 @@ function openCountryPopup(key, latlng){
   }
   parts.push(`</div>`);
 
-  const popup = L.popup({closeButton:true, minWidth: 210, maxWidth: 280})
+  const popup = L.popup({
+      closeButton: true, minWidth: 210, maxWidth: 280,
+      // содержимое меняется на месте (например, при определении места), и
+      // автоматическая подгонка вида двигала бы карту прямо под пальцем
+      autoPan: true, autoPanPadding: [20, 20], keepInView: false
+    })
     .setLatLng(latlng)
     .setContent(parts.join(''))
     .openOn(map);
@@ -3734,7 +3754,14 @@ function openCountryPopup(key, latlng){
   if(el){
     L.DomEvent.disableClickPropagation(el);
     L.DomEvent.disableScrollPropagation(el);
+    guardPopupClicks(el);
   }
+  // на случай, если элемент попапа ещё не готов в момент открытия
+  setTimeout(()=>{
+    const later = popup.getElement && popup.getElement();
+    if(later) guardPopupClicks(later);
+    document.querySelectorAll('.leaflet-popup').forEach(guardPopupClicks);
+  }, 0);
 
   // обработчики навешиваем после отрисовки содержимого попапа
   setTimeout(()=>{
@@ -3745,7 +3772,13 @@ function openCountryPopup(key, latlng){
       });
     });
     document.querySelectorAll('[data-cpop-act]').forEach(btn=>{
-      btn.addEventListener('click', ()=> handleCountryPopupAction(btn.dataset.cpopAct, key, latlng));
+      ['pointerdown','touchstart','mousedown'].forEach(ev => btn.addEventListener(ev, markPopupTouched, true));
+      btn.addEventListener('click', (ev)=>{
+        markPopupTouched();
+        if(ev.preventDefault) ev.preventDefault();
+        if(ev.stopPropagation) ev.stopPropagation();
+        handleCountryPopupAction(btn.dataset.cpopAct, key, latlng);
+      });
     });
     document.querySelectorAll('[data-cpop-sec]').forEach(head=>{
       head.addEventListener('click', ()=>{
@@ -3763,6 +3796,7 @@ function openCountryPopup(key, latlng){
 async function lookupPlaceHere(latlng, key){
   const box = document.getElementById('cpopPlace');
   if(!box) return;
+  markPopupTouched();
   box.innerHTML = `<span class="cpop-place-wait">определяю…</span>`;
   try{
     const r = await reverseGeocode(latlng.lat, latlng.lng);
