@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.14
+  Версия: v2.15
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -2104,7 +2104,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.14</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.15</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -3721,6 +3721,15 @@ function openCountryPopup(key, latlng){
     .setContent(parts.join(''))
     .openOn(map);
 
+  // Без этого нажатие на кнопку внутри попапа доходило до карты, та считала
+  // его кликом по новому месту и открывала попап заново — «Что здесь?»
+  // выглядело как простое смещение по карте.
+  const el = popup.getElement && popup.getElement();
+  if(el){
+    L.DomEvent.disableClickPropagation(el);
+    L.DomEvent.disableScrollPropagation(el);
+  }
+
   // обработчики навешиваем после отрисовки содержимого попапа
   setTimeout(()=>{
     document.querySelectorAll('[data-cpop-trip]').forEach(btn=>{
@@ -4592,7 +4601,28 @@ function syncLayers(){
           : { color: entry.color, weight:1.5, fillColor: entry.color, fillOpacity: countryFillOpacity(entry.countryKey), dashArray:null });
       }
     }
-    layer.bindPopup(buildPopup(entry));
+    // У страны собственный слой перехватывал клик, и попап с поездками и
+    // действиями до неё не доходил: показывалась только карточка записи.
+    // Теперь клик по стране всегда открывает общий попап страны.
+    if(entry.type === 'country' && entry.countryKey){
+      layer.off('click');
+      layer.unbindPopup();
+      layer.on('click', (ev)=>{
+        L.DomEvent.stopPropagation(ev);
+        openCountryPopup(entry.countryKey, ev.latlng);
+      });
+    } else {
+      layer.bindPopup(buildPopup(entry));
+    }
+  });
+  // Линии маршрутов тонкие, а заливки стран занимают всю площадь — без подъёма
+  // наверх попасть в маршрут внутри страны почти невозможно.
+  allEntries.forEach(e=>{
+    if(e.type !== 'route') return;
+    const l = layers[e.id];
+    if(l && typeof l.bringToFront === 'function'){
+      try{ l.bringToFront(); }catch(err){}
+    }
   });
 }
 
@@ -8836,12 +8866,12 @@ function renderHomeRegion(){
     style: { color: HOME_COLOR, weight: 1.5, fillColor: HOME_COLOR, fillOpacity: 0.10, dashArray: '2,5' },
     interactive: true
   }).addTo(map);
-  layer.bindPopup(`<div style="font-family:'EB Garamond',serif;min-width:170px;">
-    <b>🏠 ${escapeHtml(COUNTRY_RU[HOME_COUNTRY_KEY] || HOME_COUNTRY_KEY)}</b><br>
-    <span style="color:var(--text-dim);">Домашний регион — не отмечается как посещённый.<br>Здесь имеет смысл отмечать города и маршруты.</span>
-    ${buildCountryInfoHtml(HOME_COUNTRY_KEY)}
-  </div>`);
-  layer.on('click', L.DomEvent.stopPropagation);
+  // Домашний регион раньше показывал только справку: ни добавить город, ни
+  // узнать, что здесь. Но по своей стране тоже ездят и открывают новые места.
+  layer.on('click', (ev)=>{
+    L.DomEvent.stopPropagation(ev);
+    openCountryPopup(HOME_COUNTRY_KEY, ev.latlng);
+  });
 
   const homeIcon = L.divIcon({
     className: '',
