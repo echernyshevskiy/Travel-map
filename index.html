@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.15
+  Версия: v2.16
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -2104,7 +2104,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.15</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.16</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -3591,6 +3591,12 @@ document.getElementById('placeCountryBtn').addEventListener('click', ()=>{
 });
 
 map.on('click', (e)=>{
+  // Клик по кнопке внутри попапа доходил сюда, карта считала его кликом по
+  // новому месту и открывала попап заново — «Что здесь?» выглядело как
+  // произвольное перемещение по карте. Защита самого попапа оказалась
+  // ненадёжной, поэтому отсекаем такие клики здесь, у источника.
+  const src = e.originalEvent && (e.originalEvent.target || e.originalEvent.srcElement);
+  if(src && src.closest && src.closest('.leaflet-popup')) return;
   if(placingCity){
     pendingLatLng = e.latlng;
     pendingCityName = null;
