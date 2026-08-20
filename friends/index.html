@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.18
+  Версия: v2.22
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -1433,7 +1433,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
   #entriesTable td.links-cell{white-space:normal;max-width:190px;}
   #entriesTable a{color:var(--sage);text-decoration:none;}
   #entriesTable a:hover{text-decoration:underline;}
-  .table-actions{display:flex;align-items:center;gap:2px;}
+  /* display:flex на самой ячейке отменял её табличное поведение: ячейка
+     переставала растягиваться на высоту строки, и её нижняя граница рисовалась
+     по высоте содержимого — линии в столбце действий съезжали относительно
+     остальных. Раскладку переносим внутрь, ячейка остаётся ячейкой. */
+  .table-actions{white-space:nowrap;}
+  .table-actions-inner{display:flex;align-items:center;gap:2px;}
   .table-actions button{
     background:none;border:none;color:var(--text-dim);cursor:pointer;
     font-size:13px;padding:3px 6px;border-radius:4px;
@@ -1663,6 +1668,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
     font-family:'Courier Prime',monospace;font-size:9.5px;
     color:var(--text-dim);margin-top:3px;
   }
+  .tp-stop-spark{
+    margin-top:8px;padding:6px 8px;
+    background:var(--panel-raised);
+    border:1px solid var(--line);border-radius:4px;
+  }
+  .tp-stop-spark:empty{display:none;}
+  .route-spark{display:block;}
   .tp-stop-photo{
     width:100%;max-height:200px;object-fit:cover;
     border:1px solid var(--line);border-radius:4px;
@@ -1751,6 +1763,56 @@ svg.leaflet-image-layer.leaflet-interactive path {
     font-family:'EB Garamond',serif;font-size:11.5px;padding:4px 9px;
   }
   .cpop-btn:hover{background:var(--amber);color:var(--on-accent);}
+  .cmp-row{
+    display:grid;grid-template-columns:1fr auto 1fr;
+    align-items:center;gap:10px;
+    padding:11px 0;border-bottom:1px solid var(--line);
+  }
+  .cmp-row:last-child{border-bottom:none;}
+  .cmp-label{
+    grid-column:1 / -1;
+    font-family:'Courier Prime',monospace;font-size:8.5px;
+    letter-spacing:1.2px;text-transform:uppercase;color:var(--text-dim);
+    margin-bottom:-6px;text-align:center;
+  }
+  .cmp-val{
+    font-family:'Playfair Display',serif;font-style:italic;font-weight:700;
+    font-size:20px;color:var(--text);line-height:1.1;
+  }
+  .cmp-val.a{text-align:right;}
+  .cmp-val.b{text-align:left;}
+  .cmp-val small{
+    display:block;font-family:'EB Garamond',serif;font-style:normal;font-weight:400;
+    font-size:11px;color:var(--text-dim);margin-top:2px;line-height:1.3;
+  }
+  .cmp-delta{
+    font-family:'Courier Prime',monospace;font-size:10px;
+    padding:2px 7px;border-radius:10px;white-space:nowrap;
+    border:1px solid var(--line);color:var(--text-dim);
+  }
+  .cmp-delta.up{color:var(--sage);border-color:var(--sage);}
+  .cmp-delta.down{color:var(--amber);border-color:var(--amber-dim);}
+  .cmp-head{
+    display:grid;grid-template-columns:1fr auto 1fr;gap:10px;
+    padding:8px 0 10px;border-bottom:1px solid var(--line);margin-bottom:4px;
+  }
+  .cmp-head b{
+    font-family:'Playfair Display',serif;font-style:italic;font-size:19px;color:var(--amber);
+  }
+  .cmp-head b.a{text-align:right;}
+  .cmp-head b.b{text-align:left;}
+  .cmp-new{
+    margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
+  }
+  .cmp-new-title{
+    font-family:'Courier Prime',monospace;font-size:9px;
+    letter-spacing:1.3px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;
+  }
+  .cmp-chips{display:flex;flex-wrap:wrap;gap:5px;}
+  .cmp-chip{
+    background:var(--panel-raised);border:1px solid var(--line);border-radius:3px;
+    padding:3px 8px;font-family:'EB Garamond',serif;font-size:12px;color:var(--text);
+  }
   .cl-day{
     font-family:'Playfair Display',serif;font-style:italic;font-weight:700;
     font-size:14px;color:var(--text-dim);
@@ -1985,6 +2047,21 @@ svg.leaflet-image-layer.leaflet-interactive path {
       repeating-linear-gradient(120deg, rgba(160,60,50,0.05) 0 3px, transparent 3px 11px),
       repeating-linear-gradient(60deg, rgba(160,60,50,0.05) 0 3px, transparent 3px 11px),
       linear-gradient(#f5eedd, #ede2ce);
+  }
+  .pp-badges{display:flex;flex-direction:column;gap:7px;margin-top:6px;}
+  .pp-badge{display:flex;gap:8px;align-items:flex-start;}
+  .pp-badge-mark{
+    flex-shrink:0;width:20px;text-align:center;
+    font-size:13px;color:rgba(140,35,35,0.6);line-height:1.3;
+  }
+  .pp-badge-body{flex:1;min-width:0;}
+  .pp-badge-body b{
+    display:block;font-family:'EB Garamond',serif;font-size:12.5px;
+    font-weight:600;color:#3a2a1a;line-height:1.25;
+  }
+  .pp-badge-body em{
+    display:block;font-family:'Courier Prime',monospace;font-style:normal;
+    font-size:8px;color:rgba(90,70,40,0.65);margin-top:1px;line-height:1.35;
   }
   .pp-bio-photo{
     width:78px;height:96px;flex-shrink:0;
@@ -2496,6 +2573,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <button id="openMilestonesBtn" class="header-menu-item">Вехи</button>
         <button id="openDiaryBtn" class="header-menu-item">Дневник</button>
         <button id="exportSnapshotBtn" class="header-menu-item">Снимок (Stories)</button>
+        <button id="openCompareBtn" class="header-menu-item">Год к году</button>
         <button id="openChangelogBtn" class="header-menu-item">Журнал изменений</button>
       </div>
     </div>
@@ -2846,7 +2924,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.18</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.22</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -2981,6 +3059,21 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div class="hint">Картинка вертикальная, подходит для сторис.</div>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="compareModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Год к году</h2>
+      <button id="closeCompareModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div style="padding:12px 20px 6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <select id="compareYearA" style="width:auto;min-width:96px;margin:0;"></select>
+      <span style="font-family:'Courier Prime',monospace;font-size:11px;color:var(--text-dim);">против</span>
+      <select id="compareYearB" style="width:auto;min-width:96px;margin:0;"></select>
+    </div>
+    <div class="table-wrap"><div id="compareBody" style="padding:0 20px 20px;"></div></div>
   </div>
 </div>
 
@@ -7244,11 +7337,11 @@ function renderTable(){
         entry.mapLinkUrl ? `<a href="${escapeAttr(safeUrl(entry.mapLinkUrl))}" target="_blank" rel="noopener">🗺️ Карта</a>` : null,
         entry.docLinkUrl ? `<a href="${escapeAttr(safeUrl(entry.docLinkUrl))}" target="_blank" rel="noopener">📄 Документ</a>` : null
       ].filter(Boolean).join(' · ') || '—'}</td>
-      <td class="table-actions">
+      <td class="table-actions"><div class="table-actions-inner">
         ${(!READ_ONLY && entry.status === 'wishlist') ? `<button title="Отметить как посещённое" aria-label="Отметить как посещённое" data-act="visit" style="color:var(--amber);">✓</button>` : ''}
         ${READ_ONLY ? '' : `<button title="Редактировать" aria-label="Редактировать" data-act="edit">✎</button>
         <button title="Удалить" aria-label="Удалить" data-act="del">✕</button>`}
-      </td>
+      </div></td>
     </tr>`);
   });
   tbody.innerHTML = rows.join('');
@@ -9012,6 +9105,7 @@ function renderTripPage(){
       <div class="tp-stop-body">
         <div class="tp-stop-name" data-tp-focus="${escapeAttr(e.id)}">${flag ? flag + ' ' : ''}${escapeHtml(e.name)}</div>
         ${metaBits ? `<div class="tp-stop-meta">${escapeHtml(metaBits)}</div>` : ''}
+        ${e.type === 'route' ? `<div class="tp-stop-spark">${buildRouteSparkSvg(e, 300, 110)}</div>` : ''}
         ${photo ? `<img class="tp-stop-photo" src="${escapeAttr(safeUrl(photo))}" alt="" loading="lazy" onerror="photoFailed(this)">` : ''}
         ${note ? `<div class="tp-stop-note" ${READ_ONLY ? '' : `data-tp-edit="${escapeAttr(e.id)}" title="Нажмите, чтобы изменить" style="cursor:text;"`}>${escapeHtml(note)}</div>`
                : (READ_ONLY ? '' : `<button class="tp-add-note" data-tp-note="${escapeAttr(e.id)}">+ добавить заметку</button>`)}
@@ -9133,6 +9227,113 @@ document.getElementById('changelogModal').addEventListener('click', (e)=>{
   if(e.target.id === 'changelogModal') document.getElementById('changelogModal').style.display = 'none';
 });
 
+// ---------- год к году ----------
+// Сравнение — то, ради чего статистику обычно и открывают, а до сих пор можно
+// было видеть только один год за раз. Считаем через тот же computeRecap, чтобы
+// цифры совпадали с разделом «Год в путешествиях».
+function fillCompareYears(){
+  const years = [...new Set(allEntries.filter(e => e.status !== 'wishlist' && e.year).map(e => e.year))].sort((a,b)=>b-a);
+  const a = document.getElementById('compareYearA');
+  const b = document.getElementById('compareYearB');
+  if(years.length === 0){ a.innerHTML = b.innerHTML = ''; return years; }
+  const opts = years.map(y => `<option value="${y}">${y}</option>`).join('');
+  a.innerHTML = opts; b.innerHTML = opts;
+  // по умолчанию: последний год против предыдущего
+  b.value = String(years[0]);
+  a.value = String(years[1] !== undefined ? years[1] : years[0]);
+  return years;
+}
+
+function renderCompare(){
+  const yA = parseInt(document.getElementById('compareYearA').value, 10);
+  const yB = parseInt(document.getElementById('compareYearB').value, 10);
+  const body = document.getElementById('compareBody');
+  if(!yA || !yB){
+    body.innerHTML = `<div class="hint">Нужны записи хотя бы за один год.</div>`;
+    return;
+  }
+  const A = computeRecap(yA), B = computeRecap(yB);
+
+  // строки сравнения: значение слева, разница посередине, значение справа
+  const rows = [
+    ['Стран', A.countries.length, B.countries.length, v => String(v)],
+    ['Из них впервые', A.newCountries.length, B.newCountries.length, v => String(v)],
+    ['Городов', A.cities.size, B.cities.size, v => String(v)],
+    ['Поездок', A.trips.size, B.trips.size, v => String(v)],
+    ['Месяцев в пути', A.months.size, B.months.size, v => String(v)],
+    ['Записей', A.entries, B.entries, v => String(v)],
+  ];
+  if(A.km > 0 || B.km > 0) rows.push(['Километров', Math.round(A.km), Math.round(B.km), v => v.toLocaleString('ru-RU')]);
+  if(A.gain > 0 || B.gain > 0) rows.push(['Набор высоты, м', Math.round(A.gain), Math.round(B.gain), v => v.toLocaleString('ru-RU')]);
+
+  let html = `<div class="cmp-head"><b class="a">${yA}</b><span></span><b class="b">${yB}</b></div>`;
+  rows.forEach(([label, va, vb, fmt])=>{
+    const diff = vb - va;
+    const cls = diff > 0 ? 'up' : diff < 0 ? 'down' : '';
+    // минус обязателен: без него падение с 7 до 1 выглядело как рост на 6
+    const sign = diff > 0 ? '+' : diff < 0 ? '−' : '';
+    html += `<div class="cmp-row">
+      <div class="cmp-label">${escapeHtml(label)}</div>
+      <div class="cmp-val a">${fmt(va)}</div>
+      <div class="cmp-delta ${cls}">${diff === 0 ? 'без изменений' : sign + fmt(Math.abs(diff))}</div>
+      <div class="cmp-val b">${fmt(vb)}</div>
+    </div>`;
+  });
+
+  // что появилось впервые в более позднем году
+  const later = yB >= yA ? B : A;
+  const laterYear = yB >= yA ? yB : yA;
+  if(later.newCountries.length){
+    html += `<div class="cmp-new">
+      <div class="cmp-new-title">Впервые в ${laterYear}</div>
+      <div class="cmp-chips">${later.newCountries.map(k =>
+        `<span class="cmp-chip">${countryFlag(k) || ''} ${escapeHtml(COUNTRY_RU[k] || k)}</span>`).join('')}</div>
+    </div>`;
+  }
+  // страны, которые были в одном году и не повторились в другом
+  const setA = new Set(A.countries), setB = new Set(B.countries);
+  const onlyA = A.countries.filter(k => !setB.has(k));
+  const onlyB = B.countries.filter(k => !setA.has(k));
+  const both = A.countries.filter(k => setB.has(k));
+  if(both.length){
+    html += `<div class="cmp-new">
+      <div class="cmp-new-title">В обоих годах</div>
+      <div class="cmp-chips">${both.map(k => `<span class="cmp-chip">${countryFlag(k) || ''} ${escapeHtml(COUNTRY_RU[k] || k)}</span>`).join('')}</div>
+    </div>`;
+  }
+  if(onlyA.length){
+    html += `<div class="cmp-new">
+      <div class="cmp-new-title">Только в ${yA}</div>
+      <div class="cmp-chips">${onlyA.map(k => `<span class="cmp-chip">${countryFlag(k) || ''} ${escapeHtml(COUNTRY_RU[k] || k)}</span>`).join('')}</div>
+    </div>`;
+  }
+  if(onlyB.length){
+    html += `<div class="cmp-new">
+      <div class="cmp-new-title">Только в ${yB}</div>
+      <div class="cmp-chips">${onlyB.map(k => `<span class="cmp-chip">${countryFlag(k) || ''} ${escapeHtml(COUNTRY_RU[k] || k)}</span>`).join('')}</div>
+    </div>`;
+  }
+  body.innerHTML = html;
+}
+
+document.getElementById('openCompareBtn').addEventListener('click', ()=>{
+  const years = fillCompareYears();
+  if(years.length === 0){
+    document.getElementById('compareBody').innerHTML = `<div class="hint">Пока нет записей с годом.</div>`;
+  } else {
+    renderCompare();
+  }
+  document.getElementById('compareModal').style.display = 'flex';
+});
+document.getElementById('closeCompareModal').addEventListener('click', ()=>{
+  document.getElementById('compareModal').style.display = 'none';
+});
+document.getElementById('compareModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'compareModal') document.getElementById('compareModal').style.display = 'none';
+});
+document.getElementById('compareYearA').addEventListener('change', renderCompare);
+document.getElementById('compareYearB').addEventListener('change', renderCompare);
+
 document.getElementById('resetFiltersBtn').addEventListener('click', resetAllFilters);
 document.getElementById('openDiagnosticsBtn').addEventListener('click', ()=>{
   renderDiagnostics();
@@ -9241,6 +9442,165 @@ function passportTotalSpreads(){
   return passportPages().pages.length / 2 + 2; // + обложка + сводка
 }
 
+// ---------- особые отметки паспорта ----------
+// Значок должен быть правдой, а не натяжкой: если перевеса нет, лучше сказать
+// об этом прямо, чем объявлять «любителем лета» при 29% против 26%.
+function computeBadges(){
+  const visited = allEntries.filter(e => e.status !== 'wishlist');
+  const badges = [];
+  const share = (field, labels) => {
+    const counts = {};
+    visited.forEach(e => { const v = e[field]; if(v) counts[v] = (counts[v] || 0) + 1; });
+    const total = Object.values(counts).reduce((a,b)=>a+b, 0);
+    if(total === 0) return null;
+    const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+    const [topKey, topN] = sorted[0];
+    const secondN = sorted[1] ? sorted[1][1] : 0;
+    return { topKey, pct: Math.round(topN/total*100), lead: secondN ? topN/secondN : Infinity, total, counts, sorted };
+  };
+
+  // компания: нужен и вес, и отрыв от следующей
+  const co = share('company');
+  if(co){
+    const named = { friends:'Душа компании', group:'Свой в сообществе', couple:'Вдвоём против мира',
+                    parents:'Семейные маршруты', alone:'Одиночное плавание' };
+    if(co.pct >= 40 && co.lead >= 1.4 && named[co.topKey]){
+      badges.push({ mark:'✦', title: named[co.topKey],
+        note: `${companyLabel(co.topKey)} — ${co.pct}% поездок` });
+    } else {
+      badges.push({ mark:'✦', title:'Лёгок на подъём', note:'ездит и один, и в компании — без явного перевеса' });
+    }
+  }
+
+  // сезон: если разброс мал, это и есть характеристика
+  const se = share('season');
+  if(se){
+    const named = { summer:'Любитель лета', winter:'Зимний странник',
+                    spring:'Весенний ветер', autumn:'Осенний путник' };
+    const spread = se.sorted[0][1] - se.sorted[se.sorted.length-1][1];
+    const evenly = se.sorted.length >= 4 && spread / se.total < 0.15;
+    if(evenly){
+      badges.push({ mark:'❋', title:'Круглогодичный', note:'ездит во все сезоны примерно поровну' });
+    } else if(se.pct >= 35 && named[se.topKey]){
+      badges.push({ mark:'❋', title: named[se.topKey], note:`${seasonLabel(se.topKey)} — ${se.pct}% поездок` });
+    }
+  }
+
+  // цель поездки
+  const pu = share('purpose');
+  if(pu){
+    if((pu.counts.sport || 0) / pu.total >= 0.08){
+      badges.push({ mark:'▲', title:'Спорт как повод', note:`${pu.counts.sport} поездок ради спорта` });
+    } else if((pu.counts.business || 0) / pu.total >= 0.2){
+      badges.push({ mark:'▲', title:'Командировочный', note:`${Math.round((pu.counts.business/pu.total)*100)}% поездок по работе` });
+    } else if(pu.topKey === 'tourism' && pu.pct >= 80){
+      badges.push({ mark:'▲', title:'Чистый интерес', note:`${pu.pct}% поездок — ради самих поездок` });
+    }
+  }
+
+  // лучший год по новым странам
+  const firsts = {};
+  visited.filter(e => e.type === 'country' && e.countryKey && e.year)
+    .sort((a,b)=>a.year-b.year)
+    .forEach(e => { if(firsts[e.countryKey] === undefined) firsts[e.countryKey] = e.year; });
+  const perYear = {};
+  Object.values(firsts).forEach(y => { perYear[y] = (perYear[y] || 0) + 1; });
+  const bestYear = Object.entries(perYear).sort((a,b)=> b[1]-a[1] || b[0]-a[0])[0];
+  if(bestYear && bestYear[1] >= 3){
+    badges.push({ mark:'★', title:`Рекорд года: ${bestYear[1]}`,
+      note:`столько стран открыто впервые за ${bestYear[0]}` });
+  }
+
+  // стаж
+  const years = visited.map(e => e.year).filter(Boolean);
+  if(years.length){
+    const span = Math.max(...years) - Math.min(...years);
+    // «21 лет» резало глаз — склоняем правильно
+    const yearWord = (n)=>{
+      const t = n % 10, h = n % 100;
+      if(h >= 11 && h <= 14) return 'лет';
+      if(t === 1) return 'год';
+      if(t >= 2 && t <= 4) return 'года';
+      return 'лет';
+    };
+    if(span >= 15) badges.push({ mark:'⧗', title:'Ветеран дорог', note:`${span} ${yearWord(span)} с первой записи` });
+    else if(span >= 8) badges.push({ mark:'⧗', title:'Долгий путь', note:`${span} ${yearWord(span)} с первой записи` });
+  }
+
+  // километры маршрутов
+  const km = visited.filter(e => e.type === 'route').reduce((s,r)=> s + (r.distanceKm || 0), 0);
+  if(km >= 10000) badges.push({ mark:'◈', title:'Дорога как дом', note:`${Math.round(km).toLocaleString('ru-RU')} км маршрутов` });
+  else if(km >= 1000) badges.push({ mark:'◈', title:'На своих двоих', note:`${Math.round(km).toLocaleString('ru-RU')} км маршрутов` });
+
+  // охват мира
+  const countries = new Set(visited.filter(e => e.type === 'country' && e.countryKey).map(e => e.countryKey));
+  if(countries.size >= 10){
+    const pct = Math.round(countries.size / COUNTRY_LIST.length * 100);
+    badges.push({ mark:'◉', title:`Открыто ${pct}% мира`, note:`${countries.size} стран из ${COUNTRY_LIST.length}` });
+  }
+
+  // частая активность маршрутов
+  const acts = {};
+  visited.filter(e => e.type === 'route' && e.activity).forEach(e => { acts[e.activity] = (acts[e.activity]||0)+1; });
+  const topAct = Object.entries(acts).sort((a,b)=>b[1]-a[1])[0];
+  if(topAct && topAct[1] >= 3){
+    const named = { roadtrip:'За рулём', hiking:'Ходок', running:'Бегун', cycling:'На колёсах' };
+    if(named[topAct[0]]) badges.push({ mark:'⬗', title: named[topAct[0]], note:`${activityLabel(topAct[0])} — ${topAct[1]} маршрутов` });
+  }
+
+  return badges;
+}
+
+// Схематичный вид маршрута прямо в карточке. Геометрия уже хранится, поэтому
+// рисуем её сами: ни карты-подложки, ни сети не нужно, работает офлайн.
+function buildRouteSparkSvg(entry, w = 300, h = 120){
+  const coords = getEntryCoords(entry);
+  if(!coords || coords.length < 2) return '';
+  // прореживаем: для миниатюры хватает пары сотен точек, а в треке бывают тысячи
+  const MAX = 220;
+  const step = Math.max(1, Math.ceil(coords.length / MAX));
+  const pts = coords.filter((_, i) => i % step === 0 || i === coords.length - 1)
+                    .filter(c => c && isFinite(c[0]) && isFinite(c[1]));
+  if(pts.length < 2) return '';
+
+  const lats = pts.map(c => c[0]), lngs = pts.map(c => c[1]);
+  const midLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+  // на широте φ градус долготы короче градуса широты — без поправки
+  // северные маршруты выглядели бы растянутыми вширь
+  const kx = Math.cos(midLat * Math.PI / 180) || 1;
+  const xs = lngs.map(v => v * kx), ys = lats.map(v => -v);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const spanX = (maxX - minX) || 1e-6, spanY = (maxY - minY) || 1e-6;
+  const pad = 10;
+  const scale = Math.min((w - pad*2) / spanX, (h - pad*2) / spanY);
+  const offX = (w - spanX * scale) / 2, offY = (h - spanY * scale) / 2;
+  const px = i => ((xs[i] - minX) * scale + offX).toFixed(1);
+  const py = i => ((ys[i] - minY) * scale + offY).toFixed(1);
+
+  const d = pts.map((_, i) => `${i ? 'L' : 'M'}${px(i)} ${py(i)}`).join(' ');
+  const color = entry.color || DEFAULT_COLOR.route;
+  const last = pts.length - 1;
+
+  // именованные остановки, если у них есть координаты
+  let stops = '';
+  if(Array.isArray(entry.waypointCoords)){
+    entry.waypointCoords.forEach(c=>{
+      if(!c || !isFinite(c[0]) || !isFinite(c[1])) return;
+      const x = ((c[1]*kx - minX) * scale + offX), y = ((-c[0] - minY) * scale + offY);
+      if(x < -5 || y < -5 || x > w+5 || y > h+5) return;
+      stops += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.6" fill="${escapeAttr(color)}" opacity="0.55"/>`;
+    });
+  }
+
+  return `<svg class="route-spark" viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="xMidYMid meet" aria-label="Схема маршрута">
+    <path d="${d}" fill="none" stroke="${escapeAttr(color)}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/>
+    ${stops}
+    <circle cx="${px(0)}" cy="${py(0)}" r="4" fill="none" stroke="${escapeAttr(color)}" stroke-width="2"/>
+    <circle cx="${px(last)}" cy="${py(last)}" r="4" fill="${escapeAttr(color)}"/>
+  </svg>`;
+}
+
 function buildBioSpreadHtml(allStamps){
   const visited = allEntries.filter(e => e.status !== 'wishlist' && e.year);
   const cities = getAllCityVisits(visited).length;
@@ -9263,11 +9623,19 @@ function buildBioSpreadHtml(allStamps){
   const mrzLine1 = 'TRAVELLER<<MAP' + '<'.repeat(30);
   const mrzLine2 = `${allStamps.length}COUNTRIES<${cities}CITIES` + '<'.repeat(Math.max(2, 44 - 14 - String(allStamps.length).length - String(cities).length));
 
+  // Левая страница была почти пустой — под неё отведён раздел, который в
+  // настоящих паспортах так и называется: особые отметки.
+  const badges = computeBadges();
   const left = `<div class="pp-page left pp-bio-page">
-    <div class="pp-page-head"><span>данные / data</span><span>1</span></div>
-    <div style="display:flex;align-items:center;justify-content:center;padding:48px 0;">
-      <div class="pp-bio-oval" style="position:static;transform:rotate(-6deg);width:60px;height:38px;font-size:12px;">КП</div>
-    </div>
+    <div class="pp-page-head"><span>особые отметки</span><span>1</span></div>
+    ${badges.length ? `<div class="pp-badges">${badges.map(b => `
+      <div class="pp-badge">
+        <span class="pp-badge-mark">${b.mark}</span>
+        <span class="pp-badge-body"><b>${escapeHtml(b.title)}</b><em>${escapeHtml(b.note)}</em></span>
+      </div>`).join('')}</div>`
+     : `<div style="display:flex;align-items:center;justify-content:center;padding:48px 0;">
+          <div class="pp-bio-oval" style="position:static;transform:rotate(-6deg);width:60px;height:38px;font-size:12px;">КП</div>
+        </div>`}
     <div class="pp-page-num">— 1 —</div>
   </div>`;
 
