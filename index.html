@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.23
+  Версия: v2.25
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -1918,6 +1918,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
     font-size:13px;border:1px solid transparent;
   }
   .diag-row:hover{background:var(--panel-raised);border-color:var(--line);}
+  .diag-dismiss{
+    margin-left:8px;background:none;border:1px dashed var(--line);
+    color:var(--text-dim);border-radius:3px;cursor:pointer;
+    font-family:'EB Garamond',serif;font-size:11px;padding:2px 8px;
+    white-space:nowrap;
+  }
+  .diag-dismiss:hover{border-color:var(--sage);color:var(--sage);}
   .diag-row .diag-row-meta{color:var(--text-dim);font-size:11.5px;margin-top:2px;font-family:'Courier Prime',monospace;}
   .diag-empty{font-size:12.5px;color:var(--text-dim);font-style:italic;padding:2px 2px 4px;}
   .passport-book{
@@ -2645,6 +2652,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <select id="fieldActivity">
           <option value="running">Бег</option>
           <option value="hiking">Хайкинг</option>
+          <option value="cycling">Вело</option>
           <option value="roadtrip">Автотрип</option>
         </select>
 
@@ -2867,6 +2875,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div class="stat-row"><span>Посещено городов</span><b id="statCitiesF">0</b></div>
         <div class="stat-row"><span>Пробегано маршрутов</span><b id="statRunningF">0</b></div>
         <div class="stat-row"><span>Пройдено маршрутов</span><b id="statHikingF">0</b></div>
+        <div class="stat-row"><span>Велозаездов</span><b id="statCyclingF">0</b></div>
         <div class="stat-row"><span>Проехано маршрутов</span><b id="statRoadtripF">0</b></div>
         <div class="stat-row"><span>Суммарный набор высоты</span><b id="statElevationF">0 м</b></div>
         <div class="stat-row"><span>Самый длинный маршрут</span><b id="statLongestF">—</b></div>
@@ -2925,7 +2934,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.23</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.25</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -3442,6 +3451,7 @@ const MONTHS = [
 const ACTIVITIES = [
   { key: 'running', ru: 'Бег' },
   { key: 'hiking', ru: 'Хайкинг' },
+  { key: 'cycling', ru: 'Вело' },
   { key: 'roadtrip', ru: 'Автотрип' }
 ];
 const STATUSES = [
@@ -5840,7 +5850,7 @@ function computeTripSummary(tripName){
   const photosCount = visited.reduce((s,e) => s + ((e.photos || []).length), 0);
 
   const byActivity = {};
-  ['hiking','running','roadtrip'].forEach(act=>{
+  ['hiking','running','cycling','roadtrip'].forEach(act=>{
     const actRoutes = routes.filter(r => r.activity === act);
     if(actRoutes.length === 0) return;
     const km = actRoutes.reduce((s,r) => s + r.distanceKm, 0);
@@ -5851,6 +5861,11 @@ function computeTripSummary(tripName){
       byActivity.hiking = { totalKm: km, totalDurationMin: durationMin, totalElevation: elevation, activeDays, avgKmPerDay: activeDays ? km / activeDays : 0 };
     } else if(act === 'running'){
       byActivity.running = { totalKm: km, totalDurationMin: durationMin, avgPaceMinPerKm: km > 0 ? durationMin / km : null };
+    } else if(act === 'cycling'){
+      // у вело важны и километры, и набор высоты — как в хайкинге
+      const elevation = actRoutes.reduce((s,r) => s + (r.elevationGain || 0), 0);
+      byActivity.cycling = { totalKm: km, totalDurationMin: durationMin, totalElevation: elevation,
+        avgSpeedKmh: durationMin > 0 ? km / (durationMin / 60) : null };
     } else if(act === 'roadtrip'){
       byActivity.roadtrip = { totalKm: km, citiesCount: cities };
     }
@@ -6370,6 +6385,7 @@ function updateFilteredStats(precomputedVisible){
   const routes = visited.filter(e => e.type === 'route');
   const running = routes.filter(e => e.activity === 'running').length;
   const hiking = routes.filter(e => e.activity === 'hiking').length;
+  const cycling = routes.filter(e => e.activity === 'cycling').length;
   const roadtrip = routes.filter(e => e.activity === 'roadtrip').length;
   const totalElevation = routes.reduce((s,r) => s + (r.elevationGain || 0), 0);
   const longest = routes.slice().sort((a,b) => b.distanceKm - a.distanceKm)[0];
@@ -6392,6 +6408,7 @@ function updateFilteredStats(precomputedVisible){
   document.getElementById('statCitiesF').textContent = cityKeys.size;
   document.getElementById('statRunningF').textContent = running;
   document.getElementById('statHikingF').textContent = hiking;
+  document.getElementById('statCyclingF').textContent = cycling;
   document.getElementById('statRoadtripF').textContent = roadtrip;
   document.getElementById('statElevationF').textContent = `${Math.round(totalElevation).toLocaleString('ru-RU')} м`;
   document.getElementById('statLongestF').textContent = longest ? `${longest.name} · ${longest.distanceKm.toFixed(1)} км` : '—';
@@ -7762,6 +7779,25 @@ function buildDiagSection(title, hint, items, emptyText, renderRow){
   </div>`;
 }
 
+// Отклонённые пары похожих названий: список хранится отдельно от данных,
+// чтобы не попадать в экспорт и не путать при переносе на другое устройство.
+const DISMISSED_PAIRS_KEY = 'travel-map-dismissed-pairs';
+function pairKey(a, b){
+  return [String(a).trim().toLowerCase(), String(b).trim().toLowerCase()].sort().join('||');
+}
+function readDismissedPairs(){
+  try{ return new Set(JSON.parse(localStorage.getItem(DISMISSED_PAIRS_KEY) || '[]')); }
+  catch(e){ return new Set(); }
+}
+function dismissPair(a, b){
+  const s = readDismissedPairs();
+  s.add(pairKey(a, b));
+  try{ localStorage.setItem(DISMISSED_PAIRS_KEY, JSON.stringify([...s])); }catch(e){}
+}
+function restoreDismissedPairs(){
+  try{ localStorage.removeItem(DISMISSED_PAIRS_KEY); }catch(e){}
+}
+
 function computeDiagnostics(){
   const noMonth = allEntries.filter(e => e.status !== 'wishlist' && e.year && !e.month);
 
@@ -7789,10 +7825,16 @@ function computeDiagnostics(){
   }
 
   const cityNames = [...new Set(getAllCityVisits(allEntries).map(c => c.name.trim()).filter(Boolean))];
-  const similarPairs = findSimilarPairs(cityNames);
+  // Пары вроде «Коломна ↔ Коломбо» — не ошибка: города разные, просто названия
+  // созвучны. Без возможности отметить это проверка вечно показывала бы находку,
+  // которую нельзя закрыть, и значок на кнопке терял бы смысл.
+  const dismissed = readDismissedPairs();
+  const similarPairs = findSimilarPairs(cityNames)
+    .filter(([a,b]) => !dismissed.has(pairKey(a,b)));
 
   const tripNames = [...new Set(allEntries.map(e => e.trip).filter(Boolean).map(t => t.trim()))];
-  const similarTripPairs = findSimilarPairs(tripNames);
+  const similarTripPairs = findSimilarPairs(tripNames)
+    .filter(([a,b]) => !dismissed.has(pairKey(a,b)));
 
   const missingCoords = allEntries.filter(e => e.type === 'route' && e.waypointNames && e.waypointNames.length > 0 &&
     (!e.waypointCoords || e.waypointCoords.length !== e.waypointNames.length || e.waypointCoords.some(c => !c || c[0] == null)));
@@ -8041,13 +8083,17 @@ function renderDiagnostics(){
     'Похожие названия городов',
     'Возможные опечатки — один и тот же город под разными написаниями считается как два разных места.',
     similarPairs, 'Явных похожих написаний не найдено.',
-    ([a,b]) => `<div class="diag-row">${escapeHtml(a)} ↔ ${escapeHtml(b)}</div>`
+    ([a,b]) => `<div class="diag-row" style="cursor:default;">${escapeHtml(a)} ↔ ${escapeHtml(b)}
+      ${READ_ONLY ? '' : `<button class="diag-dismiss" data-dismiss-a="${escapeAttr(a)}" data-dismiss-b="${escapeAttr(b)}">это разные места</button>`}
+    </div>`
   );
   html += buildDiagSection(
     'Похожие названия поездок',
     'Возможные опечатки — одна и та же поездка под разными написаниями тега считается как две разные в списке поездок.',
     similarTripPairs, 'Явных похожих написаний тегов поездок не найдено.',
-    ([a,b]) => `<div class="diag-row">${escapeHtml(a)} ↔ ${escapeHtml(b)}</div>`
+    ([a,b]) => `<div class="diag-row" style="cursor:default;">${escapeHtml(a)} ↔ ${escapeHtml(b)}
+      ${READ_ONLY ? '' : `<button class="diag-dismiss" data-dismiss-a="${escapeAttr(a)}" data-dismiss-b="${escapeAttr(b)}">это разные поездки</button>`}
+    </div>`
   );
   html += buildDiagSection(
     'Маршруты без координат точек',
@@ -8107,6 +8153,12 @@ function renderDiagnostics(){
       <div class="hint">Точек всего ${totalPts}. Поиск идёт по одной точке в секунду — займёт около ${Math.ceil(totalPts * 1.1 / 60)} мин. Окно можно не закрывать.</div>
     </div>`;
   }
+  const dismissedCount = readDismissedPairs().size;
+  if(dismissedCount && !READ_ONLY){
+    html += `<div style="padding:0 20px 12px;">
+      <button class="cancel-edit" id="restorePairsBtn" style="margin-top:0;">Показать скрытые пары (${dismissedCount})</button>
+    </div>`;
+  }
   html += buildDiagSection(
     'Похоже на одну поездку',
     'Записи одного месяца, расположенные рядом друг с другом и пока не собранные в поездку. Название можно изменить перед объединением.',
@@ -8157,6 +8209,24 @@ function renderDiagnostics(){
       if(saved) showUndoToast(`Страна исправлена: ${m.label} → ${m.actual}`);
     });
   });
+
+  document.querySelectorAll('[data-dismiss-a]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      dismissPair(btn.dataset.dismissA, btn.dataset.dismissB);
+      renderDiagnostics();
+      updateDiagnosticsBadge();
+      toast('Пара скрыта — вернуть можно внизу раздела');
+    });
+  });
+  const restoreBtn = document.getElementById('restorePairsBtn');
+  if(restoreBtn){
+    restoreBtn.addEventListener('click', ()=>{
+      restoreDismissedPairs();
+      renderDiagnostics();
+      updateDiagnosticsBadge();
+      toast('Скрытые пары возвращены');
+    });
+  }
 
   const fixWpBtn = document.getElementById('fixWpCountriesBtn');
   if(fixWpBtn){
@@ -8883,7 +8953,7 @@ function renderDiary(){
         <span class="diary-place">${flag ? flag + ' ' : ''}${highlight(e.name)}</span>
         <span class="diary-when">${monthLabel(e.month) ? monthLabel(e.month) + ' ' : ''}${e.year || ''}</span>
       </div>
-      <div class="diary-note">${highlight(e.notes.trim())}</div>
+      <div class="diary-note"${READ_ONLY ? '' : ` data-diary-edit="${escapeAttr(e.id)}" title="Нажмите, чтобы изменить" style="cursor:text;"`}>${highlight(e.notes.trim())}</div>
       ${e.trip ? `<div class="diary-trip">${highlight(e.trip)}</div>` : ''}
     </div>`;
   });
@@ -8907,6 +8977,13 @@ document.getElementById('diarySearchInput').addEventListener('input', debounce((
   renderDiary();
 }, 150));
 document.getElementById('diaryBody').addEventListener('click', (ev)=>{
+  // правка заметки прямо в ленте — тем же редактором, что на странице поездки,
+  // чтобы не заводить вторую реализацию того же самого
+  const noteEl = ev.target.closest('[data-diary-edit]');
+  if(noteEl){
+    openInlineNote(noteEl.dataset.diaryEdit, noteEl, renderDiary);
+    return;
+  }
   const head = ev.target.closest('[data-diary-id]');
   if(!head) return;
   const entry = allEntries.find(e => e.id === head.dataset.diaryId);
@@ -9146,9 +9223,12 @@ function renderTripPage(){
   });
 }
 
-function openInlineNote(entryId, anchorEl){
+function openInlineNote(entryId, anchorEl, onDone){
   const entry = allEntries.find(e => e.id === entryId);
   if(!entry || READ_ONLY) return;
+  // редактор зовут и со страницы поездки, и из дневника — перерисовывать нужно
+  // тот раздел, из которого пришли
+  const refresh = onDone || renderTripPage;
   const box = document.createElement('div');
   box.className = 'tp-note-edit';
   box.innerHTML = `
@@ -9162,7 +9242,7 @@ function openInlineNote(entryId, anchorEl){
   ta.focus();
   ta.setSelectionRange(ta.value.length, ta.value.length);
 
-  const close = ()=> renderTripPage();
+  const close = ()=> refresh();
   box.querySelector('[data-act="cancel"]').addEventListener('click', close);
   box.querySelector('[data-act="save"]').addEventListener('click', async ()=>{
     const val = ta.value.trim();
@@ -9171,7 +9251,7 @@ function openInlineNote(entryId, anchorEl){
     entry.notes = val;
     const saved = await saveData();
     rebuildAll();
-    renderTripPage();
+    refresh();
     if(saved) showUndoToast(val ? 'Заметка сохранена' : 'Заметка удалена');
   });
   // Ctrl+Enter — быстрое сохранение, чтобы не тянуться к кнопке
