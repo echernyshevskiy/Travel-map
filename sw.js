@@ -5,8 +5,11 @@
 // Поиск городов и роутинг по дорогам всё равно требуют интернета — это
 // живые запросы к сторонним сервисам, их кэшировать нет смысла.
 
-const SHELL_CACHE_NAME = 'travel-map-shell-v3';
-const TILE_CACHE_NAME = 'travel-map-tiles-v1';
+// Имя хранилища своё у каждой версии: иначе при активации одна копия скрипта
+// стирала бы кеш другой, стоит их версиям разойтись. Подставляется при сборке.
+const APP_VARIANT = 'edit';
+const SHELL_CACHE_NAME = `travel-map-shell-${APP_VARIANT}-v4`;
+const TILE_CACHE_NAME = `travel-map-tiles-${APP_VARIANT}-v1`;
 const MAX_CACHED_TILES = 600; // ~ 600 тайлов ≈ 8-10 МБ, разумный запас без риска съесть всё хранилище
 
 function isTileRequest(url){
