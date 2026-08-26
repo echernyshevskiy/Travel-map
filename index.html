@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.25
+  Версия: v2.27
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -1458,6 +1458,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   .year-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;}
   .year-bar{width:100%;background:var(--amber);border-radius:2px 2px 0 0;min-height:2px;}
   .year-bar-label{font-family:'Courier Prime',monospace;font-size:9px;color:var(--text-dim);white-space:nowrap;}
+  .year-bar-val{font-family:'Courier Prime',monospace;font-size:9px;color:var(--text);white-space:nowrap;}
   .pace-value-label{font-family:'Courier Prime',monospace;font-size:9px;color:var(--text);white-space:nowrap;margin-bottom:2px;}
   .continent-list{display:flex;flex-direction:column;gap:9px;}
   .continent-row{display:flex;align-items:center;gap:8px;}
@@ -1814,6 +1815,45 @@ svg.leaflet-image-layer.leaflet-interactive path {
     background:var(--panel-raised);border:1px solid var(--line);border-radius:3px;
     padding:3px 8px;font-family:'EB Garamond',serif;font-size:12px;color:var(--text);
   }
+  .race-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;}
+  .race-table th{
+    text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);
+    font-family:'Courier Prime',monospace;font-size:8.5px;
+    letter-spacing:0.8px;text-transform:uppercase;color:var(--text-dim);font-weight:400;
+    white-space:nowrap;
+  }
+  .race-table td{padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top;}
+  .race-table tr:last-child td{border-bottom:none;}
+  .race-name{color:var(--text);font-weight:600;}
+  .race-where{
+    display:block;font-family:'Courier Prime',monospace;font-size:9px;
+    color:var(--text-dim);margin-top:2px;
+  }
+  .race-num{font-family:'Courier Prime',monospace;white-space:nowrap;}
+  .race-share{
+    display:inline-block;padding:1px 6px;border-radius:9px;
+    font-family:'Courier Prime',monospace;font-size:9.5px;
+    border:1px solid var(--line);color:var(--text-dim);white-space:nowrap;
+  }
+  .race-share.top10{color:var(--amber);border-color:var(--amber-dim);}
+  .race-share.top25{color:var(--sage);border-color:var(--sage);}
+  .race-actions{white-space:nowrap;text-align:right;}
+  .race-actions button{
+    background:none;border:none;color:var(--text-dim);cursor:pointer;
+    font-size:13px;padding:2px 4px;border-radius:3px;
+  }
+  .race-actions button:hover{background:var(--bg);color:var(--text);}
+  .race-form{
+    margin-top:10px;padding:12px;border:1px solid var(--line);
+    border-radius:5px;background:var(--panel-raised);
+  }
+  .race-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;}
+  .race-form label{
+    display:block;font-family:'Courier Prime',monospace;font-size:8.5px;
+    letter-spacing:0.8px;text-transform:uppercase;color:var(--text-dim);margin-bottom:2px;
+  }
+  .race-form input{margin:0;width:100%;}
+  .race-form-actions{display:flex;gap:6px;margin-top:10px;}
   .cl-day{
     font-family:'Playfair Display',serif;font-style:italic;font-weight:700;
     font-size:14px;color:var(--text-dim);
@@ -2934,7 +2974,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.25</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.27</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -3145,12 +3185,15 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div class="stat-grid" id="runTotals"></div>
 
         <p class="section-title" style="margin-top:18px;">Темп по годам <span style="font-style:italic;color:var(--text-dim);text-transform:none;letter-spacing:0;">(ниже столбик — быстрее)</span></p>
-        <div class="year-chart" id="paceTrendChart"></div>
+        <div id="paceTrendChart"></div>
 
         <p class="section-title" style="margin-top:18px;">Лучший темп по дистанциям</p>
         <div class="stat-grid" id="bestPaceList"></div>
 
-        <p class="section-title" style="margin-top:18px;">Забеги</p>
+        <p class="section-title" style="margin-top:18px;">Официальные старты</p>
+        <div id="racesBlock"></div>
+
+        <p class="section-title" style="margin-top:18px;">Забеги из маршрутов</p>
         <div id="runList"></div>
       </div>
     </div>
@@ -3582,7 +3625,13 @@ function toast(msg){
 const READ_ONLY = false;
 const BAKED_ENTRIES = [];
 const BAKED_TRIP_META = {};
+const BAKED_RACES = [];
 let tripMeta = READ_ONLY ? BAKED_TRIP_META : {}; // { [tripName]: { narrative, coverPhoto } }
+// Официальные старты — отдельная сущность, намеренно не связанная с картой:
+// у многих забегов трека нет вовсе, а маршруты в приложении про путешествия,
+// а не про результат. Хранится в том же объекте, что и записи, поэтому
+// попадает в резервную копию и восстанавливается вместе с ними.
+let races = READ_ONLY ? (Array.isArray(BAKED_RACES) ? BAKED_RACES : []) : [];
 const LOCAL_STORAGE_KEY = 'travel-map-data';
 
 function hasClaudeStorage(){
@@ -3605,6 +3654,7 @@ async function loadData(){
         const parsed = JSON.parse(res.value);
         allEntries = parsed.entries || [];
         tripMeta = parsed.tripMeta || {};
+        races = Array.isArray(parsed.races) ? parsed.races : [];
         return;
       }
     }
@@ -3615,10 +3665,12 @@ async function loadData(){
       const parsed = JSON.parse(raw);
       allEntries = parsed.entries || [];
       tripMeta = parsed.tripMeta || {};
+      races = Array.isArray(parsed.races) ? parsed.races : [];
     }
   }catch(e){
     allEntries = [];
     tripMeta = {};
+    races = [];
   }
 }
 // Данные живут в хранилище браузера: очистка данных сайта, переустановка
@@ -3713,7 +3765,7 @@ async function saveData(){
     toast('Это read-only версия карты — изменения не сохраняются');
     return false;
   }
-  const payload = JSON.stringify({entries: allEntries, tripMeta});
+  const payload = JSON.stringify({entries: allEntries, tripMeta, races});
   try{
     if(hasClaudeStorage()){
       const res = await window.storage.set('travel-data', payload, false);
@@ -6573,45 +6625,48 @@ function renderSeasonChart(visited){
 function renderPaceTrend(visited){
   const container = document.getElementById('paceTrendChart');
   const all = visited.filter(e => e.type === 'route' && e.activity === 'running' && e.durationMin && e.distanceKm);
-  // шоссе и трейл считаем раздельно: усреднять их вместе бессмысленно,
-  // разница в темпе легко двукратная и определяется рельефом, а не формой
-  const groups = [
-    { key:'road',  ru:'Шоссе', color:'var(--sage)' },
-    { key:'trail', ru:'Трейл', color:'var(--amber)' },
-  ].map(g => ({ ...g, runs: all.filter(r => (r.terrain || guessTerrain(r.distanceKm, r.elevationGain)) === g.key) }))
-   .filter(g => g.runs.length > 0);
+  // Раньше показывался средний темп за год, раздельно по шоссе и трейлу.
+  // Средний смешивал старты и лёгкие пробежки, а на трейле цели показать
+  // время обычно и нет — рельеф решает больше, чем форма. Поэтому берём
+  // лучший результат на десятке: одна понятная дистанция, сопоставимая
+  // между годами независимо от покрытия.
+  const TEN = RACE_DISTANCES.find(d => d.key === '10k');
+  const tens = all.filter(r => r.distanceKm >= TEN.min && r.distanceKm <= TEN.max);
 
-  if(groups.length === 0){
-    container.innerHTML = `<div class="hint">Нет забегов с сохранённым временем — темп посчитать не из чего</div>`;
+  if(tens.length === 0){
+    container.innerHTML = `<div class="hint">Нет забегов на 10 км с сохранённым временем — сравнивать пока нечего</div>`;
     return;
   }
 
+  const byYear = {};
+  tens.forEach(r=>{
+    const pace = r.durationMin / r.distanceKm;
+    if(!byYear[r.year] || pace < byYear[r.year].pace) byYear[r.year] = { pace, entry: r };
+  });
+  const years = Object.keys(byYear).map(Number).sort((a,b)=>a-b);
+  const paces = years.map(y => byYear[y].pace);
+  const maxPace = Math.max(...paces), minPace = Math.min(...paces);
+  const span = (maxPace - minPace) || 1;
+
   container.style.display = 'block';
   container.style.height = 'auto';
-  container.innerHTML = groups.map(g=>{
-    const byYear = {};
-    g.runs.forEach(r=>{
-      if(!byYear[r.year]) byYear[r.year] = { km:0, min:0 };
-      byYear[r.year].km += r.distanceKm;
-      byYear[r.year].min += r.durationMin;
-    });
-    const years = Object.keys(byYear).map(Number).sort((a,b)=>a-b);
-    const paces = years.map(y => byYear[y].min / byYear[y].km);
-    const maxP = Math.max(...paces), minP = Math.min(...paces);
-    const bars = years.map((y,i)=>{
-      const p = paces[i];
-      const h = maxP === minP ? 20 : Math.max(6, Math.round(((p-minP)/(maxP-minP))*26)+6);
-      return `<div class="year-bar-wrap" title="${y}: темп ${formatPace(p)}, ${byYear[y].km.toFixed(0)} км">
-        <div class="pace-value-label">${formatPace(p).replace(' /км','')}</div>
-        <div class="year-bar" style="height:${h}px;background:${g.color};"></div>
-        <div class="year-bar-label">${String(y).slice(2)}</div>
-      </div>`;
-    }).join('');
-    return `<div style="margin-bottom:10px;">
-      <div class="hint" style="margin:0 0 3px;">${g.ru} · забегов: ${g.runs.length}</div>
-      <div style="display:flex;align-items:flex-end;gap:4px;height:64px;">${bars}</div>
+  const bars = years.map((y,i)=>{
+    // чем быстрее, тем ниже столбик — так и написано в подписи к графику
+    const h = Math.max(4, 10 + Math.round((paces[i] - minPace) / span * 46));
+    const best = paces[i] === minPace && years.length > 1;
+    const e = byYear[y].entry;
+    return `<div class="year-bar-wrap" title="${escapeAttr(`${e.name}: ${e.distanceKm.toFixed(1)} км, ${formatPace(paces[i])}`)}">
+      <div class="year-bar-val">${formatPace(paces[i]).replace(' /км','')}</div>
+      <div class="year-bar" style="height:${h}px;${best ? 'background:var(--amber);' : 'background:var(--sage);'}"></div>
+      <div class="year-bar-label">${String(y).slice(2)}</div>
     </div>`;
   }).join('');
+
+  const bestYear = years[paces.indexOf(minPace)];
+  container.innerHTML =
+    `<div class="hint" style="margin:2px 0 5px;">Лучшая десятка за год · всего забегов на 10 км: ${tens.length}</div>` +
+    `<div class="year-chart" style="height:78px;">${bars}</div>` +
+    (years.length > 1 ? `<div class="hint" style="margin-top:5px;">Лучший результат — ${formatPace(minPace)} в ${bestYear}</div>` : '');
 }
 
 function renderContinentStats(visited){
@@ -6949,6 +7004,14 @@ function recordBulkAction(label, changed, fields, createdIds){
 async function undoLastAction(){
   if(!lastAction) return;
   document.getElementById('toast').style.display = 'none';
+  if(lastAction.type === 'races'){
+    if(lastAction.removed) races = races.concat(lastAction.snapshot);
+    lastAction = null;
+    const saved = await saveData();
+    renderRaces();
+    if(saved) toast('Старт восстановлен');
+    return;
+  }
   if(lastAction.type === 'bulk'){
     // сначала убираем созданное, затем возвращаем прежние значения изменённым
     if(lastAction.createdIds.length){
@@ -7006,7 +7069,7 @@ function updateStats(){
 // общая выгрузка резервной копии — используется и кнопкой экспорта,
 // и автоматически перед импортом с заменой
 function downloadBackup(suffix, isAuto){
-  const data = JSON.stringify({ entries: allEntries, tripMeta, exportedAt: new Date().toISOString() }, null, 2);
+  const data = JSON.stringify({ entries: allEntries, tripMeta, races, exportedAt: new Date().toISOString() }, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -7166,11 +7229,16 @@ document.getElementById('importInput').addEventListener('change', (e)=>{
         }
         allEntries = valid;
         if(importedMeta) tripMeta = JSON.parse(JSON.stringify(importedMeta));
+        if(Array.isArray(parsed.races)) races = JSON.parse(JSON.stringify(parsed.races));
       } else {
         const existingIds = new Set(allEntries.map(x => x.id));
         allEntries = allEntries.concat(valid.filter(x => !existingIds.has(x.id)));
         // при добавлении не затираем уже написанные описания — берём только те поездки, которых ещё нет
         if(importedMeta) Object.keys(importedMeta).forEach(k => { if(!tripMeta[k]) tripMeta[k] = importedMeta[k]; });
+        if(Array.isArray(parsed.races)){
+          const haveRaces = new Set(races.map(r => r.id));
+          races = races.concat(parsed.races.filter(r => r && r.id && !haveRaces.has(r.id)));
+        }
       }
       const saved = await saveData();
       rebuildAll();
@@ -8718,7 +8786,8 @@ function getRuns(){
 function updateRunningButton(){
   const btn = document.getElementById('openRunningBtn');
   if(!btn) return;
-  btn.style.display = getRuns().length > 0 ? '' : 'none';
+  // раздел нужен и тогда, когда есть только официальные старты без маршрутов
+  btn.style.display = (getRuns().length > 0 || races.length > 0) ? '' : 'none';
 }
 
 function renderRunning(){
@@ -8751,7 +8820,7 @@ function renderRunning(){
 
   const hours = Math.floor(totalMin / 60);
   const cards = [
-    ['Всего пробежано', `${totalKm.toFixed(1)} км`],
+    ['Всего пробегано', `${totalKm.toFixed(1)} км`],
     ['Забегов', String(runs.length)],
     ['Шоссе / трейл', `${road.length} / ${trail.length}`],
     ['Набор высоты', `${Math.round(totalGain).toLocaleString('ru-RU')} м`],
@@ -8777,6 +8846,7 @@ function renderRunning(){
     </div>`;
   }).join('');
 
+  renderRaces();
   renderPaceTrend(allEntries.filter(e => e.status !== 'wishlist'));
   renderBestPaces(allEntries.filter(e => e.status !== 'wishlist'));
 }
@@ -9681,6 +9751,155 @@ function buildRouteSparkSvg(entry, w = 300, h = 120){
     <circle cx="${px(last)}" cy="${py(last)}" r="4" fill="${escapeAttr(color)}"/>
   </svg>`;
 }
+
+// ---------- официальные старты ----------
+// Время принимаем в привычном виде: «1:38:24», «48:12», «48:12.5».
+// Разбор терпимый, потому что вводить придётся руками с бумажного протокола.
+function parseRaceTime(str){
+  const s = String(str || '').trim().replace(',', '.');
+  if(!s) return null;
+  const parts = s.split(':').map(x => x.trim());
+  if(parts.some(x => x === '' || isNaN(Number(x)))) return null;
+  let min = null;
+  if(parts.length === 3) min = Number(parts[0])*60 + Number(parts[1]) + Number(parts[2])/60;
+  else if(parts.length === 2) min = Number(parts[0]) + Number(parts[1])/60;
+  else if(parts.length === 1) min = Number(parts[0]); // просто минуты
+  if(min === null || !isFinite(min) || min <= 0) return null;
+  return min;
+}
+function formatRaceTime(min){
+  if(min == null || !isFinite(min)) return '—';
+  const total = Math.round(min * 60);
+  const h = Math.floor(total/3600), m = Math.floor((total%3600)/60), s = total%60;
+  return h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+               : `${m}:${String(s).padStart(2,'0')}`;
+}
+function raceShare(r){
+  if(!r.place || !r.participants || r.participants <= 0) return null;
+  return r.place / r.participants * 100;
+}
+
+let editingRaceId = null;
+
+function renderRaces(){
+  const box = document.getElementById('racesBlock');
+  if(!box) return;
+  const sorted = races.slice().sort((a,b)=> String(b.date || '').localeCompare(String(a.date || '')));
+
+  let html = '';
+  if(sorted.length === 0){
+    html += `<div class="hint">Здесь можно вести результаты официальных стартов — отдельно от карты, вручную. Трек для этого не нужен.</div>`;
+  } else {
+    html += `<div style="overflow-x:auto;"><table class="race-table">
+      <thead><tr>
+        <th>Старт</th><th>Дистанция</th><th>Время</th><th>Темп</th><th>Место</th><th>Доля</th>
+        ${READ_ONLY ? '' : '<th></th>'}
+      </tr></thead><tbody>` +
+      sorted.map(r=>{
+        const min = parseRaceTime(r.time);
+        const pace = (min && r.distanceKm) ? formatPace(min / r.distanceKm) : '—';
+        const sh = raceShare(r);
+        const shCls = sh == null ? '' : sh <= 10 ? 'top10' : sh <= 25 ? 'top25' : '';
+        const when = r.date ? new Date(r.date + 'T12:00:00').toLocaleDateString('ru-RU', {day:'numeric', month:'short', year:'numeric'}) : '';
+        const where = [where0(r.city), r.country].filter(Boolean).join(', ');
+        return `<tr>
+          <td><span class="race-name">${escapeHtml(r.name || '—')}</span>
+            <span class="race-where">${escapeHtml([when, where].filter(Boolean).join(' · '))}</span></td>
+          <td class="race-num">${r.distanceKm ? r.distanceKm.toFixed(1) + ' км' : '—'}</td>
+          <td class="race-num">${formatRaceTime(min)}</td>
+          <td class="race-num">${pace}</td>
+          <td class="race-num">${r.place ? r.place + (r.participants ? ' / ' + r.participants : '') : '—'}</td>
+          <td>${sh == null ? '—' : `<span class="race-share ${shCls}">${sh < 1 ? sh.toFixed(1) : Math.round(sh)}%</span>`}</td>
+          ${READ_ONLY ? '' : `<td class="race-actions">
+            <button data-race-edit="${escapeAttr(r.id)}" title="Изменить" aria-label="Изменить">✎</button>
+            <button data-race-del="${escapeAttr(r.id)}" title="Удалить" aria-label="Удалить">✕</button>
+          </td>`}
+        </tr>`;
+      }).join('') + `</tbody></table></div>`;
+  }
+
+  if(!READ_ONLY){
+    const r = editingRaceId ? races.find(x => x.id === editingRaceId) : null;
+    if(editingRaceId){
+      html += `<div class="race-form">
+        <div class="race-form-grid">
+          <div><label>Название</label><input type="text" id="raceName" value="${escapeAttr(r ? r.name || '' : '')}" placeholder="Казанский марафон"></div>
+          <div><label>Дата</label><input type="date" id="raceDate" value="${escapeAttr(r ? r.date || '' : '')}"></div>
+          <div><label>Город</label><input type="text" id="raceCity" value="${escapeAttr(r ? r.city || '' : '')}" placeholder="Казань"></div>
+          <div><label>Страна</label><input type="text" id="raceCountry" value="${escapeAttr(r ? r.country || '' : '')}" placeholder="Россия"></div>
+          <div><label>Дистанция, км</label><input type="number" step="0.1" id="raceDist" value="${r && r.distanceKm ? r.distanceKm : ''}" placeholder="21.1"></div>
+          <div><label>Время</label><input type="text" id="raceTime" value="${escapeAttr(r ? r.time || '' : '')}" placeholder="1:38:24"></div>
+          <div><label>Место в абсолюте</label><input type="number" id="racePlace" value="${r && r.place ? r.place : ''}" placeholder="342"></div>
+          <div><label>Всего участников</label><input type="number" id="raceTotal" value="${r && r.participants ? r.participants : ''}" placeholder="4120"></div>
+        </div>
+        <div class="race-form-actions">
+          <button class="cancel-edit" id="raceSaveBtn" style="margin-top:0;width:auto;padding:6px 14px;border-color:var(--amber-dim);color:var(--amber);">Сохранить</button>
+          <button class="cancel-edit" id="raceCancelBtn" style="margin-top:0;width:auto;padding:6px 14px;">Отмена</button>
+        </div>
+      </div>`;
+    } else {
+      html += `<button class="cancel-edit" id="raceAddBtn" style="margin-top:10px;width:auto;padding:6px 14px;">+ добавить старт</button>`;
+    }
+  }
+  box.innerHTML = html;
+
+  const addBtn = document.getElementById('raceAddBtn');
+  if(addBtn) addBtn.addEventListener('click', ()=>{ editingRaceId = 'new'; renderRaces(); });
+  const cancelBtn = document.getElementById('raceCancelBtn');
+  if(cancelBtn) cancelBtn.addEventListener('click', ()=>{ editingRaceId = null; renderRaces(); });
+  const saveBtn = document.getElementById('raceSaveBtn');
+  if(saveBtn) saveBtn.addEventListener('click', saveRaceForm);
+  box.querySelectorAll('[data-race-edit]').forEach(b=>{
+    b.addEventListener('click', ()=>{ editingRaceId = b.dataset.raceEdit; renderRaces(); });
+  });
+  box.querySelectorAll('[data-race-del]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const id = b.dataset.raceDel;
+      const gone = races.find(x => x.id === id);
+      races = races.filter(x => x.id !== id);
+      lastAction = { type: 'races', snapshot: gone ? [gone] : [], removed: true };
+      const saved = await saveData();
+      renderRaces();
+      if(saved) showUndoToast(`Старт удалён: ${gone ? gone.name : ''}`);
+    });
+  });
+}
+
+async function saveRaceForm(){
+  const val = id => (document.getElementById(id) || {}).value || '';
+  const name = val('raceName').trim();
+  const timeStr = val('raceTime').trim();
+  if(!name){ toast('Укажите название старта'); return; }
+  const min = parseRaceTime(timeStr);
+  if(timeStr && min === null){ toast('Время не распознано — например: 1:38:24 или 48:12'); return; }
+  const dist = parseFloat(val('raceDist'));
+  const place = parseInt(val('racePlace'), 10);
+  const total = parseInt(val('raceTotal'), 10);
+  if(place && total && place > total){ toast('Место не может быть больше числа участников'); return; }
+
+  const data = {
+    name,
+    date: val('raceDate'),
+    city: val('raceCity').trim(),
+    country: val('raceCountry').trim(),
+    distanceKm: isFinite(dist) && dist > 0 ? dist : null,
+    time: timeStr,
+    place: isFinite(place) && place > 0 ? place : null,
+    participants: isFinite(total) && total > 0 ? total : null,
+  };
+  if(editingRaceId === 'new'){
+    races.push({ id: genId(), ...data });
+  } else {
+    const r = races.find(x => x.id === editingRaceId);
+    if(r) Object.assign(r, data);
+  }
+  editingRaceId = null;
+  const saved = await saveData();
+  renderRaces();
+  if(saved) toast('Старт сохранён');
+}
+
+function where0(v){ return (v || '').trim(); }
 
 function buildBioSpreadHtml(allStamps){
   const visited = allEntries.filter(e => e.status !== 'wishlist' && e.year);
