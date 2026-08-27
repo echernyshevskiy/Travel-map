@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.33
+  Версия: v2.34
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -1670,6 +1670,17 @@ svg.leaflet-image-layer.leaflet-interactive path {
     font-family:'Courier Prime',monospace;font-size:9.5px;
     color:var(--text-dim);margin-top:3px;
   }
+  .tp-stop-via{
+    margin-top:5px;
+    font-family:'EB Garamond',serif;font-size:12.5px;color:var(--text);
+    line-height:1.45;
+  }
+  .elev-wrap{margin-top:6px;padding-top:6px;border-top:1px solid var(--line);}
+  .elev-spark{display:block;}
+  .elev-legend{
+    display:flex;justify-content:space-between;
+    font-family:'Courier Prime',monospace;font-size:8.5px;color:var(--text-dim);margin-top:1px;
+  }
   .tp-stop-spark{
     margin-top:8px;padding:6px 8px;
     background:var(--panel-raised);
@@ -2974,7 +2985,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.33</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.34</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -9357,7 +9368,11 @@ function renderTripPage(){
 
   const stopsHtml = stops.map((e,i)=>{
     const flag = e.countryKey ? countryFlag(e.countryKey) : '';
-    const photo = (e.photos || []).find(p => p && !photoLinkProblem(p));
+    // Обложка поездки берётся из первой пригодной фотографии, и она же
+    // показывалась у своей остановки — один снимок дважды на экране.
+    // У остановки берём следующий по списку, если первый ушёл в обложку.
+    const usable = (e.photos || []).filter(p => p && !photoLinkProblem(p));
+    const photo = usable.find(p => p !== coverCandidate) || (usable[0] === coverCandidate ? null : usable[0]);
     const note = (e.notes || '').trim();
     const metaBits = [
       e.type === 'route' ? (activityLabel(e.activity) || 'маршрут') : null,
@@ -9370,7 +9385,9 @@ function renderTripPage(){
       <div class="tp-stop-body">
         <div class="tp-stop-name" data-tp-focus="${escapeAttr(e.id)}">${flag ? flag + ' ' : ''}${escapeHtml(e.name)}</div>
         ${metaBits ? `<div class="tp-stop-meta">${escapeHtml(metaBits)}</div>` : ''}
-        ${e.type === 'route' ? `<div class="tp-stop-spark">${buildRouteSparkSvg(e, 300, 110)}</div>` : ''}
+        ${e.type === 'route' && Array.isArray(e.waypointNames) && e.waypointNames.length
+          ? `<div class="tp-stop-via">${e.waypointNames.map(escapeHtml).join(' → ')}</div>` : ''}
+        ${e.type === 'route' ? `<div class="tp-stop-spark">${buildRouteSparkSvg(e, 300, 110)}${buildElevationSvg(e, 300, 46)}</div>` : ''}
         ${photo ? `<img class="tp-stop-photo" src="${escapeAttr(safeUrl(photo))}" alt="" loading="lazy" onerror="photoFailed(this)">` : ''}
         ${note ? `<div class="tp-stop-note" ${READ_ONLY ? '' : `data-tp-edit="${escapeAttr(e.id)}" title="Нажмите, чтобы изменить" style="cursor:text;"`}>${escapeHtml(note)}</div>`
                : (READ_ONLY ? '' : `<button class="tp-add-note" data-tp-note="${escapeAttr(e.id)}">+ добавить заметку</button>`)}
@@ -9897,12 +9914,65 @@ function buildRouteSparkSvg(entry, w = 300, h = 120){
     });
   }
 
+  // Контуры стран, по которым проходит маршрут, — как подложка. Линия на
+  // пустом фоне не давала понять, где это; теперь виден силуэт местности.
+  // Геометрия уже в файле, так что подложка не требует ни карты, ни сети.
+  let backdrop = '';
+  const keys = new Set((entry.waypointCountryKeys || []).filter(Boolean));
+  if(keys.size === 0){
+    const mid = pts[Math.floor(pts.length/2)];
+    const f = findCountryFeature({ lat: mid[0], lng: mid[1] });
+    if(f) keys.add(f.properties.name);
+  }
+  keys.forEach(k=>{
+    const geom = getCountryGeometry(k);
+    if(!geom) return;
+    const g = geom.geometry || geom;
+    if(!g || !g.coordinates) return;
+    const polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+    polys.forEach(poly=>{
+      const ring = poly[0];
+      if(!ring || ring.length < 3) return;
+      // рисуем только то, что попадает в кадр, иначе крупная страна съест масштаб
+      const dd = ring.map((c,i)=>{
+        const x = (c[0]*kx - minX) * scale + offX;
+        const y = (-c[1] - minY) * scale + offY;
+        return `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
+      }).join(' ');
+      backdrop += `<path d="${dd}Z" fill="rgba(140,120,85,0.13)" stroke="rgba(120,100,70,0.3)" stroke-width="0.8"/>`;
+    });
+  });
+
   return `<svg class="route-spark" viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="xMidYMid meet" aria-label="Схема маршрута">
+    <g clip-path="url(#sparkClip${escapeAttr(entry.id)})">${backdrop}</g>
+    <clipPath id="sparkClip${escapeAttr(entry.id)}"><rect x="0" y="0" width="${w}" height="${h}"/></clipPath>
     <path d="${d}" fill="none" stroke="${escapeAttr(color)}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/>
     ${stops}
     <circle cx="${px(0)}" cy="${py(0)}" r="4" fill="none" stroke="${escapeAttr(color)}" stroke-width="2"/>
     <circle cx="${px(last)}" cy="${py(last)}" r="4" fill="${escapeAttr(color)}"/>
   </svg>`;
+}
+
+// Мини-график высот. Профиль хранится у 19 маршрутов из 31 — там, где был GPX
+// с высотами. Где его нет, блок просто не появляется.
+function buildElevationSvg(entry, w = 300, h = 46){
+  const p = Array.isArray(entry.profile) ? entry.profile.filter(v => typeof v === 'number' && isFinite(v)) : null;
+  if(!p || p.length < 3) return '';
+  const min = Math.min(...p), max = Math.max(...p);
+  const span = (max - min) || 1;
+  const pad = 3;
+  const x = i => (i / (p.length - 1) * (w - pad*2) + pad).toFixed(1);
+  const y = v => (h - pad - (v - min) / span * (h - pad*2)).toFixed(1);
+  const line = p.map((v,i) => `${i ? 'L' : 'M'}${x(i)} ${y(v)}`).join(' ');
+  const area = `M${x(0)} ${h} L` + p.map((v,i)=>`${x(i)} ${y(v)}`).join(' L') + ` L${x(p.length-1)} ${h}Z`;
+  const color = entry.color || DEFAULT_COLOR.route;
+  return `<div class="elev-wrap">
+    <svg class="elev-spark" viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none" aria-label="Профиль высот">
+      <path d="${area}" fill="${escapeAttr(color)}" opacity="0.16"/>
+      <path d="${line}" fill="none" stroke="${escapeAttr(color)}" stroke-width="1.4" stroke-linejoin="round"/>
+    </svg>
+    <div class="elev-legend"><span>${Math.round(min)} м</span><span>${Math.round(max)} м</span></div>
+  </div>`;
 }
 
 // ---------- официальные старты ----------
