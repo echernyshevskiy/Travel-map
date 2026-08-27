@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.27
+  Версия: v2.33
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -2974,7 +2974,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.27</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.33</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -3261,11 +3261,11 @@ if (typeof L === 'undefined') {
     <div style="max-width:520px;margin:60px auto;padding:28px 32px;font-family:sans-serif;
       background:#E7DFC7;color:#2B3B2E;border:1px solid #C4B78F;border-radius:8px;line-height:1.6;">
       <h2 style="margin-top:0;">Не удалось загрузить карту</h2>
-      <p>Браузер не смог подгрузить внешние библиотеки (карта, шрифты), от которых зависит эта страница. Обычно это вызвано одним из следующего:</p>
+      <p>Не удалось запустить встроенную библиотеку карты. Библиотека вшита в сам файл, поэтому интернет тут ни при чём — скорее всего, файл повреждён или обрезан при скачивании. Что можно попробовать:</p>
       <ul>
-        <li>Блокировщик рекламы/скриптов (AdBlock, uBlock, встроенная защита браузера) — попробуйте временно отключить его для этой страницы.</li>
-        <li>Ограничения сети (корпоративный/учебный Wi-Fi, VPN с фильтрацией) — попробуйте открыть на мобильном интернете.</li>
-        <li>Страница открыта во встроенном просмотрщике мессенджера/почты вместо настоящего браузера — откройте ссылку/файл явно в Chrome, Safari или Firefox.</li>
+        <li>Скачайте файл заново — при обрыве связи он мог сохраниться не полностью.</li>
+        <li>Откройте файл в обычном браузере (Chrome, Safari, Firefox), а не во встроенном просмотрщике мессенджера или почты.</li>
+        <li>Если открываете по ссылке — обновите страницу с очисткой кеша.</li>
       </ul>
       <p>После изменений обновите страницу (F5).</p>
     </div>`;
@@ -3647,8 +3647,13 @@ async function loadData(){
     tripMeta = JSON.parse(JSON.stringify(BAKED_TRIP_META));
     return;
   }
-  try{
-    if(hasClaudeStorage()){
+  // Запасной путь должен срабатывать не только когда хранилища окружения нет,
+  // но и когда оно есть и сломано. Раньше обе попытки были в одном try: любая
+  // ошибка первой уводила сразу в общий catch, и данные из браузера уже не
+  // читались — то есть механизм запасного пути не работал в том самом случае,
+  // ради которого задуман.
+  if(hasClaudeStorage()){
+    try{
       const res = await window.storage.get('travel-data');
       if(res && res.value){
         const parsed = JSON.parse(res.value);
@@ -3657,7 +3662,12 @@ async function loadData(){
         races = Array.isArray(parsed.races) ? parsed.races : [];
         return;
       }
+    }catch(err){
+      // штатное переключение, а не сбой: данные читаются из браузера
+      console.warn('Хранилище окружения недоступно — читаем из браузера:', err && err.message);
     }
+  }
+  try{
     // fall back to the browser's own storage — используется при открытии как
     // обычного файла или установленного PWA вне Claude, где window.storage нет
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -3766,15 +3776,22 @@ async function saveData(){
     return false;
   }
   const payload = JSON.stringify({entries: allEntries, tripMeta, races});
-  try{
-    if(hasClaudeStorage()){
+  // Та же причина, что и при загрузке: сбой хранилища окружения не должен
+  // отменять запись в браузер. Пробуем первое, при неудаче идём во второе.
+  if(hasClaudeStorage()){
+    try{
       const res = await window.storage.set('travel-data', payload, false);
-      if(!res){ toast('Не удалось сохранить — попробуйте ещё раз'); return false; }
-      noteDataChanged();
-      renderBackupReminder();
-      recordChangelog();
-      return true;
+      if(res){
+        noteDataChanged();
+        renderBackupReminder();
+        recordChangelog();
+        return true;
+      }
+    }catch(err){
+      console.warn('Хранилище окружения недоступно — пишем в браузер:', err && err.message);
     }
+  }
+  try{
     localStorage.setItem(LOCAL_STORAGE_KEY, payload);
     noteDataChanged();
     renderBackupReminder();
@@ -4288,6 +4305,12 @@ async function nominatimThrottle(){
   if(wait > 0) await new Promise(r => setTimeout(r, wait));
 }
 
+// Ответы приходят не в том порядке, в каком уходили: на медленной сети ответ
+// на «Пар» может вернуться позже ответа на «Париж» и затереть подсказки более
+// точного запроса. Каждому полю ввода даём свой счётчик поколений и применяем
+// только последний ответ.
+const suggestSeq = { city: 0, routeCity: 0, photo: 0, waypoint: 0 };
+
 async function queryNominatimSettlements(q, biasLatLng){
   let url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&accept-language=ru&limit=12&q=${encodeURIComponent(q)}`;
   if(biasLatLng){
@@ -4371,7 +4394,10 @@ async function fetchRouteCitySuggestions(q){
     // а не «в вакууме», чтобы не подхватить одноимённый город на другом континенте
     const last = routeWaypoints[routeWaypoints.length - 1];
     const bias = last ? [last.lat, last.lng] : null;
-    routeCityMatches = await queryNominatimSettlements(q, bias);
+    const seq = ++suggestSeq.routeCity;
+    const res = await queryNominatimSettlements(q, bias);
+    if(seq !== suggestSeq.routeCity) return;
+    routeCityMatches = res;
     routeCityHlIndex = -1;
     renderRouteCitySuggestions();
     clearServiceIssue('поиск городов');
@@ -4877,7 +4903,10 @@ document.addEventListener('click', (e)=>{
 });
 async function fetchCitySuggestions(q){
   try{
-    cityMatches = await queryNominatimSettlements(q);
+    const seq = ++suggestSeq.city;
+    const res = await queryNominatimSettlements(q);
+    if(seq !== suggestSeq.city) return; // пока ждали, пользователь набрал дальше
+    cityMatches = res;
     cityHlIndex = -1;
     renderCitySuggestions();
     clearServiceIssue('поиск городов');
@@ -4941,6 +4970,31 @@ function findAnyCountryKeyByRuName(ruName, isoCode){
   return match ? match.key : null;
 }
 
+// Контекст берётся из той же формы, что заполняет пользователь. Один и тот же
+// блок чтения полей и создания записи страны стоял в двух подсказках — по
+// городу и по точкам маршрута. При добавлении поля в форму их легко было
+// развести, поэтому вынесен в общее место.
+function readFormContext(){
+  const company = document.getElementById('fieldCompany').value;
+  return {
+    year: parseInt(document.getElementById('fieldYear').value) || new Date().getFullYear(),
+    month: parseInt(document.getElementById('fieldMonth').value) || undefined,
+    purpose: document.getElementById('fieldPurpose').value,
+    company,
+    community: company === 'group' ? (document.getElementById('fieldCommunity').value || undefined) : undefined,
+    season: document.getElementById('fieldSeason').value,
+    trip: document.getElementById('fieldTrip').value.trim(),
+  };
+}
+
+function makeCountryEntry(key, ctx){
+  return {
+    id: genId(), type: 'country', name: COUNTRY_RU[key] || key, countryKey: key,
+    photos: [], notes: '', color: DEFAULT_COLOR.country, status: 'visited',
+    tripOrder: nextTripOrder(ctx.trip), ...ctx
+  };
+}
+
 function suggestMissingCountriesForWaypoints(waypoints){
   const container = document.getElementById('routeCountrySuggest');
   container.innerHTML = '';
@@ -4958,20 +5012,8 @@ function suggestMissingCountriesForWaypoints(waypoints){
   btn.style.color = 'var(--amber)';
   btn.style.fontWeight = '600';
   btn.addEventListener('click', async ()=>{
-    const year = parseInt(document.getElementById('fieldYear').value) || new Date().getFullYear();
-    const month = parseInt(document.getElementById('fieldMonth').value) || undefined;
-    const purpose = document.getElementById('fieldPurpose').value;
-    const company = document.getElementById('fieldCompany').value;
-    const community = company === 'group' ? (document.getElementById('fieldCommunity').value || undefined) : undefined;
-    const season = document.getElementById('fieldSeason').value;
-    const trip = document.getElementById('fieldTrip').value.trim();
-    missing.forEach(key=>{
-      allEntries.push({
-        id: genId(), type: 'country', name: COUNTRY_RU[key] || key, year, month, photos: [], notes: '',
-        purpose, company, community, season, color: DEFAULT_COLOR.country, status: 'visited', trip, tripOrder: nextTripOrder(trip),
-        countryKey: key
-      });
-    });
+    const ctx = readFormContext();
+    missing.forEach(key => allEntries.push(makeCountryEntry(key, ctx)));
     const saved = await saveData();
     rebuildAll();
     if(saved) toast(`Добавлено стран: ${missing.length}`);
@@ -5025,18 +5067,7 @@ function renderCityCountrySuggest(){
       : `<span>Также отметить «${escapeHtml(ruName)}» как посещённую?</span>`;
     btn.textContent = 'Добавить';
     btn.addEventListener('click', async ()=>{
-      const year = parseInt(document.getElementById('fieldYear').value) || new Date().getFullYear();
-      const month = parseInt(document.getElementById('fieldMonth').value) || undefined;
-      const purpose = document.getElementById('fieldPurpose').value;
-      const company = document.getElementById('fieldCompany').value;
-      const community = company === 'group' ? (document.getElementById('fieldCommunity').value || undefined) : undefined;
-      const season = document.getElementById('fieldSeason').value;
-      const trip = document.getElementById('fieldTrip').value.trim();
-      allEntries.push({
-        id: genId(), type: 'country', name: ruName, year, month, photos: [], notes: '',
-        purpose, company, community, season, color: DEFAULT_COLOR.country, status: 'visited', trip, tripOrder: nextTripOrder(trip),
-        countryKey: key
-      });
+      allEntries.push(makeCountryEntry(key, readFormContext()));
       const saved = await saveData();
       rebuildAll();
       if(saved) toast(`Добавлено: ${ruName}`);
@@ -5493,6 +5524,19 @@ function countryFillOpacity(countryKey){
   return 0.72;
 }
 
+// Сравниваем дёшево: длина и концы. Полное сравнение тысяч точек на каждом
+// обновлении стоило бы дороже, чем сама перерисовка, а подмена трека при
+// совпадении длины и обоих концов практически невозможна.
+function sameCoords(a, b){
+  if(!Array.isArray(b)) return true;
+  const flat = Array.isArray(a[0]) ? a[0] : a;
+  if(!Array.isArray(flat) || flat.length !== b.length) return false;
+  if(b.length === 0) return true;
+  const eq = (p, q) => p && q && Math.abs((p.lat !== undefined ? p.lat : p[0]) - q[0]) < 1e-9
+                            && Math.abs((p.lng !== undefined ? p.lng : p[1]) - q[1]) < 1e-9;
+  return eq(flat[0], b[0]) && eq(flat[flat.length-1], b[b.length-1]);
+}
+
 function syncLayers(){
   const currentIds = new Set(allEntries.map(e => e.id));
 
@@ -5511,6 +5555,24 @@ function syncLayers(){
     const isWishlist = entry.status === 'wishlist';
     let layer = layers[entry.id];
 
+    // Слой переиспользуется по идентификатору. При импорте запись с тем же id
+    // может прийти с другой геометрией или вообще другого типа — тогда на карте
+    // остался бы прежний трек, а вызов метода не того типа (setStyle у маркера)
+    // и вовсе бросил бы ошибку. Поэтому проверяем пригодность слоя и, если он
+    // не подходит, выбрасываем его и создаём заново.
+    if(layer){
+      const fits =
+        entry.type === 'route'   ? typeof layer.setLatLngs === 'function' :
+        entry.type === 'city'    ? typeof layer.setLatLng  === 'function' :
+                                   typeof layer.eachLayer  === 'function';
+      if(!fits){
+        if(layer instanceof L.Marker) cityCluster.removeLayer(layer);
+        else map.removeLayer(layer);
+        delete layers[entry.id];
+        layer = null;
+      }
+    }
+
     if(!layer){
       if(entry.type === 'route'){
         layer = L.polyline(getEntryCoords(entry), {color: entry.color, weight:3, opacity:0.85, dashArray: entry.isEstimated ? '8,5' : null});
@@ -5525,15 +5587,29 @@ function syncLayers(){
             : { color: entry.color, weight:1.5, fillColor: entry.color, fillOpacity: countryFillOpacity(entry.countryKey), dashArray:null }
         });
       }
+      if(entry.type === 'country') layer.__countryKey = entry.countryKey;
       layers[entry.id] = layer;
       layer.on('click', L.DomEvent.stopPropagation);
     } else {
       if(entry.type === 'route'){
+        // геометрия могла измениться — при импорте или после правки точек
+        const coords = getEntryCoords(entry);
+        const same = sameCoords(layer.getLatLngs ? layer.getLatLngs() : [], coords);
+        if(!same) layer.setLatLngs(coords);
         layer.setStyle({ color: entry.color, weight:3, opacity:0.85, dashArray: entry.isEstimated ? '8,5' : null });
       } else if(entry.type === 'city'){
         layer.setLatLng([entry.lat, entry.lng]);
         layer.setIcon(cityIcon(entry.color, entry.favorite, isWishlist));
       } else {
+        // у записи могла смениться страна — тогда и контур нужен другой
+        if(layer.__countryKey !== entry.countryKey){
+          const geom = getCountryGeometry(entry.countryKey);
+          if(geom){
+            layer.clearLayers();
+            layer.addData(geom);
+            layer.__countryKey = entry.countryKey;
+          }
+        }
         layer.setStyle(isWishlist
           ? { color: entry.color, weight:1.5, fillOpacity:0, dashArray:'4,4' }
           : { color: entry.color, weight:1.5, fillColor: entry.color, fillOpacity: countryFillOpacity(entry.countryKey), dashArray:null });
@@ -5550,7 +5626,16 @@ function syncLayers(){
         openCountryPopup(entry.countryKey, ev.latlng);
       });
     } else {
-      layer.bindPopup(buildPopup(entry));
+      // Содержимое попапа собирается только при открытии. Раньше оно строилось
+      // для каждой записи на каждом перестроении — работа, которая почти всегда
+      // выбрасывалась, ведь попап открывают у одной записи из сотен.
+      // Запись ищем по идентификатору в момент открытия, а не держим ссылку:
+      // после импорта объект мог быть заменён, и попап показывал бы старое.
+      const entryId = entry.id;
+      layer.bindPopup(() => {
+        const fresh = allEntries.find(e => e.id === entryId);
+        return fresh ? buildPopup(fresh) : '';
+      });
     }
   });
   // Линии маршрутов тонкие, а заливки стран занимают всю площадь — без подъёма
@@ -8527,7 +8612,9 @@ function renderPhotoClusters(){
       if(q.length < 2){ box.style.display = 'none'; return; }
       timer = setTimeout(async ()=>{
         try{
+          const seq = ++suggestSeq.photo;
           const matches = await queryNominatimSettlements(q);
+          if(seq !== suggestSeq.photo) return;
           if(matches.length === 0){
             box.innerHTML = `<div class="suggest-empty">Ничего не найдено</div>`;
             box.style.display = 'block';
@@ -8730,7 +8817,10 @@ document.getElementById('editWaypointSearch').addEventListener('input', (e)=>{
         const near = entry.waypointCoords.find((c,j) => c && c[0] != null && j !== editWaypointIndex);
         if(near) bias = near;
       }
-      editWaypointMatches = await queryNominatimSettlements(q, bias);
+      const seq = ++suggestSeq.waypoint;
+      const res = await queryNominatimSettlements(q, bias);
+      if(seq !== suggestSeq.waypoint) return;
+      editWaypointMatches = res;
       renderEditWaypointSuggest();
       clearServiceIssue('поиск городов');
     }catch(err){
@@ -9092,17 +9182,41 @@ function buildGpx(){
   parts.push('  </metadata>');
 
   let wptCount = 0, trkCount = 0;
+  // Одно и то же место часто заведено и городом, и остановкой маршрута —
+  // в выгрузке оно оказывалось двумя точками почти в одних координатах.
+  // Помечаем уже выгруженные: сначала города (у них есть заметки и цель),
+  // потом точки маршрутов, которых среди городов ещё нет.
+  const emitted = new Set();
+  const placeKey = (name, lat, lng) =>
+    `${String(name || '').trim().toLowerCase()}|${lat.toFixed(2)}|${lng.toFixed(2)}`;
 
-  // города — точками
+  // Города — точками, по одной на место. Одно и то же место посещают не раз:
+  // в файл попадало столько одинаковых точек, сколько было визитов, и они
+  // накладывались друг на друга. Собираем визиты вместе и перечисляем годы.
+  const places = new Map();
   visited.filter(e => e.type === 'city' && e.lat != null && e.lng != null).forEach(e=>{
-    const t = gpxTime(e);
+    const key = placeKey(e.name, e.lat, e.lng);
+    if(!places.has(key)){
+      places.set(key, { name: e.name, lat: e.lat, lng: e.lng, years: [], trips: [], notes: [], first: e });
+    }
+    const p = places.get(key);
+    if(e.year && !p.years.includes(e.year)) p.years.push(e.year);
+    if(e.trip && !p.trips.includes(e.trip)) p.trips.push(e.trip);
+    const n = (e.notes || '').trim();
+    if(n && !p.notes.includes(n)) p.notes.push(n);
+    emitted.add(key);
+  });
+  places.forEach(p=>{
+    const t = gpxTime(p.first);
+    const years = p.years.sort((a,b)=>a-b);
     const desc = [
-      purposeLabel(e.purpose),
-      e.trip ? `Поездка: ${e.trip}` : null,
-      (e.notes || '').trim() || null
+      years.length > 1 ? `Визитов: ${p.years.length} · ${years.join(', ')}` : (years[0] ? String(years[0]) : null),
+      purposeLabel(p.first.purpose),
+      p.trips.length ? `Поездки: ${p.trips.join('; ')}` : null,
+      p.notes.join(' | ') || null
     ].filter(Boolean).join(' · ');
-    parts.push(`  <wpt lat="${e.lat}" lon="${e.lng}">`);
-    parts.push(`    <name>${gpxEscape(e.name)}</name>`);
+    parts.push(`  <wpt lat="${p.lat}" lon="${p.lng}">`);
+    parts.push(`    <name>${gpxEscape(p.name)}</name>`);
     if(desc) parts.push(`    <desc>${gpxEscape(desc)}</desc>`);
     if(t) parts.push(`    <time>${t}</time>`);
     parts.push('    <sym>Flag, Blue</sym>');
@@ -9115,6 +9229,9 @@ function buildGpx(){
     e.waypointNames.forEach((nm, i)=>{
       const c = e.waypointCoords && e.waypointCoords[i];
       if(!c || c[0] == null || c[1] == null) return;
+      const key = placeKey(nm, c[0], c[1]);
+      if(emitted.has(key)) return; // это место уже выгружено как город
+      emitted.add(key);
       parts.push(`  <wpt lat="${c[0]}" lon="${c[1]}">`);
       parts.push(`    <name>${gpxEscape(nm)}</name>`);
       parts.push(`    <desc>${gpxEscape('Точка маршрута: ' + e.name)}</desc>`);
@@ -9484,6 +9601,42 @@ document.getElementById('compareModal').addEventListener('click', (e)=>{
 });
 document.getElementById('compareYearA').addEventListener('change', renderCompare);
 document.getElementById('compareYearB').addEventListener('change', renderCompare);
+
+// Escape закрывает верхнее открытое окно, а не все сразу: окна могут лежать
+// стопкой (например, паспорт поверх таблицы), и закрывать нижние вместе с
+// верхним — неожиданно для человека. Прежние обработчики Escape отвечают за
+// подсказки и полноэкранный режим, обычные окна ими не закрывались вовсе.
+function openModalIds(){
+  return [...document.querySelectorAll('.modal-overlay')]
+    .filter(m => m.style.display !== 'none' && m.style.display !== '');
+}
+function syncModalAria(){
+  // скрытое окно не должно читаться скринридером как часть страницы
+  document.querySelectorAll('.modal-overlay').forEach(m=>{
+    const shown = m.style.display !== 'none' && m.style.display !== '';
+    m.setAttribute('aria-hidden', shown ? 'false' : 'true');
+    if(shown) m.setAttribute('role', 'dialog');
+  });
+}
+document.addEventListener('keydown', (e)=>{
+  if(e.key !== 'Escape') return;
+  // режим истории и полноэкранная карта закрываются своими обработчиками
+  if(document.body.classList.contains('map-full')) return;
+  const open = openModalIds();
+  if(open.length === 0) return;
+  const top = open[open.length - 1]; // последнее в разметке лежит выше
+  if(top.id === 'storyModal') return;
+  top.style.display = 'none';
+  syncModalAria();
+});
+// метки обновляем при любом изменении видимости окон
+(function watchModals(){
+  const mo = new MutationObserver(syncModalAria);
+  document.querySelectorAll('.modal-overlay').forEach(m=>{
+    mo.observe(m, { attributes:true, attributeFilter:['style'] });
+  });
+  syncModalAria();
+})();
 
 document.getElementById('resetFiltersBtn').addEventListener('click', resetAllFilters);
 document.getElementById('openDiagnosticsBtn').addEventListener('click', ()=>{
