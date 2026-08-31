@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.34
+  Версия: v2.35
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -2985,7 +2985,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.34</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.35</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -3200,6 +3200,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
         <p class="section-title" style="margin-top:18px;">Лучший темп по дистанциям</p>
         <div class="stat-grid" id="bestPaceList"></div>
+
+        <p class="section-title" style="margin-top:18px;">Предстоящие старты</p>
+        <div id="upcomingBlock"></div>
 
         <p class="section-title" style="margin-top:18px;">Официальные старты</p>
         <div id="racesBlock"></div>
@@ -8897,8 +8900,15 @@ function renderRunning(){
   const totals = document.getElementById('runTotals');
   const list = document.getElementById('runList');
 
+  // Старты ведутся вручную и от маршрутов не зависят: у забега может не быть
+  // трека вовсе. Раньше ранний выход пропускал их отрисовку, и при отсутствии
+  // маршрутов таблицы стартов не появлялись.
+  renderRaces();
+
   if(runs.length === 0){
-    summary.textContent = 'Беговых маршрутов пока нет';
+    summary.textContent = races.length
+      ? `Стартов записано: ${races.length} · беговых маршрутов пока нет`
+      : 'Беговых маршрутов пока нет';
     totals.innerHTML = '';
     list.innerHTML = `<div class="hint">Загрузите GPX с пробежкой — здесь появятся темп, дистанции и история забегов.</div>`;
     renderPaceTrend([]);
@@ -8947,7 +8957,6 @@ function renderRunning(){
     </div>`;
   }).join('');
 
-  renderRaces();
   renderPaceTrend(allEntries.filter(e => e.status !== 'wishlist'));
   renderBestPaces(allEntries.filter(e => e.status !== 'wishlist'));
 }
@@ -10003,11 +10012,78 @@ function raceShare(r){
 }
 
 let editingRaceId = null;
+let finishingRace = false; // открыли предстоящий старт, чтобы вписать результат
+
+// Предстоящий старт — тот же старт, только без результата. Отдельный список
+// потребовал бы переносить запись между массивами при «переезде»; статус
+// превращает это в смену одного поля, как у отметок «посещено / хочу посетить».
+// У прежних записей статуса нет — считаем их состоявшимися.
+function raceStatus(r){ return r.status === 'upcoming' ? 'upcoming' : 'done'; }
+
+function daysUntil(dateStr){
+  if(!dateStr) return null;
+  const d = new Date(dateStr + 'T12:00:00');
+  if(isNaN(d)) return null;
+  const today = new Date(); today.setHours(12,0,0,0);
+  return Math.round((d - today) / 86400000);
+}
+function daysWord(n){
+  const t = n % 10, h = n % 100;
+  if(h >= 11 && h <= 14) return 'дней';
+  if(t === 1) return 'день';
+  if(t >= 2 && t <= 4) return 'дня';
+  return 'дней';
+}
+
+function renderUpcoming(){
+  const box = document.getElementById('upcomingBlock');
+  if(!box) return;
+  const list = races.filter(r => raceStatus(r) === 'upcoming')
+                    .sort((a,b)=> String(a.date || '9999').localeCompare(String(b.date || '9999')));
+  let html = '';
+  if(list.length === 0){
+    html = `<div class="hint">Здесь можно держать старты, на которые уже зарегистрированы. Когда пробежите — впишете результат, и старт переедет в официальные.</div>`;
+  } else {
+    html = `<div style="overflow-x:auto;"><table class="race-table">
+      <thead><tr><th>Старт</th><th>Дистанция</th><th>Когда</th>${READ_ONLY ? '' : '<th></th>'}</tr></thead><tbody>` +
+      list.map(r=>{
+        const left = daysUntil(r.date);
+        const when = r.date ? new Date(r.date + 'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short',year:'numeric'}) : '—';
+        const where = [r.city, r.country].filter(Boolean).join(', ');
+        // прошедшую дату подсвечиваем: пора вписать результат
+        const overdue = left !== null && left < 0;
+        const countdown = left === null ? '' :
+          overdue ? `<span class="race-share top10">пора вписать результат</span>` :
+          left === 0 ? `<span class="race-share top25">сегодня</span>` :
+          `<span class="race-share">через ${left} ${daysWord(left)}</span>`;
+        return `<tr>
+          <td><span class="race-name">${escapeHtml(r.name || '—')}</span>
+            ${where ? `<span class="race-where">${escapeHtml(where)}</span>` : ''}</td>
+          <td class="race-num">${r.distanceKm ? r.distanceKm.toFixed(1) + ' км' : '—'}</td>
+          <td class="race-num">${escapeHtml(when)}<div style="margin-top:3px;">${countdown}</div></td>
+          ${READ_ONLY ? '' : `<td class="race-actions">
+            <button data-race-finish="${escapeAttr(r.id)}" title="Вписать результат" aria-label="Вписать результат" style="color:var(--amber);">✓</button>
+            <button data-race-edit="${escapeAttr(r.id)}" title="Изменить" aria-label="Изменить">✎</button>
+            <button data-race-del="${escapeAttr(r.id)}" title="Удалить" aria-label="Удалить">✕</button>
+          </td>`}
+        </tr>`;
+      }).join('') + `</tbody></table></div>`;
+  }
+  if(!READ_ONLY && editingRaceId !== 'newUpcoming'){
+    html += `<button class="cancel-edit" id="upcomingAddBtn" style="margin-top:10px;width:auto;padding:6px 14px;">+ добавить предстоящий</button>`;
+  }
+  box.innerHTML = html;
+  const add = document.getElementById('upcomingAddBtn');
+  if(add) add.addEventListener('click', ()=>{ editingRaceId = 'newUpcoming'; renderRaces(); renderUpcoming(); });
+  bindRaceRowActions(box);
+}
 
 function renderRaces(){
+  renderUpcoming();
   const box = document.getElementById('racesBlock');
   if(!box) return;
-  const sorted = races.slice().sort((a,b)=> String(b.date || '').localeCompare(String(a.date || '')));
+  const sorted = races.filter(r => raceStatus(r) === 'done')
+                      .sort((a,b)=> String(b.date || '').localeCompare(String(a.date || '')));
 
   let html = '';
   if(sorted.length === 0){
@@ -10043,6 +10119,10 @@ function renderRaces(){
 
   if(!READ_ONLY){
     const r = editingRaceId ? races.find(x => x.id === editingRaceId) : null;
+    // у предстоящего результата ещё нет — поля времени и места не показываем,
+    // пока человек не нажмёт «вписать результат»
+    const asUpcoming = editingRaceId === 'newUpcoming' ||
+                       (r && raceStatus(r) === 'upcoming' && !finishingRace);
     if(editingRaceId){
       html += `<div class="race-form">
         <div class="race-form-grid">
@@ -10051,10 +10131,12 @@ function renderRaces(){
           <div><label>Город</label><input type="text" id="raceCity" value="${escapeAttr(r ? r.city || '' : '')}" placeholder="Казань"></div>
           <div><label>Страна</label><input type="text" id="raceCountry" value="${escapeAttr(r ? r.country || '' : '')}" placeholder="Россия"></div>
           <div><label>Дистанция, км</label><input type="number" step="0.1" id="raceDist" value="${r && r.distanceKm ? r.distanceKm : ''}" placeholder="21.1"></div>
+          ${asUpcoming ? '' : `
           <div><label>Время</label><input type="text" id="raceTime" value="${escapeAttr(r ? r.time || '' : '')}" placeholder="1:38:24"></div>
           <div><label>Место в абсолюте</label><input type="number" id="racePlace" value="${r && r.place ? r.place : ''}" placeholder="342"></div>
-          <div><label>Всего участников</label><input type="number" id="raceTotal" value="${r && r.participants ? r.participants : ''}" placeholder="4120"></div>
+          <div><label>Всего участников</label><input type="number" id="raceTotal" value="${r && r.participants ? r.participants : ''}" placeholder="4120"></div>`}
         </div>
+        ${asUpcoming ? '<div class="hint" style="margin-top:8px;">Результат впишете после старта — тогда он переедет в официальные.</div>' : ''}
         <div class="race-form-actions">
           <button class="cancel-edit" id="raceSaveBtn" style="margin-top:0;width:auto;padding:6px 14px;border-color:var(--amber-dim);color:var(--amber);">Сохранить</button>
           <button class="cancel-edit" id="raceCancelBtn" style="margin-top:0;width:auto;padding:6px 14px;">Отмена</button>
@@ -10069,11 +10151,21 @@ function renderRaces(){
   const addBtn = document.getElementById('raceAddBtn');
   if(addBtn) addBtn.addEventListener('click', ()=>{ editingRaceId = 'new'; renderRaces(); });
   const cancelBtn = document.getElementById('raceCancelBtn');
-  if(cancelBtn) cancelBtn.addEventListener('click', ()=>{ editingRaceId = null; renderRaces(); });
+  if(cancelBtn) cancelBtn.addEventListener('click', ()=>{ editingRaceId = null; finishingRace = false; renderRaces(); });
   const saveBtn = document.getElementById('raceSaveBtn');
   if(saveBtn) saveBtn.addEventListener('click', saveRaceForm);
+  bindRaceRowActions(box);
+}
+
+// Одни и те же действия нужны в обеих таблицах — предстоящих и состоявшихся.
+function bindRaceRowActions(box){
   box.querySelectorAll('[data-race-edit]').forEach(b=>{
     b.addEventListener('click', ()=>{ editingRaceId = b.dataset.raceEdit; renderRaces(); });
+  });
+  box.querySelectorAll('[data-race-finish]').forEach(b=>{
+    // «переезд» в состоявшиеся — это открыть ту же запись на правку,
+    // где уже видны поля результата
+    b.addEventListener('click', ()=>{ editingRaceId = b.dataset.raceFinish; finishingRace = true; renderRaces(); });
   });
   box.querySelectorAll('[data-race-del]').forEach(b=>{
     b.addEventListener('click', async ()=>{
@@ -10110,16 +10202,23 @@ async function saveRaceForm(){
     place: isFinite(place) && place > 0 ? place : null,
     participants: isFinite(total) && total > 0 ? total : null,
   };
-  if(editingRaceId === 'new'){
+  const wasUpcoming = editingRaceId === 'newUpcoming' ||
+    (races.find(x => x.id === editingRaceId) || {}).status === 'upcoming';
+  // старт переезжает в состоявшиеся, когда у него появляется время
+  data.status = (editingRaceId === 'newUpcoming' || (wasUpcoming && !timeStr)) ? 'upcoming' : 'done';
+
+  if(editingRaceId === 'new' || editingRaceId === 'newUpcoming'){
     races.push({ id: genId(), ...data });
   } else {
     const r = races.find(x => x.id === editingRaceId);
     if(r) Object.assign(r, data);
   }
+  const moved = wasUpcoming && data.status === 'done';
   editingRaceId = null;
+  finishingRace = false;
   const saved = await saveData();
   renderRaces();
-  if(saved) toast('Старт сохранён');
+  if(saved) toast(moved ? 'Результат записан — старт в официальных' : 'Старт сохранён');
 }
 
 function where0(v){ return (v || '').trim(); }
