@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.35
+  Версия: v2.38
   Дата сборки: 2026-07-17 (обновлено)
   История версий смотрите в переписке с Claude.
 -->
@@ -1865,6 +1865,37 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
   .race-form input{margin:0;width:100%;}
   .race-form-actions{display:flex;gap:6px;margin-top:10px;}
+  /* Сводка над панелью: то немногое, что видно всегда и считается по всем
+     данным, а не по текущим фильтрам — в отличие от блока статистики ниже. */
+  #glanceBar{
+    padding:12px 16px 13px;
+    border-bottom:1px solid var(--line);
+    background:var(--panel-raised);
+  }
+  #glanceBar:empty{display:none;}
+  .glance-nums{
+    display:flex;align-items:baseline;flex-wrap:wrap;
+    gap:4px 10px;
+  }
+  .glance-num{
+    font-family:'Playfair Display',serif;font-style:italic;font-weight:700;
+    font-size:21px;color:var(--text);line-height:1.1;
+  }
+  .glance-num small{
+    font-family:'EB Garamond',serif;font-style:normal;font-weight:400;
+    font-size:12px;color:var(--text-dim);margin-left:3px;
+  }
+  .glance-sep{color:var(--line);font-size:14px;}
+  .glance-note{
+    margin-top:5px;
+    font-family:'Courier Prime',monospace;font-size:9.5px;
+    letter-spacing:0.5px;color:var(--text-dim);line-height:1.5;
+  }
+  .glance-note b{color:var(--amber);font-weight:400;}
+  @media (max-width:768px){
+    #glanceBar{padding:10px 14px 11px;}
+    .glance-num{font-size:18px;}
+  }
   .cl-day{
     font-family:'Playfair Display',serif;font-style:italic;font-weight:700;
     font-size:14px;color:var(--text-dim);
@@ -2648,6 +2679,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
   <div id="sidebar">
     <button id="scrollTopBtn" title="Наверх" aria-label="Прокрутить панель наверх">↑</button>
 
+    <div id="glanceBar" aria-live="polite"></div>
+
     <div class="section" id="addEntrySection">
       <p class="section-title">Добавить отметку</p>
       <label>Тип</label>
@@ -2985,7 +3018,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
         <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.35</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.38</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -3291,12 +3324,24 @@ let map = L.map('map', {worldCopyJump:true});
 const WORLD_VIEW_BOUNDS = [[-58, -170], [78, 170]];
 map.fitBounds(WORLD_VIEW_BOUNDS);
 
-const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+// OpenStreetMap обновил правила использования плиток и стал отдавать вместо
+// карты картинку «Access blocked». Причин у нас было три:
+//  1) адрес вида {s}.tile.openstreetmap.org — обращение мимо их CDN;
+//     правильный адрес без поддоменов: tile.openstreetmap.org;
+//  2) отсутствовал заголовок Referer — он теперь обязателен. Leaflet 1.9.4
+//     сам его не выставляет (это появилось в версиях после мая 2026),
+//     поэтому задаём referrerPolicy явно;
+//  3) при открытии файла с диска Referer не существует в принципе — там
+//     плитки OSM работать не будут никогда, см. переключение ниже.
+const TILE_REFERRER = 'strict-origin-when-cross-origin';
+const streetLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 18,
-  attribution: '&copy; OpenStreetMap'
+  referrerPolicy: TILE_REFERRER,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 });
 const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
   maxZoom: 17,
+  referrerPolicy: TILE_REFERRER,
   attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)'
 });
 streetLayer.addTo(map);
@@ -5123,10 +5168,22 @@ document.getElementById('gpxInput').addEventListener('change', (e)=>{
         const profile = parsed.elevations.length > 1 ? downsampleNumeric(parsed.elevations, 40) : null;
         const coords = downsample(parsed.coords);
         const baseName = file.name.replace(/\.gpx$/i, '');
+        // Дата старта — по местному времени МЕСТА, а не устройства.
+        // В GPX время записано в UTC. Раньше оно переводилось в пояс телефона,
+        // и трек, начатый поздним вечером в другой стране, мог записаться
+        // следующим днём — а помните вы его тем вечером. Часовой пояс берём
+        // из долготы первой точки: 15° долготы ≈ один час. Это приближение,
+        // но ошибается максимум на час, тогда как пояс устройства — на сутки.
         let startYear = null, startMonth = null;
         if(parsed.times.length > 0){
-          const d = new Date(parsed.times[0]);
-          if(!isNaN(d.getTime())){ startYear = d.getFullYear(); startMonth = d.getMonth() + 1; }
+          const t = new Date(parsed.times[0]);
+          if(!isNaN(t.getTime())){
+            const lng = parsed.coords.length ? parsed.coords[0][1] : null;
+            const offsetH = (lng !== null && isFinite(lng)) ? Math.round(lng / 15) : 0;
+            const local = new Date(t.getTime() + offsetH * 3600000);
+            startYear = local.getUTCFullYear();
+            startMonth = local.getUTCMonth() + 1;
+          }
         }
         const trackDaysInfo = countDistinctDays(parsed.times); // объединённый в один файл многодневный поход — не один день, а столько, сколько разных календарных дат встретилось в самом треке; если меток времени вовсе нет (например, файлы из планировщиков маршрутов вроде The Ride Atlas), auto-детект бессмысленен — тогда используется ручное поле «Число дней»
         finishFile({ coords, distanceKm, fileName: file.name, baseName, elevationGain, maxElevation, durationMin, profile, startYear, startMonth, trackDays: trackDaysInfo.days, hasTimeData: trackDaysInfo.hasTimeData });
@@ -5697,6 +5754,7 @@ function rebuildAll(){
   applyFilters();
   updateStats();
   renderNewCountriesChart();
+  renderGlance();
   updateRunningButton();
   updateDiagnosticsBadge();
 }
@@ -6159,7 +6217,7 @@ function ensureStoryMap(){
   storyMap.setView([20, 0], 2); // establish a valid view immediately — vector layers/invalidateSize
                                  // throw "Set map center and zoom first" otherwise; fitBounds() below
                                  // overrides this placeholder as soon as real points are known
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:18}).addTo(storyMap);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:18, referrerPolicy: TILE_REFERRER}).addTo(storyMap);
   return storyMap;
 }
 
@@ -7151,6 +7209,76 @@ async function undoLastAction(){
     renderTable();
     if(saved) toast('Правки отменены');
   }
+}
+
+// ---------- сводка над панелью ----------
+// Считается по ВСЕМ данным, а не по текущим фильтрам — в этом её отличие от
+// блока статистики ниже. Вторая строка привязана ко времени: именно отношение
+// ко «сейчас» делает такую сводку живой, а не ещё одним набором чисел.
+function monthsWord(n){
+  const t = n % 10, h = n % 100;
+  if(h >= 11 && h <= 14) return 'месяцев';
+  if(t === 1) return 'месяц';
+  if(t >= 2 && t <= 4) return 'месяца';
+  return 'месяцев';
+}
+
+function glanceTimeLine(){
+  // 1) ближайший старт, если записан — это самое живое, что есть
+  const upcoming = races
+    .filter(r => raceStatus(r) === 'upcoming' && r.date)
+    .map(r => ({ r, left: daysUntil(r.date) }))
+    .filter(x => x.left !== null && x.left >= 0)
+    .sort((a,b) => a.left - b.left)[0];
+  if(upcoming){
+    const l = upcoming.left;
+    const when = l === 0 ? 'сегодня' : `через ${l} ${daysWord(l)}`;
+    return `${escapeHtml(upcoming.r.name)} — <b>${when}</b>`;
+  }
+
+  // 2) иначе — сколько прошло с последней поездки
+  const visited = allEntries.filter(e => e.status !== 'wishlist' && e.year);
+  if(visited.length === 0) return '';
+  const withMonth = visited.filter(e => e.month);
+  let last = null;
+  if(withMonth.length){
+    last = withMonth.reduce((a,b)=> (b.year*12+b.month) > (a.year*12+a.month) ? b : a);
+  } else {
+    last = visited.reduce((a,b)=> b.year > a.year ? b : a);
+  }
+  const now = new Date();
+  const lastAt = last.year*12 + (last.month || 6);
+  const nowAt = now.getFullYear()*12 + (now.getMonth()+1);
+  const diff = nowAt - lastAt;
+  const where = escapeHtml(last.name);
+  if(diff <= 0) return `последняя отметка — <b>${where}</b>`;
+  if(diff === 1) return `с последней поездки — <b>месяц</b> · ${where}`;
+  if(diff < 12) return `с последней поездки — <b>${diff} ${monthsWord(diff)}</b> · ${where}`;
+  const years = Math.floor(diff / 12);
+  return `с последней поездки — <b>${years} ${years === 1 ? 'год' : years < 5 ? 'года' : 'лет'}</b> · ${where}`;
+}
+
+function renderGlance(){
+  const bar = document.getElementById('glanceBar');
+  if(!bar) return;
+  const visited = allEntries.filter(e => e.status !== 'wishlist');
+  if(visited.length === 0){ bar.innerHTML = ''; return; }
+
+  // Считаем ровно так же, как блок статистики ниже: города включают остановки
+  // маршрутов, иначе под одним словом «городов» стояли бы два разных числа.
+  const countries = new Set(visited.filter(e => e.type === 'country' && e.countryKey).map(e => e.countryKey));
+  const cities = new Set(getAllCityVisits(visited).map(cv => cv.name.trim().toLowerCase()));
+  const pct = Math.round(countries.size / COUNTRY_LIST.length * 100);
+
+  const nums = [];
+  if(countries.size) nums.push(`<span class="glance-num">${countries.size}<small>стран</small></span>`);
+  if(cities.size) nums.push(`<span class="glance-num">${cities.size}<small>городов</small></span>`);
+  if(countries.size) nums.push(`<span class="glance-num">${pct}%<small>мира</small></span>`);
+
+  const note = glanceTimeLine();
+  bar.innerHTML =
+    `<div class="glance-nums">${nums.join('<span class="glance-sep">·</span>')}</div>` +
+    (note ? `<div class="glance-note">${note}</div>` : '');
 }
 
 function updateStats(){
@@ -10896,10 +11024,25 @@ const COLLAPSE_KEY = 'travel-map-collapsed';
   try{ changelogSnapshot = snapshotForLog(); }catch(err){ console.error('changelog init failed', err); }
   // восстанавливаем выбранную подложку — если человек однажды переключился на
   // контуры, незачем каждый раз снова упираться в недоступные плитки
-  try{
-    const savedBase = localStorage.getItem('travel-map-basemap');
-    if(savedBase && savedBase !== 'street') setBasemap(savedBase);
-  }catch(err){ console.error('basemap restore failed', err); }
+  // Проверку файла делаем ПЕРВОЙ и отдельно: на локальном файле хранилище
+  // браузера может быть недоступно, и тогда чтение настройки бросит исключение
+  // раньше, чем мы успеем переключиться на контуры.
+  const isLocalFile = location.protocol === 'file:';
+  if(isLocalFile){
+    // Файл открыт с диска: заголовок Referer в этом случае не отправляется,
+    // а без него OpenStreetMap отдаёт картинку «Access blocked» вместо карты.
+    // Это не сбой связи — картинка загружается успешно, поэтому обычное
+    // переключение по ошибке плиток не срабатывает. Включаем контуры сразу.
+    try{
+      setBasemap('plain');
+      setTimeout(()=> toast('Файл открыт с диска — подложка карты недоступна, включены контуры стран. По ссылке в браузере карта работает полностью'), 900);
+    }catch(err){ console.warn('не удалось включить контуры', err); }
+  } else {
+    try{
+      const savedBase = localStorage.getItem('travel-map-basemap');
+      if(savedBase && savedBase !== 'street') setBasemap(savedBase);
+    }catch(err){ console.warn('настройка подложки недоступна', err); }
+  }
 
   // если при загрузке пришлось переписать ссылки на фото — сохраняем один раз,
   // иначе в резервную копию попадал бы старый, неотображаемый вид
