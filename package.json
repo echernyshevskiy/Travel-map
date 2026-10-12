@@ -1,0 +1,11 @@
+{
+  "name": "travel-map-tests",
+  "private": true,
+  "description": "Автотесты «Карты путешествий»: открывают index.html и friends/index.html в настоящем Chromium и проверяют основные сценарии",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.0"
+  }
+}
