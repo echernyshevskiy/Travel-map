@@ -1,0 +1,26 @@
+// Приватность версии для друзей
+const { test, expect } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
+const { openApp, ROOT } = require('./helpers');
+
+test('в файле версии для друзей нет заметок и скрытых записей', async () => {
+  const html = fs.readFileSync(path.join(ROOT, 'friends', 'index.html'), 'utf8');
+  const m = html.match(/const BAKED_ENTRIES = (\[.*?\]);\n/s);
+  expect(m, 'в сборке не найдены данные').toBeTruthy();
+  const entries = JSON.parse(m[1]);
+  expect(entries.length).toBeGreaterThan(0);
+  expect(entries.filter(e => e.notes)).toEqual([]);
+  expect(entries.filter(e => e.hidden)).toEqual([]);
+  expect(html).toContain('name="robots" content="noindex');
+});
+
+test('флаг «Не показывать друзьям» сохраняется при правке', async ({ page }) => {
+  await openApp(page);
+  await page.evaluate(() => startEdit(allEntries.find(e => e.id === 'ci_kz')));
+  await page.locator('#fieldHidden').check();
+  await page.locator('#saveBtn').click();
+  await expect.poll(() => page.evaluate(() => allEntries.find(e => e.id === 'ci_kz').hidden)).toBe(true);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('travel-map-data')).entries.find(e => e.id === 'ci_kz').hidden);
+  expect(saved).toBe(true);
+});
