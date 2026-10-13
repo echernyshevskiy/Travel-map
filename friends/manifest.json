@@ -34,5 +34,19 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Квиз по географии",
+      "short_name": "Квиз",
+      "url": "./?action=quiz",
+      "icons": [
+        {
+          "src": "shortcut-quiz.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }
