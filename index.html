@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.42
+  Версия: v2.43
   Дата сборки: 2026-10-12
   История версий смотрите в переписке с Claude.
 -->
@@ -3133,7 +3133,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <button class="cancel-edit" id="exportCsvBtn">Скачать таблицу (CSV)</button>
       <button class="cancel-edit" id="exportXlsxBtn">Скачать таблицу (XLSX)</button>
       <button class="cancel-edit" id="exportGpxBtn">Скачать карту (GPX)</button>
-      <div class="hint">GPX открывается в Google Earth, Garmin, OsmAnd и других приложениях: маршруты — треками, города — точками.</div>
+      <button class="cancel-edit" id="exportKmlBtn">Скачать карту (KML)</button>
+      <div class="hint">GPX — для навигаторов и часов (Garmin, OsmAnd, Coros): маршруты треками, города точками. KML — для Google My Maps, Google Earth и Organic Maps: ещё и страны контурами, планы отдельным слоем.</div>
       <button class="cancel-edit" id="importBtn">Загрузить из файла</button>
       <input type="file" id="importInput" accept=".json" style="display:none;">
       <div class="backup-reminder" id="backupReminder" style="display:none;"></div>
@@ -3218,7 +3219,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div style="margin-top:4px;font-style:italic;" id="legendRuRegions">регионы России: заливка — были, штрих — проездом</div>
         <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.42</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.43</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -3901,6 +3902,9 @@ const READ_ONLY = false;
 const BAKED_ENTRIES = [];
 const BAKED_TRIP_META = {};
 const BAKED_RACES = [];
+// Когда данные для версии друзей последний раз сохранялись (из файла синхронизации);
+// в основной версии — null. Подставляется скриптом scripts/build-friends.mjs.
+const BAKED_SAVED_AT = null;
 let tripMeta = READ_ONLY ? BAKED_TRIP_META : {}; // { [tripName]: { narrative, coverPhoto } }
 // Официальные старты — отдельная сущность, намеренно не связанная с картой:
 // у многих забегов трека нет вовсе, а маршруты в приложении про путешествия,
@@ -4181,8 +4185,8 @@ function getCountryGeometry(name){
 
 // ---------- метаданные фотографий ----------
 // Читаем EXIF сами, без библиотеки: приложение должно работать офлайн, а нужны
-// всего три значения — координаты и дата съёмки. Поддерживаем JPEG и WebP; HEIC с
-// айфонов устроен иначе и не разбирается (об этом сообщаем пользователю).
+// всего три значения — координаты и дата съёмки. Поддерживаем JPEG, WebP и
+// HEIC/HEIF (айфоны, часть Android) — у последнего свой контейнер, см. ниже.
 function findExifTiff(buf){
   if(!buf || buf.byteLength < 16) return null;
   const dv = new DataView(buf);
@@ -4228,7 +4232,9 @@ function readPhotoMeta(buf){
   let found;
   try{ found = findExifTiff(buf); }catch(e){ return null; }
   if(!found) return null;
-  const { dv, tiff } = found;
+  return readTiffMeta(found.dv, found.tiff);
+}
+function readTiffMeta(dv, tiff){
   try{
     if(tiff + 8 > dv.byteLength) return null;
     const le = dv.getUint16(tiff) === 0x4949;
@@ -4284,6 +4290,129 @@ function readPhotoMeta(buf){
     }
     return (out.lat !== null || out.date) ? out : null;
   }catch(e){ return null; }
+}
+
+// ---------- HEIC / HEIF ----------
+// Контейнер ISO BMFF (как у MP4): коробки «размер + тип». Метаданные EXIF —
+// отдельный элемент типа «Exif»; где он лежит в файле, говорит таблица iloc.
+// Картинку не декодируем (браузеры, кроме Safari, HEIC не показывают) —
+// нужны только дата и координаты, а их можно прочитать напрямую.
+function isoBoxes(dv, start, end){
+  const out = [];
+  let off = start;
+  while(off + 8 <= end){
+    let size = dv.getUint32(off);
+    const type = String.fromCharCode(dv.getUint8(off+4), dv.getUint8(off+5), dv.getUint8(off+6), dv.getUint8(off+7));
+    let header = 8;
+    if(size === 1){
+      if(off + 16 > end) break;
+      size = dv.getUint32(off+8) * 4294967296 + dv.getUint32(off+12);
+      header = 16;
+    } else if(size === 0) size = end - off;
+    if(size < header) break;
+    out.push({ type, start: off, data: off + header, end: Math.min(off + size, end), fullEnd: off + size });
+    off += size;
+  }
+  return out;
+}
+function heicExifLocation(buf){
+  if(!buf || buf.byteLength < 24) return null;
+  const dv = new DataView(buf);
+  const top = isoBoxes(dv, 0, dv.byteLength);
+  const ftyp = top[0];
+  if(!ftyp || ftyp.type !== 'ftyp') return null;
+  const brands = [];
+  for(let o = ftyp.data; o + 4 <= ftyp.end; o += 4){
+    if(o === ftyp.data + 4) continue; // версия, не бренд
+    brands.push(String.fromCharCode(dv.getUint8(o), dv.getUint8(o+1), dv.getUint8(o+2), dv.getUint8(o+3)));
+  }
+  if(!brands.some(b => /^(heic|heix|heim|heis|hevc|hevx|hevm|hevs|mif1|msf1|avif|avis)$/.test(b))) return null;
+  const meta = top.find(b => b.type === 'meta');
+  if(!meta || meta.fullEnd > dv.byteLength) return null; // коробка meta не поместилась в прочитанное начало
+  const kids = isoBoxes(dv, meta.data + 4, meta.end);
+  const iinf = kids.find(b => b.type === 'iinf'), iloc = kids.find(b => b.type === 'iloc'), idat = kids.find(b => b.type === 'idat');
+  if(!iinf || !iloc) return null;
+  // iinf: ищем элемент типа Exif
+  let exifId = null;
+  const iv = dv.getUint8(iinf.data);
+  const infes = isoBoxes(dv, iinf.data + 4 + (iv === 0 ? 2 : 4), iinf.end);
+  for(const b of infes){
+    if(b.type !== 'infe') continue;
+    const v = dv.getUint8(b.data);
+    if(v < 2) continue;
+    let o = b.data + 4;
+    const id = v === 2 ? dv.getUint16(o) : dv.getUint32(o);
+    o += (v === 2 ? 2 : 4) + 2; // + item_protection_index
+    const t = String.fromCharCode(dv.getUint8(o), dv.getUint8(o+1), dv.getUint8(o+2), dv.getUint8(o+3));
+    if(t === 'Exif'){ exifId = id; break; }
+  }
+  if(exifId === null) return null;
+  // iloc: где лежат байты этого элемента
+  const v = dv.getUint8(iloc.data);
+  let p = iloc.data + 4;
+  const b1 = dv.getUint8(p), b2 = dv.getUint8(p+1);
+  const offSize = b1 >> 4, lenSize = b1 & 15, baseSize = b2 >> 4, idxSize = (v === 1 || v === 2) ? (b2 & 15) : 0;
+  p += 2;
+  const readN = n => {
+    let x = 0;
+    if(n === 4) x = dv.getUint32(p);
+    else if(n === 8) x = dv.getUint32(p) * 4294967296 + dv.getUint32(p+4);
+    else if(n === 2) x = dv.getUint16(p);
+    else if(n !== 0) throw new Error('размер поля iloc');
+    p += n;
+    return x;
+  };
+  const count = v < 2 ? dv.getUint16(p) : dv.getUint32(p);
+  p += v < 2 ? 2 : 4;
+  for(let i = 0; i < count; i++){
+    const id = v < 2 ? dv.getUint16(p) : dv.getUint32(p);
+    p += v < 2 ? 2 : 4;
+    let method = 0;
+    if(v === 1 || v === 2){ method = dv.getUint16(p) & 15; p += 2; }
+    p += 2; // data_reference_index
+    const base = readN(baseSize);
+    const extents = dv.getUint16(p); p += 2;
+    let first = null;
+    for(let k = 0; k < extents; k++){
+      if(idxSize) readN(idxSize);
+      const eo = readN(offSize), el = readN(lenSize);
+      if(!first) first = { offset: base + eo, length: el };
+    }
+    if(id !== exifId) continue;
+    if(!first || !first.length) return null;
+    if(method === 1){ if(!idat) return null; first.offset += idat.data; }
+    else if(method !== 0) return null;
+    return first;
+  }
+  return null;
+}
+async function readHeicMeta(file, head){
+  let loc;
+  try{ loc = heicExifLocation(head); }catch(e){ return null; }
+  if(!loc || loc.length > 1024 * 1024) return null;
+  let buf;
+  if(loc.offset + loc.length <= head.byteLength) buf = head.slice(loc.offset, loc.offset + loc.length);
+  else{
+    // EXIF лежит дальше прочитанного начала — дочитываем только его
+    buf = await new Promise(resolve=>{
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = () => resolve(null);
+      r.readAsArrayBuffer(file.slice(loc.offset, loc.offset + loc.length));
+    });
+    if(!buf) return null;
+  }
+  const dv = new DataView(buf);
+  if(dv.byteLength < 12) return null;
+  // первые 4 байта — сколько пропустить до заголовка TIFF (обычно «Exif\0\0»)
+  let tiff = 4 + dv.getUint32(0);
+  const isTiff = o => o + 4 <= dv.byteLength && ((dv.getUint16(o) === 0x4949 && dv.getUint16(o+2) === 0x2A00) || (dv.getUint16(o) === 0x4D4D && dv.getUint16(o+2) === 0x002A));
+  if(!isTiff(tiff)){
+    tiff = -1;
+    for(let o = 0; o < Math.min(32, dv.byteLength - 4); o++) if(isTiff(o)){ tiff = o; break; }
+    if(tiff < 0) return null;
+  }
+  return readTiffMeta(dv, tiff);
 }
 
 // Дата из имени файла — запасной путь, когда метаданные вырезаны.
@@ -9089,9 +9218,12 @@ async function handlePhotoFiles(files){
   for(let i = 0; i < list.length; i++){
     const f = list[i];
     if(i % 10 === 0) status.textContent = `Читаю ${i+1} из ${list.length}…`;
-    if(/\.(heic|heif)$/i.test(f.name)) heic++;
     const buf = await readFileHead(f);
-    const meta = buf ? readPhotoMeta(buf) : null;
+    let meta = buf ? readPhotoMeta(buf) : null;
+    if(!meta && buf){
+      meta = await readHeicMeta(f, buf);
+      if(meta) heic++;
+    }
     const date = (meta && meta.date && parseExifDate(meta.date)) || dateFromFilename(f.name);
     if(!date){ noMeta++; continue; }
     items.push({ name: f.name, date, lat: meta ? meta.lat : null, lng: meta ? meta.lng : null });
@@ -9101,7 +9233,7 @@ async function handlePhotoFiles(files){
   const withGeo = clusters.filter(c => c.lat !== null).length;
   status.textContent = `Прочитано ${items.length} из ${list.length}` +
     (noMeta ? ` · без даты: ${noMeta}` : '') +
-    (heic ? ` · формат HEIC не читается: ${heic}` : '') +
+    (heic ? ` · из них HEIC: ${heic}` : '') +
     ` · поездок: ${clusters.length}, из них с координатами: ${withGeo}`;
 
   if(clusters.length === 0){
@@ -9935,6 +10067,170 @@ document.getElementById('exportGpxBtn').addEventListener('click', ()=>{
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(()=> URL.revokeObjectURL(url), 1000);
   toast(`GPX: треков ${res.trkCount}, точек ${res.wptCount}`);
+});
+
+// ---------- экспорт в KML ----------
+// KML понимают Google My Maps, Google Earth, Organic Maps, QGIS. В отличие от
+// GPX, в нём есть многоугольники и папки-слои: страны выгружаются контурами,
+// посещённые регионы России — тоже, планы — отдельным слоем.
+function kmlColor(hex, alpha){
+  // KML пишет цвет задом наперёд: aabbggrr
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  const rgb = m ? m[1] : 'A6592E';
+  return (alpha || 'ff') + rgb.slice(4,6) + rgb.slice(2,4) + rgb.slice(0,2);
+}
+function kmlCoord(lat, lng, ele){ return `${(+lng).toFixed(6)},${(+lat).toFixed(6)}${ele != null && isFinite(ele) ? ',' + Math.round(ele) : ''}`; }
+function kmlPolygons(geometry){
+  const polys = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.type === 'MultiPolygon' ? geometry.coordinates : [];
+  return polys.map(poly => '<Polygon><tessellate>1</tessellate>' + poly.map((ring, i) =>
+    `<${i ? 'innerBoundaryIs' : 'outerBoundaryIs'}><LinearRing><coordinates>${ring.map(c => kmlCoord(c[1], c[0])).join(' ')}</coordinates></LinearRing></${i ? 'innerBoundaryIs' : 'outerBoundaryIs'}>`
+  ).join('') + '</Polygon>').join('');
+}
+function kmlPlacemark(name, desc, styleUrl, geometryXml, inlineStyle){
+  return `<Placemark><name>${gpxEscape(name)}</name>${desc ? `<description>${gpxEscape(desc)}</description>` : ''}` +
+    `${styleUrl ? `<styleUrl>${styleUrl}</styleUrl>` : ''}${inlineStyle || ''}${geometryXml}</Placemark>`;
+}
+function buildKml(){
+  const visited = allEntries.filter(e => e.status !== 'wishlist');
+  const planned = allEntries.filter(e => e.status === 'wishlist');
+  const folders = [];
+  const counts = { countries: 0, cities: 0, routes: 0, regions: 0, plans: 0 };
+  const yearsOf = list => [...new Set(list.map(e => e.year).filter(Boolean))].sort((a,b)=>a-b);
+
+  // страны: одна метка на страну, все визиты — в описании
+  const byCountry = new Map();
+  visited.filter(e => e.type === 'country' && e.countryKey).forEach(e=>{
+    if(!byCountry.has(e.countryKey)) byCountry.set(e.countryKey, []);
+    byCountry.get(e.countryKey).push(e);
+  });
+  const countryMarks = [];
+  byCountry.forEach((list, key)=>{
+    const geom = getCountryGeometry(key);
+    if(!geom) return;
+    const years = yearsOf(list);
+    const trips = [...new Set(list.map(e => e.trip).filter(Boolean))];
+    const desc = [years.length ? (years.length > 1 ? `Визитов: ${list.length} · ${years.join(', ')}` : String(years[0])) : null,
+                  trips.length ? `Поездки: ${trips.join('; ')}` : null].filter(Boolean).join(' · ');
+    countryMarks.push(kmlPlacemark(COUNTRY_RU[key] || list[0].name, desc, '#country', `<MultiGeometry>${kmlPolygons(geom)}</MultiGeometry>`));
+    counts.countries++;
+  });
+  if(countryMarks.length) folders.push(`<Folder><name>Страны</name>${countryMarks.join('')}</Folder>`);
+
+  // регионы России, где были
+  const regionMarks = [];
+  try{
+    const state = computeRuRegions(visited);
+    RU_REGIONS.forEach(r=>{
+      const places = state.visited.get(r.name);
+      if(!places) return;
+      regionMarks.push(kmlPlacemark(r.name, [...places].join(', '), '#region', `<MultiGeometry>${kmlPolygons(r.geometry)}</MultiGeometry>`));
+      counts.regions++;
+    });
+  }catch(e){ console.warn('регионы в KML не попали', e); }
+  if(regionMarks.length) folders.push(`<Folder><name>Регионы России</name>${regionMarks.join('')}</Folder>`);
+
+  // города: одна точка на место, визиты собраны в описании (как в GPX)
+  const places = new Map();
+  const placeKey = (name, lat, lng) => `${String(name || '').trim().toLowerCase()}|${(+lat).toFixed(2)}|${(+lng).toFixed(2)}`;
+  visited.filter(e => e.type === 'city' && e.lat != null && e.lng != null).forEach(e=>{
+    const key = placeKey(e.name, e.lat, e.lng);
+    if(!places.has(key)) places.set(key, { name: e.name, lat: e.lat, lng: e.lng, list: [] });
+    places.get(key).list.push(e);
+  });
+  visited.filter(e => e.type === 'route' && Array.isArray(e.waypointNames)).forEach(e=>{
+    e.waypointNames.forEach((nm, i)=>{
+      const c = e.waypointCoords && e.waypointCoords[i];
+      if(!c || c[0] == null || c[1] == null) return;
+      const key = placeKey(nm, c[0], c[1]);
+      if(!places.has(key)) places.set(key, { name: nm, lat: c[0], lng: c[1], list: [], via: e.name });
+    });
+  });
+  const cityMarks = [];
+  places.forEach(p=>{
+    const years = yearsOf(p.list);
+    const notes = [...new Set(p.list.map(e => (e.notes || '').trim()).filter(Boolean))];
+    const trips = [...new Set(p.list.map(e => e.trip).filter(Boolean))];
+    const desc = [years.length ? (years.length > 1 ? `Визитов: ${p.list.length} · ${years.join(', ')}` : String(years[0])) : null,
+                  p.via && !p.list.length ? `Точка маршрута: ${p.via}` : null,
+                  trips.length ? `Поездки: ${trips.join('; ')}` : null,
+                  notes.join(' | ') || null].filter(Boolean).join(' · ');
+    const fav = p.list.some(e => e.favorite);
+    cityMarks.push(kmlPlacemark(p.name, desc, fav ? '#cityFav' : '#city', `<Point><coordinates>${kmlCoord(p.lat, p.lng)}</coordinates></Point>`));
+    counts.cities++;
+  });
+  if(cityMarks.length) folders.push(`<Folder><name>Города</name>${cityMarks.join('')}</Folder>`);
+
+  // маршруты: линия своего цвета, с высотой, если она есть
+  const routeMarks = [];
+  visited.filter(e => e.type === 'route').forEach(e=>{
+    const coords = getEntryCoords(e);
+    if(!coords || coords.length < 2) return;
+    const desc = [e.year ? `${monthLabel(e.month) ? monthLabel(e.month) + ' ' : ''}${e.year}` : null,
+                  activityLabel(e.activity), `${(e.distanceKm || 0).toFixed(1)} км${e.isEstimated ? ' (по прямой)' : ''}`,
+                  e.elevationGain ? `+${Math.round(e.elevationGain)} м` : null,
+                  e.trip ? `Поездка: ${e.trip}` : null, (e.notes || '').trim() || null].filter(Boolean).join(' · ');
+    const style = `<Style><LineStyle><color>${kmlColor(e.color)}</color><width>3</width></LineStyle></Style>`;
+    routeMarks.push(kmlPlacemark(e.name, desc, null,
+      `<LineString><tessellate>1</tessellate><coordinates>${coords.map(c => kmlCoord(c[0], c[1], c[2])).join(' ')}</coordinates></LineString>`, style));
+    counts.routes++;
+  });
+  if(routeMarks.length) folders.push(`<Folder><name>Маршруты</name>${routeMarks.join('')}</Folder>`);
+
+  // планы: страны контуром без заливки, города точками
+  const planMarks = [];
+  planned.forEach(e=>{
+    if(e.type === 'country' && e.countryKey){
+      const geom = getCountryGeometry(e.countryKey);
+      if(geom){ planMarks.push(kmlPlacemark(e.name, e.year ? `План · ${e.year}` : 'План', '#plan', `<MultiGeometry>${kmlPolygons(geom)}</MultiGeometry>`)); counts.plans++; }
+    } else if(e.type === 'city' && e.lat != null && e.lng != null){
+      planMarks.push(kmlPlacemark(e.name, e.year ? `План · ${e.year}` : 'План', '#planCity', `<Point><coordinates>${kmlCoord(e.lat, e.lng)}</coordinates></Point>`));
+      counts.plans++;
+    }
+  });
+  if(planMarks.length) folders.push(`<Folder><name>Планы</name>${planMarks.join('')}</Folder>`);
+
+  const styles =
+    `<Style id="country"><LineStyle><color>${kmlColor('#A6592E')}</color><width>1.5</width></LineStyle><PolyStyle><color>${kmlColor('#A6592E', '66')}</color></PolyStyle></Style>` +
+    `<Style id="region"><LineStyle><color>${kmlColor('#4F6A86')}</color><width>1</width></LineStyle><PolyStyle><color>${kmlColor('#4F6A86', '55')}</color></PolyStyle></Style>` +
+    `<Style id="plan"><LineStyle><color>${kmlColor('#A6592E')}</color><width>2</width></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>` +
+    `<Style id="city"><IconStyle><color>${kmlColor('#3F5240')}</color><scale>0.9</scale></IconStyle></Style>` +
+    `<Style id="cityFav"><IconStyle><color>${kmlColor('#9C3B2E')}</color><scale>1.1</scale></IconStyle></Style>` +
+    `<Style id="planCity"><IconStyle><color>${kmlColor('#C9A227')}</color><scale>0.8</scale></IconStyle></Style>`;
+  const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>' +
+    `<name>${gpxEscape('Карта путешествий')}</name>` +
+    `<description>${gpxEscape('Выгружено ' + new Date().toLocaleDateString('ru-RU'))}</description>` +
+    styles + folders.join('') + '</Document></kml>\n';
+  return { xml, counts };
+}
+
+document.getElementById('exportKmlBtn').addEventListener('click', async ()=>{
+  if(allEntries.length === 0){ toast('Пока нечего экспортировать'); return; }
+  let res;
+  try{ res = buildKml(); }
+  catch(err){ console.error('KML export failed', err); toast('Не удалось собрать KML'); return; }
+  const c = res.counts;
+  const summary = `KML: стран ${c.countries}, регионов ${c.regions}, городов ${c.cities}, маршрутов ${c.routes}${c.plans ? ', планов ' + c.plans : ''}`;
+  const fileName = `travel-map-${new Date().toISOString().slice(0,10)}.kml`;
+  const blob = new Blob([res.xml], { type: 'application/vnd.google-earth.kml+xml' });
+  // на телефоне сначала пробуем «Поделиться» — сразу в Organic Maps или мессенджер;
+  // если браузер не умеет делиться таким файлом — обычное скачивание
+  try{
+    const file = new File([blob], fileName, { type: blob.type });
+    if(navigator.canShare && navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent) && navigator.canShare({ files: [file] })){
+      await navigator.share({ files: [file], title: 'Карта путешествий' });
+      toast(summary);
+      return;
+    }
+  }catch(err){
+    if(err && err.name === 'AbortError') return; // человек сам закрыл окно «Поделиться»
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fileName;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=> URL.revokeObjectURL(url), 1000);
+  toast(summary);
 });
 
 // ---------- страница поездки ----------
@@ -12094,7 +12390,11 @@ function applyReadOnlyUI(){
   const h1 = document.querySelector('header h1');
   if(h1) h1.insertAdjacentHTML('beforeend', ' <span style="font-size:11px;font-style:normal;font-family:\'Courier Prime\',monospace;background:var(--amber-dim);color:var(--on-accent);padding:2px 7px;border-radius:10px;vertical-align:middle;">RO · только просмотр</span>');
   const legendVersion = document.getElementById('legendVersion');
-  if(legendVersion) legendVersion.textContent += '-RO';
+  if(legendVersion){
+    legendVersion.textContent += '-RO';
+    const d = BAKED_SAVED_AT ? new Date(BAKED_SAVED_AT) : null;
+    if(d && !isNaN(d)) legendVersion.textContent += ' · данные от ' + d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
   document.title += ' · RO';
 }
 
