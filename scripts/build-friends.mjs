@@ -1,0 +1,79 @@
+#!/usr/bin/env node
+// Собирает версию для друзей (friends/index.html) из основной index.html и данных.
+//
+// Данные берутся либо из закрытого репозитория синхронизации через GitHub API
+// (переменные окружения DATA_REPO и DATA_TOKEN — так работает автосборка на
+// GitHub), либо из локального файла: node scripts/build-friends.mjs --data backup.json
+//
+// Приватность: в результат не попадают записи с флагом «Не показывать друзьям»
+// и заметки вообще; описания поездок — только у поездок, которые остались видимыми.
+// Скрипт не содержит секретов и выводит только итоговые числа.
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const args = process.argv.slice(2);
+const opt = name => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : null; };
+const SRC = path.resolve(opt('--src') || path.join(ROOT, 'index.html'));
+const OUT = path.resolve(opt('--out') || path.join(ROOT, 'friends', 'index.html'));
+const DATA_FILE = opt('--data');
+const SYNC_FILE = 'travel-data.json';
+
+function fail(msg){ console.error('Ошибка: ' + msg); process.exit(1); }
+
+async function loadData(){
+  if(DATA_FILE) return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+  const repo = process.env.DATA_REPO, token = process.env.DATA_TOKEN;
+  if(!repo || !token) fail('нет DATA_REPO или DATA_TOKEN (Settings → Secrets and variables → Actions)');
+  if(!/^[\w.-]+\/[\w.-]+$/.test(repo)) fail('DATA_REPO должен быть вида «логин/имя-репозитория»');
+  const api = process.env.GITHUB_API_URL || 'https://api.github.com'; // в GitHub Actions задаётся сама
+  const res = await fetch(`${api}/repos/${repo}/contents/${SYNC_FILE}`, {
+    headers: { 'Accept': 'application/vnd.github.raw+json', 'Authorization': 'Bearer ' + token, 'User-Agent': 'travel-map-friends-build' }
+  });
+  if(res.status === 401) fail('токен DATA_TOKEN не подходит или истёк');
+  if(res.status === 403 || res.status === 404) fail(`нет доступа к ${repo}/${SYNC_FILE}: проверьте имя репозитория и что у токена есть Contents: Read`);
+  if(!res.ok) fail(`GitHub ответил ${res.status}`);
+  return JSON.parse(await res.text());
+}
+
+// JSON внутри <script>: «</script>» в тексте закрыл бы тег раньше времени
+const embed = v => JSON.stringify(v).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+const strip = (obj, keys) => { const o = Object.assign({}, obj); keys.forEach(k => delete o[k]); return o; };
+
+function replaceOnce(html, pattern, replacement, label){
+  const matches = html.match(new RegExp(pattern.source, 'g'));
+  if(!matches || matches.length !== 1) fail(`в index.html не найдено (или найдено несколько) место «${label}» — версия файла не та?`);
+  return html.replace(pattern, () => replacement);
+}
+
+const data = await loadData();
+if(!data || !Array.isArray(data.entries)) fail('в данных нет списка записей');
+const all = data.entries.filter(e => e && typeof e.id === 'string' && e.type && e.name);
+const entries = all.filter(e => !e.hidden).map(e => strip(e, ['notes', 'hidden', 'updatedAt']));
+if(entries.length === 0) fail('после фильтрации не осталось записей — версию для друзей не перезаписываю');
+const trips = new Set(entries.map(e => e.trip).filter(Boolean));
+const tripMeta = {};
+Object.entries(data.tripMeta || {}).forEach(([k, v]) => { if(trips.has(k) && v && typeof v === 'object') tripMeta[k] = strip(v, ['updatedAt']); });
+const races = (Array.isArray(data.races) ? data.races : []).map(r => strip(r, ['updatedAt']));
+const savedAt = typeof data.savedAt === 'string' ? data.savedAt : (typeof data.exportedAt === 'string' ? data.exportedAt : null);
+
+let html = fs.readFileSync(SRC, 'utf8');
+html = replaceOnce(html, /const READ_ONLY = false;/, 'const READ_ONLY = true;', 'READ_ONLY');
+html = replaceOnce(html, /const BAKED_ENTRIES = \[\];/, `const BAKED_ENTRIES = ${embed(entries)};`, 'BAKED_ENTRIES');
+html = replaceOnce(html, /const BAKED_TRIP_META = \{\};/, `const BAKED_TRIP_META = ${embed(tripMeta)};`, 'BAKED_TRIP_META');
+html = replaceOnce(html, /const BAKED_RACES = \[\];/, `const BAKED_RACES = ${embed(races)};`, 'BAKED_RACES');
+html = replaceOnce(html, /const BAKED_SAVED_AT = null;/, `const BAKED_SAVED_AT = ${embed(savedAt)};`, 'BAKED_SAVED_AT');
+html = replaceOnce(html, /<title>[^<]*<\/title>/, '<title>Travel Map</title>', 'title');
+html = replaceOnce(html, /<meta property="og:title" content="[^"]*">/, '<meta property="og:title" content="Travel Map">', 'og:title');
+html = replaceOnce(html, /<meta property="og:description" content="[^"]*">/,
+  '<meta property="og:description" content="Карта путешествий: страны, города и маршруты на интерактивной карте">', 'og:description');
+
+// последняя проверка: ничего личного в файле не осталось
+if(entries.some(e => 'notes' in e || e.hidden)) fail('в данных для друзей остались заметки или скрытые записи');
+
+fs.mkdirSync(path.dirname(OUT), { recursive: true });
+const before = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : null;
+if(before === html){ console.log(`Без изменений: записей ${entries.length}`); process.exit(0); }
+fs.writeFileSync(OUT, html);
+console.log(`Версия для друзей обновлена: записей ${entries.length} (скрыто ${all.length - entries.length}), стартов ${races.length}, описаний поездок ${Object.keys(tripMeta).length}${savedAt ? ', данные от ' + savedAt.slice(0, 10) : ''}`);
