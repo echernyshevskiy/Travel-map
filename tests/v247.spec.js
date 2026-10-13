@@ -12,10 +12,13 @@ test('«Где это?» по регионам России: контуры, п�
   expect(await page.evaluate(() => document.querySelectorAll('#map path.quiz-base').length)).toBeGreaterThan(80);
   const xy = await page.evaluate(() => {
     const k = quizState.queue[0], r = RU_REGIONS.find(x => x.name === k);
-    let at = quizBounds(k).getCenter();
-    if(!pointInGeometry([at.lat, at.lng], r.geometry)){
-      const ring = r.polys.reduce((a, p) => p[0].length > a.length ? p[0] : a, r.polys[0][0]);
-      at = L.latLng(ring.reduce((s, c) => s + c[1], 0) / ring.length, ring.reduce((s, c) => s + c[0], 0) / ring.length);
+    // точка заведомо внутри региона: ближайший к центру узел сетки 25×25
+    const b = quizBounds(k), c = b.getCenter();
+    let at = null, best = Infinity;
+    for(let i = 1; i < 25; i++) for(let j = 1; j < 25; j++){
+      const lat = b.getSouth() + (b.getNorth() - b.getSouth()) * i / 25, lng = b.getWest() + (b.getEast() - b.getWest()) * j / 25;
+      const d = (lat - c.lat) ** 2 + (lng - c.lng) ** 2;
+      if(d < best && pointInGeometry([lat, lng], r.geometry)){ best = d; at = L.latLng(lat, lng); }
     }
     map.fitBounds(quizBounds(k), { animate: false });
     const pt = map.latLngToContainerPoint(at), box = document.getElementById('map').getBoundingClientRect();
