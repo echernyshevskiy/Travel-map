@@ -122,3 +122,15 @@ test('в версии для друзей нет журнала изменени
   await expect(page.locator('#photoProgress')).toBeHidden();
   await expectNoErrors(errors);
 });
+
+test('контурная карта подписана: страны, города, регионы; в квизе подписей нет', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
+  const { errors } = await openApp(page);
+  await page.evaluate(() => { map.setView([56, 38], 6, { animate: false }); renderMapLabels(); });
+  const n = await page.evaluate(() => ['ml-country', 'ml-region', 'ml-city'].map(c => document.querySelectorAll('.' + c).length));
+  expect(n[0]).toBeGreaterThan(0); expect(n[1]).toBeGreaterThan(5); expect(n[2]).toBeGreaterThan(5);
+  expect(await page.evaluate(() => [...document.querySelectorAll('.ml-city')].some(e => e.textContent === 'Московская'))).toBe(false);
+  await page.evaluate(() => { tileFallbackDone = true; setBasemap('street'); });
+  expect(await page.evaluate(() => document.querySelectorAll('.map-label').length)).toBe(0);
+  await expectNoErrors(errors);
+});
