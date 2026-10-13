@@ -137,3 +137,23 @@ test('контурная карта подписана: страны, город
   expect(await page.evaluate(() => document.querySelectorAll('.map-label').length)).toBe(0);
   await expectNoErrors(errors);
 });
+
+test('подписи на контурах не налезают друг на друга и на отметки; длинные названия сокращены', async ({ page }) => {
+  const { errors } = await openApp(page);
+  await page.evaluate(() => { map.setView([20, 25], 3, { animate: false }); });
+  await page.waitForTimeout(700);
+  const r = await page.evaluate(() => {
+    const ls = [...document.querySelectorAll('.map-label')].map(e => e.getBoundingClientRect());
+    const ms = [...map.getPane('markerPane').querySelectorAll('.leaflet-marker-icon')].map(e => e.getBoundingClientRect());
+    const hit = (a, b) => a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+    let lm = 0, ll = 0;
+    ls.forEach((a, i) => { if(ms.some(m => hit(a, m))) lm++; ls.forEach((b, j) => { if(j > i && hit(a, b)) ll++; }); });
+    return { n: ls.length, lm, ll, texts: [...document.querySelectorAll('.ml-country')].map(e => e.textContent) };
+  });
+  expect(r.n).toBeGreaterThan(10);
+  expect(r.lm).toBe(0);
+  expect(r.ll).toBe(0);
+  expect(r.texts).toContain('ДР Конго');
+  expect(r.texts.some(t => t.includes('Демократическая'))).toBe(false);
+  await expectNoErrors(errors);
+});
