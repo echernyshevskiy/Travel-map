@@ -68,7 +68,7 @@ const all = data.entries.filter(e => e && typeof e.id === 'string' && e.type && 
 const tripCovers = new Set(Object.values(data.tripMeta || {}).map(m => m && m.coverPhoto).filter(isImageLink));
 let removedLinks = 0;
 const entries = all.filter(e => !e.hidden).map(e => {
-  const out = strip(e, ['notes', 'hidden', 'updatedAt', 'docLinkUrl']);
+  const out = strip(e, ['notes', 'hidden', 'updatedAt', 'fieldTimes', 'ftBase', 'docLinkUrl']);
   removedLinks += e.docLinkUrl ? 1 : 0;
   const photos = Array.isArray(e.photos) ? e.photos : [];
   const cover = photos.find(isImageLink);
@@ -82,11 +82,11 @@ const tripMeta = {};
 const keptPhotos = new Set(entries.flatMap(e => e.photos));
 Object.entries(data.tripMeta || {}).forEach(([k, v]) => {
   if(!trips.has(k) || !v || typeof v !== 'object') return;
-  const m = strip(v, ['updatedAt']);
+  const m = strip(v, ['updatedAt', 'fieldTimes', 'ftBase']);
   if(m.coverPhoto && !keptPhotos.has(m.coverPhoto)) delete m.coverPhoto;
   tripMeta[k] = m;
 });
-const races = (Array.isArray(data.races) ? data.races : []).map(r => strip(r, ['updatedAt']));
+const races = (Array.isArray(data.races) ? data.races : []).map(r => strip(r, ['updatedAt', 'fieldTimes', 'ftBase']));
 const savedAt = typeof data.savedAt === 'string' ? data.savedAt : (typeof data.exportedAt === 'string' ? data.exportedAt : null);
 
 let html = fs.readFileSync(SRC, 'utf8');
