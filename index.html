@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.48
+  Версия: v2.49
   Дата сборки: 2026-10-12
   История версий смотрите в переписке с Claude.
 -->
@@ -1236,13 +1236,15 @@ svg.leaflet-image-layer.leaflet-interactive path {
   /* подписи на контурной карте */
   .leaflet-labelPane-pane{pointer-events:none;}
   #map.quiz-clean .leaflet-labelPane-pane{display:none;}
-  .map-label{pointer-events:none !important;white-space:nowrap;color:var(--text);font-family:'EB Garamond',Georgia,serif;line-height:1;
+  .map-label{pointer-events:none !important;white-space:nowrap;color:var(--text);font-family:'EB Garamond',Georgia,serif;line-height:1.1;
     text-shadow:0 0 2px var(--panel),0 0 3px var(--panel),0 0 4px var(--panel);}
-  .map-label.ml-country{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--text-dim);font-weight:600;text-align:center;}
-  .map-label.ml-country.ml-big{font-size:13px;}
+  .map-label.ml-country{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);font-weight:600;text-align:center;}
+  .map-label.ml-country.ml-big{font-size:12.5px;}
   .map-label.ml-region{font-size:10.5px;font-style:italic;color:var(--text-dim);opacity:.9;text-align:center;}
   .map-label.ml-city{font-size:11.5px;display:flex;align-items:center;gap:3px;}
   .map-label.ml-city.ml-cap{font-weight:700;}
+  #map.labels-small .map-label.ml-country{font-size:10px;} #map.labels-small .map-label.ml-country.ml-big{font-size:11px;}
+  #map.labels-small .map-label.ml-region{font-size:9.5px;} #map.labels-small .map-label.ml-city{font-size:10.5px;}
   .map-label .ml-dot{width:4px;height:4px;border-radius:50%;border:1px solid var(--text-dim);background:var(--panel);flex:none;}
   .legend .dot{margin:0;}
   .toast{
@@ -3334,7 +3336,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
         <div class="legend-credits">флаги: <a href="https://github.com/twitter/twemoji" target="_blank" rel="noopener" style="color:inherit;">Twemoji</a>, CC BY 4.0 · города: Natural Earth, <a href="https://github.com/hflabs/city" target="_blank" rel="noopener" style="color:inherit;">hflabs/city</a>, CC BY-SA 4.0 · границы: Natural Earth, регионы: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:inherit;">OpenStreetMap</a> (ODbL)</div>
-        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.48</div>
+        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.49</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -12591,36 +12593,75 @@ function geomAreaKm2(g){
     a += Math.abs(sum) / 2 * 111 * 111 * Math.cos((lat / Math.max(1, r.length - 1)) * Math.PI / 180); });
   return a;
 }
-function geomLabelPoint(g){
-  const polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
-  const ring = polys.reduce((a, p) => p[0].length > a.length ? p[0] : a, polys[0][0]);
-  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-  ring.forEach(c => { x0 = Math.min(x0, c[0]); x1 = Math.max(x1, c[0]); y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]); });
-  const mid = [(y0 + y1) / 2, (x0 + x1) / 2];
-  if(pointInGeometry(mid, g)) return mid;
-  const avg = ring.reduce((m, c) => [m[0] + c[1] / ring.length, m[1] + c[0] / ring.length], [0, 0]);
-  if(pointInGeometry(avg, g)) return avg;
-  // ищем точку внутри по горизонтали через середину
-  for(let k = 1; k < 20; k++){
-    const lng = x0 + (x1 - x0) * k / 20;
-    if(pointInGeometry([mid[0], lng], g)) return [mid[0], lng];
+// Точка для подписи — «полюс недоступности» самого большого контура (polylabel):
+// самая удалённая от краёв точка, так подпись не липнет к границе у вытянутых
+// стран вроде Чили или Норвегии. Долготу сжимаем по широте, чтобы считать в км.
+function polyLabelPoint(ring, precision){
+  const k = Math.cos(ring.reduce((m, c) => m + c[1], 0) / ring.length * Math.PI / 180) || 1;
+  const pts = ring.map(c => [c[0] * k, c[1]]);
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  pts.forEach(([x, y]) => { if(x < x0) x0 = x; if(y < y0) y0 = y; if(x > x1) x1 = x; if(y > y1) y1 = y; });
+  const dist = (x, y) => { // со знаком: >0 внутри
+    let inside = false, d2 = Infinity;
+    for(let i = 0, j = pts.length - 1; i < pts.length; j = i++){
+      const [ax, ay] = pts[i], [bx, by] = pts[j];
+      if((ay > y) !== (by > y) && x < (bx - ax) * (y - ay) / (by - ay) + ax) inside = !inside;
+      let dx = bx - ax, dy = by - ay, t = 0;
+      if(dx || dy){ t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy))); }
+      const ex = ax + t * dx - x, ey = ay + t * dy - y;
+      d2 = Math.min(d2, ex * ex + ey * ey);
+    }
+    return (inside ? 1 : -1) * Math.sqrt(d2);
+  };
+  const cell = (x, y, h) => { const d = dist(x, y); return { x, y, h, d, max: d + h * Math.SQRT2 }; };
+  const size = Math.min(x1 - x0, y1 - y0);
+  if(!size) return [ring[0][1], ring[0][0]];
+  let h = size / 2;
+  const q = [];
+  for(let x = x0; x < x1; x += size) for(let y = y0; y < y1; y += size) q.push(cell(x + h, y + h, h));
+  let best = cell((x0 + x1) / 2, (y0 + y1) / 2, 0);
+  const prec = precision || Math.max(size / 60, 0.01);
+  let guard = 0;
+  while(q.length && guard++ < 4000){
+    q.sort((a, b) => a.max - b.max);
+    const c = q.pop();
+    if(c.d > best.d) best = c;
+    if(c.max - best.d <= prec) continue;
+    const hh = c.h / 2;
+    q.push(cell(c.x - hh, c.y - hh, hh), cell(c.x + hh, c.y - hh, hh), cell(c.x - hh, c.y + hh, hh), cell(c.x + hh, c.y + hh, hh));
   }
-  return [ring[0][1], ring[0][0]];
+  return [best.y, best.x / k];
 }
+function mainRing(g){
+  const polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+  // самый большой по площади контур (у России, Канады, Индонезии — материк/крупнейший остров)
+  let best = polys[0][0], bestA = -1;
+  polys.forEach(p => { const r = p[0]; let a = 0; for(let i = 0; i < r.length - 1; i++) a += r[i][0] * r[i+1][1] - r[i+1][0] * r[i][1]; a = Math.abs(a); if(a > bestA){ bestA = a; best = r; } });
+  return best;
+}
+function ringBounds(r){
+  let y0 = 90, y1 = -90, x0 = 180, x1 = -180;
+  r.forEach(c => { if(c[1] < y0) y0 = c[1]; if(c[1] > y1) y1 = c[1]; if(c[0] < x0) x0 = c[0]; if(c[0] > x1) x1 = c[0]; });
+  return L.latLngBounds([y0, x0], [y1, x1]);
+}
+// короткие подписи для длинных названий (в карточках и списках — полные)
+const MAP_LABEL_SHORT = {
+  'Democratic Republic of the Congo': 'ДР Конго', 'Republic of the Congo': 'Конго', 'Central African Republic': 'ЦАР',
+  'Dominican Republic': 'Доминикана', 'French Southern and Antarctic Lands': 'Фр. Южные территории',
+  'West Bank': 'Западный берег', 'United Arab Emirates': 'ОАЭ', 'United States of America': 'США', 'United Kingdom': 'Великобритания'
+};
 function buildMapLabelCands(){
   const out = [];
   COUNTRIES_GEOJSON.features.forEach(f => {
-    const k = f.properties.name, ru = COUNTRY_RU[k];
+    const k = f.properties.name, ru = MAP_LABEL_SHORT[k] || COUNTRY_RU[k];
     if(!ru || !f.geometry) return;
-    const at = countryAnchor(k, countryBounds(k));
-    if(!at) return;
-    const a = geomAreaKm2(f.geometry);
-    out.push({ kind: 'country', big: a >= 2e6, text: ru, lat: at.lat, lng: at.lng,
+    const a = geomAreaKm2(f.geometry), ring = mainRing(f.geometry), at = polyLabelPoint(ring);
+    out.push({ kind: 'country', big: a >= 2e6, text: ru, lat: at[0], lng: at[1], box: ringBounds(ring),
       minZoom: a >= 2e6 ? 2 : a >= 4e5 ? 3 : a >= 6e4 ? 4 : a >= 8e3 ? 5 : 6, prio: 3e9 + a });
   });
   RU_REGIONS.forEach(r => {
-    const at = geomLabelPoint(r.geometry), a = geomAreaKm2(r.geometry);
-    out.push({ kind: 'region', text: r.name, lat: at[0], lng: at[1], minZoom: a >= 1.5e5 ? 5 : a >= 3e4 ? 6 : 7, prio: 1e9 + a });
+    const ring = mainRing(r.geometry), at = polyLabelPoint(ring), a = geomAreaKm2(r.geometry);
+    out.push({ kind: 'region', text: r.name, lat: at[0], lng: at[1], box: ringBounds(ring), minZoom: a >= 1.5e5 ? 5 : a >= 3e4 ? 6 : 7, prio: 1e9 + a });
   });
   getWorldCities().forEach(c => {
     const big = c.capital || c.pop >= 1000;
@@ -12631,45 +12672,95 @@ function buildMapLabelCands(){
   out.sort((a, b) => b.prio - a.prio);
   return out;
 }
+// ширину меряем настоящим шрифтом, а не на глаз — иначе подписи на телефоне
+// выходили шире, чем казалось, и налезали на соседей
+let mapLabelCtx = null;
+function labelFonts(){
+  const small = map.getSize().x < 600;
+  map.getContainer().classList.toggle('labels-small', small);
+  return {
+    country: { size: small ? 10 : 11, big: small ? 11 : 12.5, weight: 600, spacing: 0.07, upper: true, italic: false },
+    region:  { size: small ? 9.5 : 10.5, weight: 400, spacing: 0, upper: false, italic: true },
+    city:    { size: small ? 10.5 : 11.5, weight: 400, spacing: 0, upper: false, italic: false }
+  };
+}
+function measureLabel(text, f, size){
+  if(!mapLabelCtx) mapLabelCtx = document.createElement('canvas').getContext('2d');
+  mapLabelCtx.font = `${f.italic ? 'italic ' : ''}${f.weight} ${size}px "EB Garamond", Georgia, serif`;
+  const t = f.upper ? text.toUpperCase() : text;
+  return Math.ceil(mapLabelCtx.measureText(t).width + t.length * f.spacing * size);
+}
+// варианты раскладки: в одну строку или в две (по пробелу ближе к середине)
+function labelLayouts(text, f, size){
+  const lh = Math.round(size * 1.1);
+  const out = [{ lines: [text], w: measureLabel(text, f, size), h: lh + 2 }];
+  const words = text.split(' ');
+  if(words.length > 1 && text.length > 9){
+    let bestI = 1, bestD = Infinity;
+    for(let i = 1; i < words.length; i++){ const d = Math.abs(words.slice(0, i).join(' ').length - words.slice(i).join(' ').length); if(d < bestD){ bestD = d; bestI = i; } }
+    const l1 = words.slice(0, bestI).join(' '), l2 = words.slice(bestI).join(' ');
+    out.push({ lines: [l1, l2], w: Math.max(measureLabel(l1, f, size), measureLabel(l2, f, size)), h: lh * 2 + 2 });
+  }
+  return out;
+}
 function renderMapLabels(){
   mapLabelLayer.clearLayers();
   if(basemapMode !== 'plain' || document.body.classList.contains('quiz-map')) return;
   if(!mapLabelCands) mapLabelCands = buildMapLabelCands();
   const z = map.getZoom(), view = map.getBounds().pad(0.15), size = map.getSize();
+  const fonts = labelFonts();
   const placed = [];
   const hit = (b, p) => b[0] < p[2] && b[2] > p[0] && b[1] < p[3] && b[3] > p[1];
   const free = b => !placed.some(p => hit(b, p));
-  // свои отметки и кластеры — препятствия: название города не должно уходить под них
+  // свои отметки и кластеры — препятствия: подпись не должна уходить под них
   const mr = map.getContainer().getBoundingClientRect();
   const obstacles = [...map.getPane('markerPane').querySelectorAll('.leaflet-marker-icon')].map(el => {
     const r = el.getBoundingClientRect();
-    return [r.left - mr.left, r.top - mr.top, r.right - mr.left, r.bottom - mr.top];
+    return [r.left - mr.left - 2, r.top - mr.top - 2, r.right - mr.left + 2, r.bottom - mr.top + 2];
   }).filter(o => o[2] > o[0]);
+  const clear = b => free(b) && !obstacles.some(o => hit(b, o));
   let n = 0;
   for(const c of mapLabelCands){
     if(c.minZoom > z || !view.contains([c.lat, c.lng])) continue;
     const pt = map.latLngToContainerPoint([c.lat, c.lng]);
     if(pt.x < -200 || pt.y < -40 || pt.x > size.x + 200 || pt.y > size.y + 40) continue;
-    const fs = c.kind === 'country' ? (c.big ? 13 : 11) : c.kind === 'region' ? 10.5 : 11.5;
-    const w = Math.ceil(c.text.length * fs * (c.kind === 'country' ? 0.78 : c.kind === 'region' ? 0.5 : 0.55)) + (c.kind === 'city' ? 9 : 4);
-    const h = fs + 4;
-    // страны и регионы — по центру точки, город — справа от кружка
-    let x0 = c.kind === 'city' ? pt.x - 4 : pt.x - w / 2;
-    const y0 = pt.y - h / 2;
-    let dot = c.kind === 'city';
+    const f = fonts[c.kind], fs = c.kind === 'country' && c.big ? f.big : f.size;
+    let chosen = null;
     if(c.kind === 'city'){
+      const w = measureLabel(c.text, c.cap ? Object.assign({}, f, { weight: 700 }) : f, fs) + 8, h = Math.round(fs * 1.1) + 2;
+      let x0 = pt.x - 4, dot = true;
       // город уже отмечен (или под кластером) — подпись справа от значка, без своего кружка
-      const own = obstacles.find(o => pt.x >= o[0] - 3 && pt.x <= o[2] + 3 && pt.y >= o[1] - 3 && pt.y <= o[3] + 3);
-      if(own){ x0 = own[2] + 2; dot = false; }
+      const own = obstacles.find(o => pt.x >= o[0] - 1 && pt.x <= o[2] + 1 && pt.y >= o[1] - 1 && pt.y <= o[3] + 1);
+      if(own){ x0 = own[2] + 1; dot = false; }
+      const box = [x0 - 2, pt.y - h / 2 - 1, x0 + w + 2, pt.y + h / 2 + 1];
+      if(!free(box) || obstacles.some(o => hit(box, o))) continue;
+      chosen = { box, html: `${dot ? '<span class="ml-dot"></span>' : ''}<span>${escapeHtml(c.text)}</span>`, w, h, anchor: [pt.x - x0, h / 2] };
+    } else {
+      // подпись должна помещаться в саму страну/регион, иначе она «накрывает» соседей
+      const sw = map.latLngToContainerPoint(c.box.getSouthWest()), ne = map.latLngToContainerPoint(c.box.getNorthEast());
+      const pw = Math.abs(ne.x - sw.x), ph = Math.abs(sw.y - ne.y);
+      const fits = labelLayouts(c.text, f, fs).filter(l => l.w <= pw * 1.05 + 4 && l.h <= ph * 1.3 + 4);
+      if(!fits.length) continue;
+      for(const lay of fits){
+        // сперва по центру, потом чуть выше/ниже/в стороны — если там отметка или кластер
+        const offs = [[0, 0], [0, -(lay.h + 6)], [0, lay.h + 6], [-lay.w * 0.3, 0], [lay.w * 0.3, 0], [0, -(lay.h * 2 + 10)], [0, lay.h * 2 + 10]];
+        for(const [dx, dy] of offs){
+          const cx = pt.x + dx, cy = pt.y + dy;
+          // центр подписи не уходит за пределы контура
+          if(cx < Math.min(sw.x, ne.x) || cx > Math.max(sw.x, ne.x) || cy < Math.min(sw.y, ne.y) || cy > Math.max(sw.y, ne.y)) continue;
+          const box = [cx - lay.w / 2 - 2, cy - lay.h / 2 - 1, cx + lay.w / 2 + 2, cy + lay.h / 2 + 1];
+          if(!clear(box)) continue;
+          chosen = { box, html: lay.lines.map(escapeHtml).join('<br>'), w: lay.w, h: lay.h, anchor: [lay.w / 2 - dx, lay.h / 2 - dy] };
+          break;
+        }
+        if(chosen) break;
+      }
+      if(!chosen) continue;
     }
-    const box = [x0 - 3, y0 - 2, x0 + w + 3, y0 + h + 2];
-    if(!free(box)) continue;
-    if(c.kind === 'city' && obstacles.some(o => hit(box, o))) continue;
-    placed.push(box);
+    placed.push(chosen.box);
     const cls = 'map-label ml-' + c.kind + (c.big ? ' ml-big' : '') + (c.cap ? ' ml-cap' : '');
-    const html = c.kind === 'city' ? `${dot ? '<span class="ml-dot"></span>' : ''}<span>${escapeHtml(c.text)}</span>` : escapeHtml(c.text);
     L.marker([c.lat, c.lng], { pane: 'labelPane', interactive: false, keyboard: false,
-      icon: L.divIcon({ className: cls, html, iconSize: [w, h], iconAnchor: c.kind === 'city' ? [pt.x - x0, h / 2] : [w / 2, h / 2] }) }).addTo(mapLabelLayer);
+      icon: L.divIcon({ className: cls, html: chosen.html, iconSize: [chosen.w, chosen.h], iconAnchor: chosen.anchor }) }).addTo(mapLabelLayer);
     if(++n >= 220) break;
   }
 }
