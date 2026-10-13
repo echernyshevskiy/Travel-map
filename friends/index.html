@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.43
+  Версия: v2.44
   Дата сборки: 2026-10-12
   История версий смотрите в переписке с Claude.
 -->
@@ -3219,7 +3219,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div style="margin-top:4px;font-style:italic;" id="legendRuRegions">регионы России: заливка — были, штрих — проездом</div>
         <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.43</div>
+        <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;" id="legendVersion">v2.44</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -6430,6 +6430,7 @@ function normalizePhotoUrl(raw){
 const NON_IMAGE_HOST_PATTERNS = [
   { re: /(^|\/\/)(disk\.yandex\.[a-z]+|yadi\.sk)\//i, ru: 'Яндекс.Диск — публичная ссылка ведёт на страницу, не на файл' },
   { re: /instagram\.com\//i, ru: 'Instagram — ссылка на пост, не на изображение' },
+  { re: /(^|\/\/)(m\.)?vk\.(com|ru)\//i, ru: 'ВКонтакте — ссылка на альбом или пост, не на изображение' },
   { re: /photos\.app\.goo\.gl|photos\.google\.com/i, ru: 'Google Фото — ссылка на альбом' },
   { re: /drive\.google\.com\/drive\/folders/i, ru: 'Google Drive — ссылка на папку' },
   { re: /drive\.google\.com/i, ru: 'Google Drive — ссылка не на файл изображения' },
