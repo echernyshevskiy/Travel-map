@@ -10,6 +10,10 @@ test('скрипт собирает версию для друзей без ли
   test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
   const entries = sampleEntries();
   entries.find(e => e.id === 'ci_kz').hidden = true;
+  Object.assign(entries.find(e => e.id === 'ci_tb'), {
+    photos: ['https://photos.app.goo.gl/album1', 'https://example.org/tbilisi-cover.jpg', 'https://example.org/tbilisi-2.jpg', 'https://vk.ru/album1_2', 'https://disk.yandex.ru/d/xyz'],
+    instagramUrl: 'https://www.instagram.com/p/abc/', mapLinkUrl: 'https://maps.app.goo.gl/x', docLinkUrl: 'https://docs.google.com/spreadsheets/d/1'
+  });
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'friends-'));
   const dataFile = path.join(tmp, 'data.json');
   fs.writeFileSync(dataFile, JSON.stringify({ savedAt: '2026-10-01T10:00:00.000Z', entries, races: sampleRaces(),
@@ -25,6 +29,13 @@ test('скрипт собирает версию для друзей без ли
   expect(html).toContain('<title>Travel Map</title>');
   expect(html).not.toContain('Скрытая поездка');
   expect(html).toContain('Горы');
+  // из ссылок — только обложка и Instagram
+  const tb = baked.find(e => e.id === 'ci_tb');
+  expect(tb.photos).toEqual(['https://example.org/tbilisi-cover.jpg']);
+  expect(tb.instagramUrl).toBe('https://www.instagram.com/p/abc/');
+  expect(tb.mapLinkUrl).toBe('https://maps.app.goo.gl/x'); // карты — можно
+  expect(tb.docLinkUrl).toBeUndefined();
+  for(const s of ['photos.app.goo.gl/album1', 'vk.ru/album1_2', 'disk.yandex.ru/d/xyz', 'tbilisi-2.jpg', 'docs.google.com/spreadsheets/d/1']) expect(html).not.toContain(s);
   // повторный запуск на тех же данных ничего не меняет
   const again = execFileSync('node', [path.join(ROOT, 'scripts', 'build-friends.mjs'), '--src', path.join(ROOT, 'index.html'), '--out', out, '--data', dataFile]).toString();
   expect(again).toContain('Без изменений');
