@@ -1,0 +1,62 @@
+# Автосборка версии для друзей: берёт данные из закрытого репозитория
+# синхронизации, убирает скрытые записи и заметки, собирает friends/index.html
+# и публикует его. Запускается:
+#   • по расписанию — 4 раза в сутки;
+#   • вручную — Actions → «Версия для друзей» → Run workflow;
+#   • сама, когда вы загружаете новую index.html.
+# Нужны настройки репозитория (Settings → Secrets and variables → Actions):
+#   • переменная DATA_REPO — например, echernyshevskiy/travel-map-data;
+#   • секрет DATA_TOKEN — токен с доступом Contents: Read-only к этому репозиторию.
+name: Версия для друзей
+
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - index.html
+      - scripts/build-friends.mjs
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: friends-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Собрать версию для друзей
+        run: node scripts/build-friends.mjs
+        env:
+          DATA_REPO: ${{ vars.DATA_REPO }}
+          DATA_TOKEN: ${{ secrets.DATA_TOKEN }}
+      - name: Опубликовать, если что-то изменилось
+        run: |
+          if git diff --quiet -- friends/index.html; then
+            echo "Данные не менялись — публиковать нечего"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add friends/index.html
+          git commit -m "Версия для друзей: обновлены данные"
+          git pull --rebase
+          git push
+          echo "changed=1" >> "$GITHUB_OUTPUT"
+        id: publish
+      - name: Обновить сайт GitHub Pages
+        if: steps.publish.outputs.changed == '1'
+        # на случай, если коммит от имени бота не запустит публикацию сам
+        run: gh api --method POST "/repos/${GITHUB_REPOSITORY}/pages/builds" > /dev/null || echo "Публикация запустится сама"
+        env:
+          GH_TOKEN: ${{ github.token }}
