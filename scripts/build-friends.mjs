@@ -7,6 +7,8 @@
 //
 // Приватность: в результат не попадают записи с флагом «Не показывать друзьям»
 // и заметки вообще; описания поездок — только у поездок, которые остались видимыми.
+// Из ссылок остаются только обложки (первое фото-картинка записи и выбранные
+// обложки поездок), Instagram и ссылки на карты; альбомы и документы убираются.
 // Скрипт не содержит секретов и выводит только итоговые числа.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -47,14 +49,43 @@ function replaceOnce(html, pattern, replacement, label){
   return html.replace(pattern, () => replacement);
 }
 
+// Ссылки, которые ведут на страницу (альбом, папку, пост), а не на картинку.
+// Тот же список, что NON_IMAGE_HOST_PATTERNS в приложении.
+const NON_IMAGE = [
+  /(^|\/\/)(disk\.yandex\.[a-z]+|yadi\.sk)\//i,
+  /instagram\.com\//i,
+  /(^|\/\/)(m\.)?vk\.(com|ru)\//i,
+  /photos\.app\.goo\.gl|photos\.google\.com/i,
+  /drive\.google\.com/i,
+  /^https?:\/\/github\.com\/.+\/blob\//i,
+  /dropbox\.com\/(s|scl)\//i,
+];
+const isImageLink = u => typeof u === 'string' && /^https?:\/\//i.test(u.trim()) && !NON_IMAGE.some(re => re.test(u));
+
 const data = await loadData();
 if(!data || !Array.isArray(data.entries)) fail('в данных нет списка записей');
 const all = data.entries.filter(e => e && typeof e.id === 'string' && e.type && e.name);
-const entries = all.filter(e => !e.hidden).map(e => strip(e, ['notes', 'hidden', 'updatedAt']));
+const tripCovers = new Set(Object.values(data.tripMeta || {}).map(m => m && m.coverPhoto).filter(isImageLink));
+let removedLinks = 0;
+const entries = all.filter(e => !e.hidden).map(e => {
+  const out = strip(e, ['notes', 'hidden', 'updatedAt', 'docLinkUrl']);
+  removedLinks += e.docLinkUrl ? 1 : 0;
+  const photos = Array.isArray(e.photos) ? e.photos : [];
+  const cover = photos.find(isImageLink);
+  out.photos = photos.filter(p => p === cover || tripCovers.has(p));
+  removedLinks += photos.length - out.photos.length;
+  return out;
+});
 if(entries.length === 0) fail('после фильтрации не осталось записей — версию для друзей не перезаписываю');
 const trips = new Set(entries.map(e => e.trip).filter(Boolean));
 const tripMeta = {};
-Object.entries(data.tripMeta || {}).forEach(([k, v]) => { if(trips.has(k) && v && typeof v === 'object') tripMeta[k] = strip(v, ['updatedAt']); });
+const keptPhotos = new Set(entries.flatMap(e => e.photos));
+Object.entries(data.tripMeta || {}).forEach(([k, v]) => {
+  if(!trips.has(k) || !v || typeof v !== 'object') return;
+  const m = strip(v, ['updatedAt']);
+  if(m.coverPhoto && !keptPhotos.has(m.coverPhoto)) delete m.coverPhoto;
+  tripMeta[k] = m;
+});
 const races = (Array.isArray(data.races) ? data.races : []).map(r => strip(r, ['updatedAt']));
 const savedAt = typeof data.savedAt === 'string' ? data.savedAt : (typeof data.exportedAt === 'string' ? data.exportedAt : null);
 
@@ -70,10 +101,11 @@ html = replaceOnce(html, /<meta property="og:description" content="[^"]*">/,
   '<meta property="og:description" content="Карта путешествий: страны, города и маршруты на интерактивной карте">', 'og:description');
 
 // последняя проверка: ничего личного в файле не осталось
-if(entries.some(e => 'notes' in e || e.hidden)) fail('в данных для друзей остались заметки или скрытые записи');
+if(entries.some(e => 'notes' in e || e.hidden || e.docLinkUrl)) fail('в данных для друзей остались заметки, скрытые записи или личные ссылки');
+if(entries.some(e => e.photos.some(p => !isImageLink(p)))) fail('в данных для друзей осталась ссылка на альбом');
 
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 const before = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : null;
 if(before === html){ console.log(`Без изменений: записей ${entries.length}`); process.exit(0); }
 fs.writeFileSync(OUT, html);
-console.log(`Версия для друзей обновлена: записей ${entries.length} (скрыто ${all.length - entries.length}), стартов ${races.length}, описаний поездок ${Object.keys(tripMeta).length}${savedAt ? ', данные от ' + savedAt.slice(0, 10) : ''}`);
+console.log(`Версия для друзей обновлена: записей ${entries.length} (скрыто ${all.length - entries.length}), убрано ссылок ${removedLinks}, стартов ${races.length}, описаний поездок ${Object.keys(tripMeta).length}${savedAt ? ', данные от ' + savedAt.slice(0, 10) : ''}`);
