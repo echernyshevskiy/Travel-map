@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.52
+  Версия: v2.53
   Дата сборки: 2026-10-12
   История версий смотрите в переписке с Claude.
 -->
@@ -3457,7 +3457,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
         <div class="legend-credits">флаги: <a href="https://github.com/twitter/twemoji" target="_blank" rel="noopener" style="color:inherit;">Twemoji</a>, CC BY 4.0 · города: Natural Earth, <a href="https://github.com/hflabs/city" target="_blank" rel="noopener" style="color:inherit;">hflabs/city</a>, CC BY-SA 4.0 · границы: Natural Earth, регионы: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:inherit;">OpenStreetMap</a> (ODbL)</div>
-        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.52</div>
+        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.53</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -5160,6 +5160,35 @@ async function nominatimThrottle(){
   if(wait > 0) await new Promise(r => setTimeout(r, wait));
 }
 
+// Геокодер иногда не отвечает вовсе: запрос висит без ошибки, и всё, что его
+// ждёт (подсказки, «Ищу точку 2 из 11…»), замирало навсегда. Ограничиваем
+// ожидание 8 секундами, а после сбоя полторы минуты не ждём его вовсе —
+// сразу берём встроенный справочник городов.
+const NOMINATIM_TIMEOUT = 8000;
+let nominatimDownUntil = 0;
+const nominatimDown = () => Date.now() < nominatimDownUntil;
+async function nominatimJson(url){
+  await nominatimThrottle();
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), NOMINATIM_TIMEOUT) : null;
+  try{
+    const res = await fetch(url, controller ? { signal: controller.signal } : undefined);
+    if(!res.ok) throw new Error('Nominatim ' + res.status);
+    return await res.json();
+  }catch(err){
+    nominatimDownUntil = Date.now() + 90000;
+    throw err;
+  }finally{
+    if(timer) clearTimeout(timer);
+  }
+}
+// онлайн-результаты + города из справочника, которых в них нет
+function mergeSettlementMatches(online, local){
+  const out = (online || []).slice();
+  (local || []).forEach(m => { if(!out.some(o => (o.name || '').toLowerCase() === (m.name || '').toLowerCase() && Math.abs(o.lat - m.lat) < 0.3 && Math.abs(o.lng - m.lng) < 0.3)) out.push(m); });
+  return out.slice(0, 14);
+}
+
 // Ответы приходят не в том порядке, в каком уходили: на медленной сети ответ
 // на «Пар» может вернуться позже ответа на «Париж» и затереть подсказки более
 // точного запроса. Каждому полю ввода даём свой счётчик поколений и применяем
@@ -5169,7 +5198,11 @@ const suggestSeq = { city: 0, routeCity: 0, photo: 0, waypoint: 0 };
 async function queryNominatimSettlements(q, biasLatLng, opts){
   // без сети — встроенный справочник городов; при сбое сервиса — тоже он
   const fallback = () => localCitySearch(q, 10, biasLatLng).map(cityAsMatch);
-  if(navigator.onLine === false && !(opts && opts.networkOnly)) return fallback();
+  if((navigator.onLine === false || nominatimDown()) && !(opts && opts.networkOnly)){
+    const local = fallback();
+    if(local.length || navigator.onLine === false) return local;
+    throw new Error('геокодер недоступен'); // не ждём его снова — недавно уже не ответил
+  }
   try{
     return await queryNominatimOnline(q, biasLatLng);
   }catch(err){
@@ -5198,10 +5231,8 @@ async function queryNominatimFetch(q, biasLatLng){
     const delta = 3;
     url += `&viewbox=${lng-delta},${lat-delta},${lng+delta},${lat+delta}`;
   }
-  await nominatimThrottle();
-  const res = await fetch(url);
-  const data = await res.json();
-  return data.map(d => {
+  const data = await nominatimJson(url);
+  return (Array.isArray(data) ? data : []).map(d => {
     const addr = d.address || {};
     const short = addr.city || addr.town || addr.village || addr.municipality || addr.hamlet || addr.suburb || addr.county || d.display_name.split(',')[0];
     const region = [addr.state, addr.country].filter(Boolean).join(', ');
@@ -5214,6 +5245,8 @@ async function queryNominatimFetch(q, biasLatLng){
 // ни в паспорт, ни в список поездок страны.
 async function refetchRouteWaypoints(entry, onProgress){
   const names = entry.waypointNames || [];
+  const oldCoords = Array.isArray(entry.waypointCoords) ? entry.waypointCoords : [];
+  const oldKeys = Array.isArray(entry.waypointCountryKeys) ? entry.waypointCountryKeys : [];
   const newCoords = [];
   const newKeys = [];
   let failCount = 0;
@@ -5221,18 +5254,27 @@ async function refetchRouteWaypoints(entry, onProgress){
   for(let i = 0; i < names.length; i++){
     if(onProgress) onProgress(i + 1, names.length);
     try{
-      const matches = await queryNominatimSettlements(names[i], lastGoodCoord);
+      // Справочник — это города с населением, а геокодер на «Витебск» мог отдать
+      // деревню под Воронежем. Если такой город в справочнике есть — берём его
+      // (ближайший к предыдущей точке), к геокодеру идём только за остальными.
+      const n0 = normSearch(names[i]);
+      const exact = localCitySearch(names[i], 10, lastGoodCoord).filter(c => normSearch(c.name) === n0);
+      if(lastGoodCoord) exact.sort((a, b) => Math.hypot(a.lat - lastGoodCoord[0], a.lng - lastGoodCoord[1]) - Math.hypot(b.lat - lastGoodCoord[0], b.lng - lastGoodCoord[1]));
+      const matches = exact.length ? [cityAsMatch(exact[0])] : await queryNominatimSettlements(names[i], lastGoodCoord);
       if(matches.length > 0){
         const m = matches[0];
         newCoords.push([m.lat, m.lng]);
-        newKeys.push(findAnyCountryKeyByRuName(m.country, m.countryCode) || null);
+        newKeys.push(m.countryKey || findAnyCountryKeyByRuName(m.country, m.countryCode) || null);
         lastGoodCoord = [m.lat, m.lng];
       } else {
-        newCoords.push(null); newKeys.push(null); failCount++;
+        // не нашли — оставляем прежние координаты, а не стираем их
+        newCoords.push(oldCoords[i] || null); newKeys.push(oldKeys[i] || null); failCount++;
+        if(oldCoords[i]) lastGoodCoord = oldCoords[i];
       }
       clearServiceIssue('поиск городов');
     }catch(err){
-      newCoords.push(null); newKeys.push(null); failCount++;
+      newCoords.push(oldCoords[i] || null); newKeys.push(oldKeys[i] || null); failCount++;
+      if(oldCoords[i]) lastGoodCoord = oldCoords[i];
       reportServiceIssue('поиск городов');
     }
   }
@@ -5259,7 +5301,7 @@ async function refreshWaypointCoords(){
   if(saved){
     toast(failCount === 0
       ? 'Координаты точек маршрута обновлены'
-      : `Обновлено, не найдено: ${failCount} из ${entry.waypointNames.length}`);
+      : `Обновлено. Не найдено ${failCount} из ${entry.waypointNames.length} — у них оставлены прежние координаты`);
   }
 }
 document.getElementById('refreshWaypointsBtn').addEventListener('click', refreshWaypointCoords);
@@ -5271,9 +5313,11 @@ async function fetchRouteCitySuggestions(q){
     const last = routeWaypoints[routeWaypoints.length - 1];
     const bias = last ? [last.lat, last.lng] : null;
     const seq = ++suggestSeq.routeCity;
-    const res = await queryNominatimSettlements(q, bias);
+    const quick = localCitySearch(q, 8, bias).map(cityAsMatch);
+    if(quick.length){ routeCityMatches = quick; routeCityHlIndex = -1; renderRouteCitySuggestions(); }
+    const res = await queryNominatimSettlements(q, bias).catch(err => { if(quick.length) return []; throw err; });
     if(seq !== suggestSeq.routeCity) return;
-    routeCityMatches = res;
+    routeCityMatches = mergeSettlementMatches(res, quick);
     routeCityHlIndex = -1;
     renderRouteCitySuggestions();
     clearServiceIssue('поиск городов');
@@ -5796,9 +5840,11 @@ document.addEventListener('click', (e)=>{
 async function fetchCitySuggestions(q){
   try{
     const seq = ++suggestSeq.city;
-    const res = await queryNominatimSettlements(q);
+    const quick = localCitySearch(q, 8).map(cityAsMatch);
+    if(quick.length){ cityMatches = quick; cityHlIndex = -1; renderCitySuggestions(); }
+    const res = await queryNominatimSettlements(q).catch(err => { if(quick.length) return []; throw err; });
     if(seq !== suggestSeq.city) return; // пока ждали, пользователь набрал дальше
-    cityMatches = res;
+    cityMatches = mergeSettlementMatches(res, quick);
     cityHlIndex = -1;
     renderCitySuggestions();
     clearServiceIssue('поиск городов');
@@ -10435,7 +10481,7 @@ async function reverseGeocode(lat, lng){
   const cached = geoCacheGet(key);
   if(cached !== undefined) return cached;
   const offline = () => { const c = nearestLocalCity(lat, lng, 40); return c ? { name: c.name, countryKey: c.countryKey } : null; };
-  if(navigator.onLine === false) return offline();
+  if(navigator.onLine === false || nominatimDown()) return offline();
   let r;
   try{ r = await reverseGeocodeOnline(lat, lng); }
   catch(e){ return offline(); }
@@ -10444,9 +10490,7 @@ async function reverseGeocode(lat, lng){
 }
 async function reverseGeocodeOnline(lat, lng){
   const url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&accept-language=ru&zoom=10&lat=${lat}&lon=${lng}`;
-  await nominatimThrottle();
-  const res = await fetch(url);
-  const d = await res.json();
+  const d = await nominatimJson(url) || {};
   const a = d.address || {};
   const name = a.city || a.town || a.village || a.municipality || a.county || a.state || null;
   if(!name) return null;
@@ -10740,7 +10784,7 @@ function renderEditWaypointSuggest(){
       entry.waypointCountryKeys = entry.waypointCountryKeys.slice();
       entry.waypointNames[editWaypointIndex] = m.name;
       entry.waypointCoords[editWaypointIndex] = [m.lat, m.lng];
-      entry.waypointCountryKeys[editWaypointIndex] = findAnyCountryKeyByRuName(m.country, m.countryCode);
+      entry.waypointCountryKeys[editWaypointIndex] = m.countryKey || findAnyCountryKeyByRuName(m.country, m.countryCode);
       editWaypointIndex = -1;
       editWaypointMatches = [];
       document.getElementById('editWaypointSearch').value = '';
@@ -10772,9 +10816,11 @@ document.getElementById('editWaypointSearch').addEventListener('input', (e)=>{
         if(near) bias = near;
       }
       const seq = ++suggestSeq.waypoint;
-      const res = await queryNominatimSettlements(q, bias);
+      const quick = localCitySearch(q, 8, bias).map(cityAsMatch);
+      if(quick.length){ editWaypointMatches = quick; renderEditWaypointSuggest(); }
+      const res = await queryNominatimSettlements(q, bias).catch(err => { if(quick.length) return []; throw err; });
       if(seq !== suggestSeq.waypoint) return;
-      editWaypointMatches = res;
+      editWaypointMatches = mergeSettlementMatches(res, quick);
       renderEditWaypointSuggest();
       clearServiceIssue('поиск городов');
     }catch(err){
@@ -10782,7 +10828,7 @@ document.getElementById('editWaypointSearch').addEventListener('input', (e)=>{
       box.style.display = 'block';
       reportServiceIssue('поиск городов');
     }
-  }, 700);
+  }, 350);
 });
 
 // выпадающее меню «Итоги»
