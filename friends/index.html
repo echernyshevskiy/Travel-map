@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.51
+  Версия: v2.52
   Дата сборки: 2026-10-12
   История версий смотрите в переписке с Claude.
 -->
@@ -1260,8 +1260,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
   body.quiz-map .map-glance{display:none !important;}
   .legend-body > div.legend-credits{display:block;margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;line-height:1.5;}
   /* подписи на контурной карте */
-  .leaflet-labelPane-pane{pointer-events:none;}
-  #map.quiz-clean .leaflet-labelPane-pane{display:none;}
+  .leaflet-label-pane{pointer-events:none;}
+  #map.quiz-clean .leaflet-label-pane{display:none;}
   .map-label{pointer-events:none !important;white-space:nowrap;color:var(--text);font-family:'EB Garamond',Georgia,serif;line-height:1.1;
     text-shadow:0 0 2px var(--panel),0 0 3px var(--panel),0 0 4px var(--panel);}
   .map-label.ml-country{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);font-weight:600;text-align:center;}
@@ -1835,7 +1835,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
   /* режим без подложки: фон карты — «вода», контуры стран рисуются поверх */
   #map.plain-base{background:#CFE0DC;}
-  .cpop{font-family:'Twemoji Country Flags','EB Garamond',serif;text-align:center;min-width:190px;}
+  .cpop{font-family:'Twemoji Country Flags','EB Garamond',serif;text-align:center;min-width:190px;
+    /* карточка не выше экрана: при двадцати поездках она не помещалась на телефоне */
+    max-height:min(62vh, 520px);overflow-y:auto;overscroll-behavior:contain;padding-right:2px;}
+  .cpop-trip.cpop-more{border-style:dashed;color:var(--text-dim);}
   .cpop-flag{font-size:26px;line-height:1.3;}
   .cpop-name{font-family:'Twemoji Country Flags','Playfair Display',serif;font-style:italic;font-size:16px;color:var(--text);}
   .cpop-status{font-size:12px;color:var(--text-dim);margin-top:3px;}
@@ -2870,7 +2873,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   /* «Где это?»: чистая карта — только контуры стран, без подписей и своих отметок */
   #map.quiz-clean .leaflet-overlay-pane path:not(.plain-land):not(.quiz-mark):not(.quiz-base),
   #map.quiz-clean .leaflet-marker-pane, #map.quiz-clean .leaflet-shadow-pane,
-  #map.quiz-clean .leaflet-tooltip-pane, #map.quiz-clean .leaflet-heatPane-pane{display:none;}
+  #map.quiz-clean .leaflet-tooltip-pane, #map.quiz-clean .leaflet-heat-pane, #map.quiz-clean .leaflet-route-pane{display:none;}
   body.quiz-map .legend, body.quiz-map .timeline-bar, body.quiz-map .map-controls, body.quiz-map .compass-rose{display:none !important;}
   .quiz-map-panel{
     position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:1100;
@@ -3454,7 +3457,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
         <div class="legend-credits">флаги: <a href="https://github.com/twitter/twemoji" target="_blank" rel="noopener" style="color:inherit;">Twemoji</a>, CC BY 4.0 · города: Natural Earth, <a href="https://github.com/hflabs/city" target="_blank" rel="noopener" style="color:inherit;">hflabs/city</a>, CC BY-SA 4.0 · границы: Natural Earth, регионы: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:inherit;">OpenStreetMap</a> (ODbL)</div>
-        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.51</div>
+        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.52</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -3960,6 +3963,14 @@ cityCluster.on('clusterclick', (e) => L.DomEvent.stopPropagation(e));
 
 let allEntries = [];
 let layers = {}; // id -> leaflet layer
+// Маршруты — в своей панели поверх заливок стран и дома: раньше нажатие на линию
+// внутри России открывало карточку страны, потому что контур России лежал сверху.
+// Рисуем на canvas с запасом в 8 пикселей вокруг линии — в тонкий трек на
+// телефоне иначе не попасть пальцем.
+map.createPane('routePane'); map.getPane('routePane').style.zIndex = 420;
+const routeRenderer = L.canvas({ pane: 'routePane', tolerance: 8, padding: 0.3 });
+// Остановки маршрутов — точками на карте (если у города нет своей отметки)
+const routeStopsLayer = L.layerGroup().addTo(map);
 let currentType = 'country';
 
 let placingCity = false;
@@ -4841,17 +4852,32 @@ function getAllCityVisits(entries){
   const visits = [];
   entries.forEach(e=>{
     if(e.type === 'city'){
-      visits.push({ name: e.name, lat: e.lat, lng: e.lng, color: e.color, favorite: !!e.favorite, status: e.status, fromRoute: false, countryKey: e.countryKey || null });
+      visits.push({ name: e.name, lat: e.lat, lng: e.lng, color: e.color, favorite: !!e.favorite, status: e.status, fromRoute: false, countryKey: e.countryKey || null, year: e.year, month: e.month || null, trip: e.trip || '' });
     } else if(e.type === 'route' && e.waypointNames){
       e.waypointNames.forEach((name, i)=>{
         const coord = e.waypointCoords && e.waypointCoords[i];
         const countryKey = e.waypointCountryKeys && e.waypointCountryKeys[i] || null;
         // точки маршрута не бывают избранными/вишлистом — берут цвет своего маршрута
-        visits.push({ name, lat: coord ? coord[0] : null, lng: coord ? coord[1] : null, color: e.color, favorite: false, status: 'visited', fromRoute: true, countryKey });
+        visits.push({ name, lat: coord ? coord[0] : null, lng: coord ? coord[1] : null, color: e.color, favorite: false, status: 'visited', fromRoute: true, countryKey, year: e.year, month: e.month || null, trip: e.trip || '' });
       });
     }
   });
   return visits;
+}
+
+// Один и тот же город в одном месяце — один визит: отдельная отметка города и
+// он же остановкой маршрута, или две остановки в один день, раньше считались
+// двумя визитами. Без месяца склеиваем по году и поездке.
+function uniqueCityVisits(visits){
+  const seen = new Set();
+  return visits.filter(v => {
+    const n = (v.name || '').trim().toLowerCase();
+    if(!n) return false;
+    const k = n + '|' + (v.year || '') + '|' + (v.month ? 'm' + v.month : 't' + (v.trip || ''));
+    if(seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }
 
 // Уникальные города. Обычно это просто название: «Москва» из отметки города и
@@ -5476,7 +5502,10 @@ function openCountryPopup(key, latlng){
   allEntries.forEach(e=>{
     if(e.type === 'route' && e.trip && (e.waypointCountryKeys || []).includes(key)) tripNames.add(e.trip);
   });
-  const trips = [...tripNames].sort((a,b)=>a.localeCompare(b,'ru'));
+  // свежие поездки сверху: по последней дате записи поездки
+  const tripLast = new Map();
+  allEntries.forEach(e => { if(e.trip && tripNames.has(e.trip)){ const t = (e.year || 0) * 12 + (e.month || 0); if(t > (tripLast.get(e.trip) || -1)) tripLast.set(e.trip, t); } });
+  const trips = [...tripNames].sort((a,b)=> (tripLast.get(b) || 0) - (tripLast.get(a) || 0) || a.localeCompare(b,'ru'));
 
   const years = [...new Set(visited.map(e => e.year).filter(Boolean))].sort((a,b)=>a-b);
   const statusLine = isHome
@@ -5499,9 +5528,10 @@ function openCountryPopup(key, latlng){
   if(info) parts.push(cpopSection('info', 'О стране', info));
 
   if(trips.length){
+    const SHOW = 6;
+    const btn = (t, i) => `<button class="cpop-trip${i >= SHOW ? ' cpop-more-item' : ''}" data-cpop-trip="${escapeAttr(t)}"${i >= SHOW ? ' style="display:none;"' : ''}>${escapeHtml(t)}</button>`;
     parts.push(cpopSection('trips', `Поездки · ${trips.length}`,
-      `<div class="cpop-trips">${trips.map(t =>
-        `<button class="cpop-trip" data-cpop-trip="${escapeAttr(t)}">${escapeHtml(t)}</button>`).join('')}</div>`));
+      `<div class="cpop-trips">${trips.map(btn).join('')}${trips.length > SHOW ? `<button class="cpop-trip cpop-more" data-cpop-act="moretrips">ещё ${trips.length - SHOW} ▾</button>` : ''}</div>`));
   }
 
   if(!READ_ONLY){
@@ -5613,6 +5643,11 @@ async function lookupPlaceHere(latlng, key){
 }
 
 async function handleCountryPopupAction(act, key, latlng){
+  if(act === 'moretrips'){
+    document.querySelectorAll('.cpop-more-item').forEach(b => { b.style.display = ''; });
+    document.querySelectorAll('[data-cpop-act="moretrips"]').forEach(b => b.remove());
+    return;
+  }
   if(act === 'where'){ await lookupPlaceHere(latlng, key); return; }
   const ruName = COUNTRY_RU[key] || key;
   map.closePopup();
@@ -6346,9 +6381,10 @@ function cityIcon(color, favorite, isWishlist){
   if(favorite){
     return L.divIcon({
       className: '',
-      html: `<div style="font-size:20px;line-height:20px;filter:drop-shadow(0 0 2px #2B3B2E) drop-shadow(0 0 2px #2B3B2E);color:${c};">❤</div>`,
-      iconSize: [20,20],
-      iconAnchor: [10,12]
+      // векторное сердце с тёмной обводкой — как у обычных точек, без размытой тени
+      html: `<svg width="18" height="16" viewBox="0 0 18 16" style="display:block;overflow:visible;"><path d="M9 15.2C4.6 11.9 1 9 1 5.3 1 2.9 2.9 1 5.2 1c1.5 0 2.9.8 3.8 2 .9-1.2 2.3-2 3.8-2C15.1 1 17 2.9 17 5.3c0 3.7-3.6 6.6-8 9.9z" fill="${c}" stroke="#2B3B2E" stroke-width="2" stroke-linejoin="round"/></svg>`,
+      iconSize: [18,16],
+      iconAnchor: [9,9]
     });
   }
   return L.divIcon({
@@ -6515,7 +6551,7 @@ function syncLayers(){
 
     if(!layer){
       if(entry.type === 'route'){
-        layer = L.polyline(entryDrawCoords(entry), {color: entry.color, weight:3, opacity:0.85, dashArray: entry.isEstimated ? '8,5' : null});
+        layer = L.polyline(entryDrawCoords(entry), {color: entry.color, weight:3, opacity:0.85, dashArray: entry.isEstimated ? '8,5' : null, pane: 'routePane', renderer: routeRenderer});
         layer.__geomKey = entryGeomKey(entry);
       } else if(entry.type === 'city'){
         layer = L.marker([entry.lat, entry.lng], {icon: cityIcon(entry.color, entry.favorite, isWishlist)});
@@ -7395,6 +7431,39 @@ function applyTimelineOpacity(){
       if(style) layer.setStyle(style);
     }
   });
+  try{ updateRouteStops(); }catch(err){ console.warn('остановки маршрутов', err); }
+}
+
+function updateRouteStops(){
+  routeStopsLayer.clearLayers();
+  const currentYear = timelineYears[timelineIndex];
+  const inc = e => currentYear === undefined ? true : (timelineMode === 'cumulative' ? e.year <= currentYear : e.year === currentYear);
+  const shown = allEntries.filter(e => inc(e) && passesFilter(e));
+  // если у города есть своя отметка — точку остановки не дублируем
+  const own = new Set(shown.filter(e => e.type === 'city').map(e => (e.name || '').trim().toLowerCase()));
+  const seen = new Set();
+  shown.forEach(e => {
+    if(e.type !== 'route' || !Array.isArray(e.waypointCoords) || !Array.isArray(e.waypointNames)) return;
+    const layer = layers[e.id];
+    if(!layer || !map.hasLayer(layer)) return;
+    e.waypointCoords.forEach((c, i) => {
+      const name = (e.waypointNames[i] || '').trim();
+      if(!c || !name || !isFinite(c[0]) || !isFinite(c[1])) return;
+      const key = name.toLowerCase();
+      if(own.has(key)) return;
+      const pk = key + '|' + c[0].toFixed(2) + ',' + c[1].toFixed(2);
+      if(seen.has(pk)) return;
+      seen.add(pk);
+      L.circleMarker(c, { pane: 'routePane', renderer: routeRenderer, radius: 4.5, color: '#2B3B2E', weight: 1.5, fillColor: e.color || DEFAULT_COLOR.route, fillOpacity: 1 })
+        .bindTooltip(`${escapeHtml(name)} <span style="opacity:.7;">· ${escapeHtml(e.name)}</span>`, { direction: 'top', offset: [0, -4] })
+        .on('click', ev => {
+          L.DomEvent.stopPropagation(ev);
+          if(placingCity || placingCountry || quizMapActive()){ handleMapClick(ev); return; }
+          layer.openPopup(ev.latlng);
+        })
+        .addTo(routeStopsLayer);
+    });
+  });
 }
 
 const debouncedTimelineOpacity = debounce(applyTimelineOpacity, 40);
@@ -7517,7 +7586,7 @@ function updateFilteredStats(precomputedVisible){
   const topCountries = Object.entries(countryCounts).sort((a,b) => b[1]-a[1]).slice(0,5);
 
   const cityCounts = {};
-  cityVisits.forEach(c=>{
+  uniqueCityVisits(cityVisits).forEach(c=>{
     if(c.name.trim().toLowerCase() === HOME_CITY_NAME.toLowerCase()) return; // дом — не «визит», ему тут не место
     const key = c.name.trim();
     cityCounts[key] = (cityCounts[key] || 0) + 1;
@@ -12684,7 +12753,7 @@ function where0(v){ return (v || '').trim(); }
 
 function buildBioSpreadHtml(allStamps){
   const visited = allEntries.filter(e => e.status !== 'wishlist' && e.year);
-  const cities = getAllCityVisits(visited).length;
+  const cities = distinctCityKeys(getAllCityVisits(visited)).size; // уникальные города, а не число визитов
   const years = visited.map(e => e.year);
   const firstYear = years.length ? Math.min(...years) : null;
   const lastYear = years.length ? Math.max(...years) : null;
@@ -13508,7 +13577,7 @@ function computeRuRegions(visibleVisited){
   const visited = new Map(); // name -> Set(места)
   const visits = new Map();  // name -> число визитов (без самого дома — как в топе городов)
   const passed = new Set();
-  getAllCityVisits(visibleVisited).forEach(v=>{
+  uniqueCityVisits(getAllCityVisits(visibleVisited)).forEach(v=>{
     if(v.countryKey && v.countryKey !== HOME_COUNTRY_KEY) return;
     const r = regionForPoint(v.lat, v.lng, v.countryKey);
     if(!r) return;
