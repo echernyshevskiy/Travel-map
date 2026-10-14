@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.49
+  Версия: v2.51
   Дата сборки: 2026-10-12
   История версий смотрите в переписке с Claude.
 -->
@@ -1232,6 +1232,32 @@ svg.leaflet-image-layer.leaflet-interactive path {
   .legend-body > div{display:flex;align-items:center;gap:6px;margin-top:4px;}
   .legend-body > div:first-child{margin-top:0;}
   .legend-body{display:block;}
+  .color-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .color-swatches{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+  .color-sw{width:26px;height:26px;border-radius:50%;border:2px solid var(--panel);box-shadow:0 0 0 1px var(--line);cursor:pointer;padding:0;position:relative;}
+  .color-sw[aria-checked="true"]{box-shadow:0 0 0 2px var(--text);}
+  .color-sw.is-default{width:auto;border-radius:16px;padding:0 10px 0 30px;font-family:'EB Garamond',serif;font-size:13px;color:var(--text);background:var(--panel-raised) !important;}
+  .color-sw.is-default::before{content:'';position:absolute;left:5px;top:50%;width:18px;height:18px;margin-top:-9px;border-radius:50%;background:var(--sw);}
+  #fieldColor{width:36px;height:28px;padding:2px;cursor:pointer;flex:none;margin:0;}
+  /* сводка на карте: страны, города, доля мира, ближайший старт; сворачивается, как легенда */
+  .map-glance{
+    position:absolute;bottom:76px;left:16px;z-index:500;
+    background:var(--overlay);border:1px solid var(--line);border-radius:4px;
+    padding:9px 12px 10px;cursor:pointer;user-select:none;
+    max-width:min(300px, calc(50% - 24px));box-sizing:border-box;
+  }
+  .map-glance:hover{border-color:var(--amber-dim);}
+  .map-glance .mg-compact{display:none;}
+  .map-glance.collapsed{padding:7px 11px;}
+  .map-glance.collapsed .mg-full{display:none;}
+  .map-glance.collapsed .mg-compact{display:block;white-space:nowrap;
+    font-family:'Twemoji Country Flags','Courier Prime',monospace;font-size:11px;color:var(--text-dim);letter-spacing:.5px;}
+  .mg-compact b{font-family:'Playfair Display',serif;font-style:italic;font-weight:700;font-size:14px;color:var(--text);letter-spacing:0;margin-right:3px;}
+  .mg-compact .mg-chev, .mg-full .mg-chev{font-size:9px;color:var(--text-dim);}
+  .mg-full .glance-nums{padding-right:14px;}
+  .mg-full .mg-chev{position:absolute;top:8px;right:9px;}
+  .mg-full .glance-note{margin-top:4px;}
+  body.quiz-map .map-glance{display:none !important;}
   .legend-body > div.legend-credits{display:block;margin-top:6px;padding-top:5px;border-top:1px solid var(--line);font-size:9px;opacity:0.55;line-height:1.5;}
   /* подписи на контурной карте */
   .leaflet-labelPane-pane{pointer-events:none;}
@@ -1749,6 +1775,21 @@ svg.leaflet-image-layer.leaflet-interactive path {
     border:1px solid var(--line);border-radius:4px;
   }
   .tp-stop-spark:empty{display:none;}
+  .tp-route-map{position:relative;height:190px;border-radius:3px;overflow:hidden;cursor:pointer;margin:-2px -4px 4px;}
+  .tp-route-map > svg{position:absolute;left:0;top:0;width:100%;height:100%;}
+  .tp-route-map.has-map > svg{display:none;}
+  .tp-mini-map{position:absolute;inset:0;background:#CFE0DC;}
+  .tp-route-map.plain .tp-mini-map{background:#CFE0DC;}
+  [data-theme="dark"] .tp-route-map.plain .tp-mini-map{background:#18201E;}
+  /* рельеф чуть приглушаем в тон бумаге */
+  .tp-mini-map .leaflet-tile-pane{filter:sepia(.22) saturate(.85) brightness(1.02);}
+  [data-theme="dark"] .tp-mini-map .leaflet-tile-pane{filter:sepia(.25) saturate(.7) brightness(.72) contrast(1.05);}
+  .tp-mini-map .leaflet-control-attribution{font-size:8px;line-height:1.2;padding:0 4px;background:rgba(243,236,216,.75);}
+  .tp-map-label{background:rgba(243,236,216,.88);border:none;box-shadow:none;padding:0 4px;border-radius:2px;
+    font-family:'EB Garamond',Georgia,serif;font-size:11.5px;color:#2B3B2E;}
+  .tp-map-label::before{display:none;}
+  .tp-mini-map .leaflet-control-scale{margin:0 0 4px 6px;}
+  .tp-mini-map .leaflet-control-scale-line{font-size:9px;line-height:1.3;padding:0 4px;background:rgba(243,236,216,.75);border-color:#6E6547;color:#2B3B2E;}
   .route-spark{display:block;}
   .tp-stop-photo{
     width:100%;max-height:200px;object-fit:cover;
@@ -1889,6 +1930,58 @@ svg.leaflet-image-layer.leaflet-interactive path {
     padding:3px 8px;font-family:'Twemoji Country Flags','EB Garamond',serif;font-size:12px;color:var(--text);
   }
   .race-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;}
+  /* ---------- окно «Бег» ---------- */
+  .run-h{margin:22px 0 10px;font-family:'Twemoji Country Flags','Playfair Display',serif;font-style:italic;font-weight:700;font-size:18px;color:var(--text);
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .run-h::after{content:'';flex:1;height:1px;background:var(--line);min-width:20px;}
+  .run-hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px;margin-top:6px;}
+  .run-hero .tp-stat b{font-size:22px;}
+  .run-next{margin-top:12px;padding:12px 14px;border:1px solid var(--amber-dim);border-radius:6px;
+    background:linear-gradient(135deg, rgba(166,89,46,.12), rgba(166,89,46,.03));display:flex;gap:14px;align-items:center;}
+  .run-next-days{text-align:center;min-width:58px;font-family:'Playfair Display',serif;font-style:italic;font-weight:700;font-size:30px;line-height:1;color:var(--amber);}
+  .run-next-days small{display:block;font-family:'Courier Prime',monospace;font-style:normal;font-weight:400;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-top:4px;}
+  .run-next-body{font-size:13.5px;line-height:1.45;color:var(--text);}
+  .run-next-body b{font-weight:700;}
+  .run-next-body .hint{margin-top:3px;}
+  .pb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+  .pb-card{position:relative;border:1px solid var(--line);border-radius:6px;padding:12px 12px 10px;background:var(--panel-raised);overflow:hidden;}
+  .pb-card.has-pb{border-color:var(--amber-dim);}
+  .pb-card.has-pb::before{content:'';position:absolute;inset:0 0 auto 0;height:3px;background:var(--amber);}
+  .pb-dist{font-family:'Courier Prime',monospace;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--text-dim);}
+  .pb-time{font-family:'Playfair Display',serif;font-style:italic;font-weight:700;font-size:28px;line-height:1.1;color:var(--text);margin-top:4px;}
+  .pb-card:not(.has-pb) .pb-time{color:var(--text-dim);font-size:22px;}
+  .pb-pace{font-family:'Courier Prime',monospace;font-size:11px;color:var(--amber);margin-top:2px;}
+  .pb-meta{font-size:12px;color:var(--text-dim);margin-top:6px;line-height:1.35;}
+  .pb-delta{display:inline-block;margin-top:6px;font-family:'Courier Prime',monospace;font-size:10px;padding:1px 6px;border-radius:10px;border:1px solid var(--sage);color:var(--sage);}
+  .pb-pred{margin-top:6px;font-size:12px;color:var(--text-dim);font-style:italic;}
+  .medal-wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:12px 8px;}
+  .medal{text-align:center;cursor:default;padding:4px 2px;border-radius:6px;}
+  .medal.clickable{cursor:pointer;}
+  .medal.clickable:hover{background:var(--panel-raised);}
+  .medal svg{width:64px;height:84px;display:block;margin:0 auto;filter:drop-shadow(0 2px 2px rgba(40,30,15,.25));}
+  .medal-name{font-size:12.5px;line-height:1.25;color:var(--text);margin-top:4px;}
+  .medal-meta{font-family:'Courier Prime',monospace;font-size:9.5px;color:var(--text-dim);margin-top:2px;line-height:1.4;}
+  .medal-meta b{color:var(--amber);font-weight:400;}
+  .medal.upcoming svg{filter:none;opacity:.8;}
+  .run-toggle{display:inline-flex;border:1px solid var(--line);border-radius:14px;overflow:hidden;order:2;}
+  .run-toggle button{border:none;background:none;padding:3px 10px;font-family:'EB Garamond',serif;font-style:normal;font-weight:400;font-size:13px;color:var(--text-dim);cursor:pointer;}
+  .run-toggle button[aria-selected="true"]{background:var(--sage);color:var(--on-accent);}
+  .run-prog svg{width:100%;display:block;overflow:visible;}
+  .run-prog .axis{font-family:'Courier Prime',monospace;font-size:10px;fill:var(--text-dim);}
+  .run-prog-legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--text-dim);margin-top:6px;}
+  .run-prog-legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0;}
+  .run-cal{display:grid;grid-template-columns:44px repeat(12, minmax(0,1fr)) 54px;gap:3px;align-items:center;font-family:'Courier Prime',monospace;font-size:10px;color:var(--text-dim);}
+  .run-cal .rc-m{text-align:center;font-size:9px;}
+  .run-cal .rc-y{font-family:'Playfair Display',serif;font-style:italic;font-weight:700;font-size:14px;color:var(--text);}
+  .run-cal .rc-c{height:26px;border-radius:3px;background:var(--panel-raised);border:1px solid var(--line);position:relative;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--on-accent);}
+  .run-cal .rc-c.medal-m::after{content:'';position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:#C9A227;border:1px solid var(--panel);}
+  .run-cal .rc-t{text-align:right;color:var(--text);}
+  .run-cal-note{font-size:12px;color:var(--text-dim);margin-top:8px;}
+  @media (max-width:600px){
+    .run-cal{grid-template-columns:34px repeat(12, minmax(0,1fr)) 40px;gap:2px;}
+    .run-cal .rc-c{height:22px;font-size:0;}
+    .pb-time{font-size:24px;}
+  }
   .race-table th{
     text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);
     font-family:'Twemoji Country Flags','Courier Prime',monospace;font-size:8.5px;
@@ -1935,6 +2028,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     background:var(--panel-raised);
   }
   #glanceBar:empty{display:none;}
+  #glanceBar{display:none !important;} /* сводка переехала на карту */
   .glance-nums{
     display:flex;align-items:baseline;flex-wrap:wrap;
     gap:4px 10px;
@@ -2644,6 +2738,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .stats{display:none;}
     .timeline-bar{left:8px;right:8px;bottom:12px;padding:8px 10px;gap:8px;}
     .legend{bottom:66px;right:8px;font-size:10px;padding:8px 10px;max-width:62%;}
+    .map-glance{bottom:66px;left:8px;max-width:calc(100% - 190px);padding:7px 10px 8px;}
+    .map-glance .glance-num{font-size:16px;}
     .legend-body > div{gap:5px;margin-top:3px;}
     .timeline-year{font-size:16px;min-width:40px;}
     #timelineModeBtn{padding:0 8px;font-size:10.5px;}
@@ -2707,6 +2803,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .stats{display:none;}
     #scrollTopBtn{position:absolute;left:208px;right:auto;top:auto;bottom:12px;width:30px;height:30px;font-size:13px;}
     .legend{bottom:54px;right:8px;font-size:9px;padding:6px 8px;max-width:46%;}
+    .map-glance{bottom:54px;}
     .timeline-bar{left:8px;right:8px;bottom:6px;padding:6px 9px;gap:7px;}
     .modal-panel{max-height:94vh;}
     .pp-spread{flex-direction:row;}
@@ -2786,7 +2883,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   @media (max-width:768px){ .quiz-map-panel{left:54px;right:8px;width:auto;transform:none;top:10px;padding:8px 10px;} .quiz-map-panel .quiz-q{font-size:17px;} }
   .quiz-map-panel .quiz-actions{margin-top:8px;}
   .quiz-map-panel .quiz-feedback{min-height:0;margin-top:6px;font-size:13px;}
-  #mnavBar, #mnavSheetHead, #moreSection{display:none;}
+  #mnavBar, #mnavSheetHead, #moreSection, #listSwitch{display:none;}
   @media (max-width:768px) and (min-height:601px){
     body.mnav{padding-bottom:calc(58px + env(safe-area-inset-bottom, 0px));}
     body.mnav header{padding:9px 14px;flex-wrap:nowrap;}
@@ -2818,6 +2915,15 @@ svg.leaflet-image-layer.leaflet-interactive path {
     /* в списке сначала поиск и сами записи, статистика — после */
     body.mnav #mnavSheetHead{order:-10;}
     body.mnav #glanceBar{order:-3;}
+    /* переключатель «Записи / Статистика»: длинный список больше не отделяет от статистики */
+    body.mnav.mtab-list #sidebar > #listSwitch{display:flex;}
+    body.mnav #listSwitch{order:-4;position:sticky;top:61px;z-index:4;gap:6px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line);}
+    body.mnav #listSwitch button{flex:1;padding:8px 6px;border:1px solid var(--line);border-radius:18px;background:var(--panel-raised);color:var(--text-dim);
+      font-family:'EB Garamond',serif;font-size:14px;cursor:pointer;}
+    body.mnav #listSwitch button[aria-selected="true"]{background:var(--sage);border-color:var(--sage);color:var(--on-accent);}
+    body.mnav #listSwitch button span{opacity:.75;font-size:12px;}
+    body.mnav.list-stats #mnavSearchSection, body.mnav.list-stats #entryList{display:none !important;}
+    body.mnav:not(.list-stats) #mnavStatsSection{display:none !important;}
     body.mnav #mnavSearchSection{order:-2;}
     body.mnav #entryList{order:-1;flex:none;overflow:visible;}
     body.mnav #mnavSheetHead{
@@ -3123,7 +3229,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <datalist id="tripDatalist"></datalist>
 
       <label>Цвет на карте</label>
-      <input type="color" id="fieldColor" value="#A6592E" style="height:36px;padding:3px;cursor:pointer;">
+      <div class="color-row">
+        <div class="color-swatches" id="colorSwatches" role="radiogroup" aria-label="Цвет на карте"></div>
+        <input type="color" id="fieldColor" value="#A6592E" list="colorPresets" title="Свой цвет" aria-label="Свой цвет">
+        <datalist id="colorPresets"></datalist>
+      </div>
 
       <label>Ссылки на фото/видео (облако, каждая с новой строки)</label>
       <textarea id="fieldPhoto" placeholder="https://...&#10;https://... (например, фото и отдельно дрон-съёмка)" style="min-height:60px;"></textarea>
@@ -3254,6 +3364,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div class="hint" id="backupHint">Отметки хранятся только в этом браузере на этом устройстве. Файл — подстраховка на случай очистки данных или смены телефона: храните его у себя.</div>
     </div>
 
+    <div id="listSwitch" data-mtab="list" role="tablist" aria-label="Что показать">
+      <button type="button" role="tab" data-lsw="entries" aria-selected="true">Записи <span id="listSwitchCount"></span></button>
+      <button type="button" role="tab" data-lsw="stats" aria-selected="false">Статистика</button>
+    </div>
     <div class="section" id="mnavStatsSection" data-mtab="list">
       <p class="section-title">Статистика (с учётом фильтров)</p>
       <div class="stat-grid">
@@ -3295,8 +3409,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
       <p class="section-title" style="margin-top:16px;">Топ-5 городов по визитам</p>
       <div class="top-list" id="topCitiesList"></div>
-      <p class="section-title" style="margin-top:16px;" id="ruRegionsTitle">Регионы России</p>
-      <div id="ruRegionsList" class="ru-regions-list"></div>
+      <p class="section-title" style="margin-top:16px;" id="ruRegionsTitle">Топ-5 регионов России по визитам</p>
+      <div id="ruRegionsList" class="top-list"></div>
     </div>
 
     <div class="section" id="mnavSearchSection" data-mtab="list" style="flex:0;padding-bottom:10px;">
@@ -3321,6 +3435,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <button id="mapFullBtn" class="topo-toggle-btn map-full-btn" title="Развернуть карту на весь экран" aria-label="Развернуть карту на весь экран">⤢</button>
       <button id="topoToggleBtn" class="topo-toggle-btn" title="Переключить на рельефную карту" aria-label="Переключить на рельефную карту">🏔 Рельеф</button>
     </div>
+    <div class="map-glance" id="mapGlance" role="button" tabindex="0" aria-expanded="true" title="Свернуть сводку" style="display:none;">
+      <div class="mg-compact" id="mapGlanceCompact"></div>
+      <div class="mg-full" id="mapGlanceFull"></div>
+    </div>
     <div class="legend" id="legend">
       <button class="legend-toggle" id="legendToggle" aria-expanded="true" aria-controls="legendBody" title="Свернуть легенду">
         <span>Легенда</span><span class="legend-chevron">▾</span>
@@ -3336,7 +3454,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
         <div class="legend-credits">флаги: <a href="https://github.com/twitter/twemoji" target="_blank" rel="noopener" style="color:inherit;">Twemoji</a>, CC BY 4.0 · города: Natural Earth, <a href="https://github.com/hflabs/city" target="_blank" rel="noopener" style="color:inherit;">hflabs/city</a>, CC BY-SA 4.0 · границы: Natural Earth, регионы: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:inherit;">OpenStreetMap</a> (ODbL)</div>
-        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.49</div>
+        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.51</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -3564,12 +3682,25 @@ svg.leaflet-image-layer.leaflet-interactive path {
     <div class="modal-sub" id="runningSummary"></div>
     <div class="table-wrap">
       <div style="padding:0 20px 18px;">
-        <div class="stat-grid" id="runTotals"></div>
+        <div class="run-hero" id="runTotals"></div>
+        <div id="runNext"></div>
 
-        <p class="section-title" style="margin-top:18px;">Темп по годам <span style="font-style:italic;color:var(--text-dim);text-transform:none;letter-spacing:0;">(ниже столбик — быстрее)</span></p>
-        <div id="paceTrendChart"></div>
+        <p class="run-h">Личные рекорды</p>
+        <div class="pb-grid" id="runPBs"></div>
 
-        <p class="section-title" style="margin-top:18px;">Лучший темп по дистанциям</p>
+        <p class="run-h">Стена медалей</p>
+        <div class="medal-wall" id="runMedals"></div>
+
+        <p class="run-h">Прогрессия
+          <span class="run-toggle" id="runProgToggle" role="tablist">
+            <button type="button" data-prog="pace" aria-selected="true">темп</button><button type="button" data-prog="share" aria-selected="false">обогнал</button>
+          </span></p>
+        <div id="runProgress"></div>
+
+        <p class="run-h">Календарь пробежек</p>
+        <div id="runCalendar"></div>
+
+        <p class="section-title" style="margin-top:18px;">Лучший темп по дистанциям <span style="font-style:italic;color:var(--text-dim);text-transform:none;letter-spacing:0;">(включая трейлы и треки)</span></p>
         <div class="stat-grid" id="bestPaceList"></div>
 
         <p class="section-title" style="margin-top:18px;">Предстоящие старты</p>
@@ -3915,6 +4046,25 @@ const STATUSES = [
   { key: 'wishlist', ru: 'Хочу посетить' }
 ];
 const DEFAULT_COLOR = { country: '#A6592E', city: '#3F5240', route: '#3F5240' };
+// готовые цвета в палитре формы — в тон карте
+const COLOR_PRESETS = ['#A6592E', '#3F5240', '#4F6A86', '#B8862B', '#7A3E5A', '#2E6F73'];
+document.getElementById('colorSwatches').addEventListener('click', e => { const b = e.target.closest('[data-color]'); if(b) setFieldColor(b.dataset.color); });
+document.getElementById('fieldColor').addEventListener('input', () => renderColorSwatches());
+setTimeout(() => renderColorSwatches(), 0);
+function setFieldColor(v){ const el = document.getElementById('fieldColor'); if(el){ el.value = v; renderColorSwatches(); } }
+function renderColorSwatches(){
+  const box = document.getElementById('colorSwatches');
+  const input = document.getElementById('fieldColor');
+  if(!box || !input) return;
+  const type = (typeof currentType !== 'undefined' && currentType) || 'country';
+  const def = DEFAULT_COLOR[type] || '#3F5240';
+  const cur = (input.value || '').toLowerCase();
+  const presets = COLOR_PRESETS.filter(c => c.toLowerCase() !== def.toLowerCase());
+  box.innerHTML = `<button type="button" class="color-sw is-default" role="radio" data-color="${def}" style="--sw:${def};" aria-checked="${cur === def.toLowerCase()}" title="Цвет по умолчанию для этого типа">по умолчанию</button>` +
+    presets.map(c => `<button type="button" class="color-sw" role="radio" data-color="${c}" style="background:${c};" aria-checked="${cur === c.toLowerCase()}" aria-label="Цвет ${c}"></button>`).join('');
+  const dl = document.getElementById('colorPresets');
+  if(dl) dl.innerHTML = [def, ...presets].map(c => `<option value="${c}"></option>`).join('');
+}
 const HOME_LOCATION = { name: 'Москва, Россия', lat: 55.7558, lng: 37.6173 };
 const HOME_CITY_NAME = HOME_LOCATION.name.split(',')[0].trim();
 const CONTINENT_ORDER = ['Европа','Азия','Африка','Северная Америка','Южная Америка','Австралия и Океания','Антарктида'];
@@ -4913,7 +5063,7 @@ function applyTypeUI(type){
     statusToggle.style.opacity = isRoute ? '0.4' : '1';
     statusToggle.style.pointerEvents = isRoute ? 'none' : 'auto';
     statusLabel.style.opacity = isRoute ? '0.4' : '1';
-    if(!editingId) document.getElementById('fieldColor').value = DEFAULT_COLOR[currentType];
+    if(!editingId) setFieldColor(DEFAULT_COLOR[currentType]); else renderColorSwatches();
 }
 document.querySelectorAll('.type-btn[data-type]').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -5891,9 +6041,8 @@ function formatDuration(min){
 }
 function formatPace(minPerKm){
   if(!minPerKm || !isFinite(minPerKm)) return null;
-  const m = Math.floor(minPerKm);
-  const s = Math.round((minPerKm - m) * 60);
-  return `${m}:${String(s).padStart(2,'0')} /км`;
+  const total = Math.round(minPerKm * 60); // 4:59.6 → 5:00, а не «4:60»
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2,'0')} /км`;
 }
 
 function buildActivityBreakdownHtml(byActivity){
@@ -6063,8 +6212,11 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     }
 
     if(pendingGpxList.length === 0){ toast('Загрузите один или несколько GPX-файлов'); return; }
-    pendingGpxList.forEach(g=>{
-      const routeName = name ? `${name} — ${g.baseName}` : g.baseName;
+    const multi = pendingGpxList.length > 1;
+    pendingGpxList.forEach((g, gi)=>{
+      // заданное название — как есть; имя файла — только если название пустое.
+      // Несколько файлов под одним названием различаем номером
+      const routeName = name ? (multi ? `${name} (${gi + 1})` : name) : g.baseName;
       allEntries.push({
         id: genId(), type:'route', name: routeName, year: g.startYear || year, month: g.startMonth || month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, community, season: (g.startMonth && seasonForMonth(g.startMonth)) || season, color, activity, status: 'visited', trip, tripOrder: nextTripOrder(trip),
         coordsEncoded: encodePolyline(g.coords), segBreaks: (g.segBreaks && g.segBreaks.length) ? g.segBreaks : undefined, distanceKm: g.distanceKm,
@@ -6131,7 +6283,7 @@ function exitEditMode(fullReset){
   document.getElementById('editWaypointsField').style.display = 'none';
   editWaypointIndex = -1;
   document.getElementById('fieldFavorite').checked = false;
-  document.getElementById('fieldColor').value = DEFAULT_COLOR[currentType];
+  setFieldColor(DEFAULT_COLOR[currentType]);
   currentStatus = 'visited';
   document.querySelectorAll('.type-btn[data-status]').forEach(b => b.classList.toggle('active', b.dataset.status === 'visited'));
   if(!fullReset) return; // после сохранения оставляем когда/зачем/с кем — обычно следующая точка из той же поездки
@@ -7632,6 +7784,8 @@ let listLimit = LIST_PAGE;
 function renderList(precomputedVisible){
   const container = document.getElementById('entryList');
   const visible = (precomputedVisible || allEntries.filter(passesFilter)).slice().sort((a,b)=> b.year - a.year || a.name.localeCompare(b.name));
+  const lc = document.getElementById('listSwitchCount');
+  if(lc) lc.textContent = visible.length ? String(visible.length) : '';
   if(visible.length === 0){
     // «данных нет вообще» и «фильтры всё отсеяли» — разные ситуации,
     // и подсказка нужна разная: во втором случае с кнопкой сброса
@@ -7838,7 +7992,7 @@ function startEdit(entry){
   document.getElementById('fieldCommunity').value = entry.community || '';
   updateCommunityVisibility();
   document.getElementById('fieldSeason').value = entry.season || 'summer';
-  document.getElementById('fieldColor').value = entry.color || DEFAULT_COLOR[entry.type];
+  setFieldColor(entry.color || DEFAULT_COLOR[entry.type]);
   if(entry.type === 'route'){
     document.getElementById('fieldActivity').value = entry.activity || 'hiking';
     document.getElementById('fieldTrackDays').value = entry.trackDays || 1;
@@ -8037,7 +8191,7 @@ function renderGlance(){
   const bar = document.getElementById('glanceBar');
   if(!bar) return;
   const visited = allEntries.filter(e => e.status !== 'wishlist');
-  if(visited.length === 0){ bar.innerHTML = ''; return; }
+  if(visited.length === 0){ bar.innerHTML = ''; const card = document.getElementById('mapGlance'); if(card) card.style.display = 'none'; return; }
 
   // Считаем ровно так же, как блок статистики ниже: города включают остановки
   // маршрутов, иначе под одним словом «городов» стояли бы два разных числа.
@@ -8054,6 +8208,17 @@ function renderGlance(){
   bar.innerHTML =
     `<div class="glance-nums">${nums.join('<span class="glance-sep">·</span>')}</div>` +
     (note ? `<div class="glance-note">${note}</div>` : '');
+  // то же — карточкой на карте (в боковой панели полоса больше не показывается)
+  const card = document.getElementById('mapGlance');
+  if(card){
+    card.style.display = '';
+    document.getElementById('mapGlanceFull').innerHTML = '<span class="mg-chev" aria-hidden="true">▾</span>' + bar.innerHTML;
+    const parts = [];
+    if(countries.size) parts.push(`<b>${countries.size}</b>стр.`);
+    if(cities.size) parts.push(`<b>${cities.size}</b>гор.`);
+    if(countries.size) parts.push(`<b>${pct}%</b>мира`);
+    document.getElementById('mapGlanceCompact').innerHTML = parts.join(' · ') + ' <span class="mg-chev" aria-hidden="true">▸</span>';
+  }
 }
 
 function updateStats(){
@@ -10600,6 +10765,297 @@ function updateRunningButton(){
   btn.style.display = (getRuns().length > 0 || races.length > 0) ? '' : 'none';
 }
 
+// ---------- «Бег»: рекорды, медали, прогрессия, календарь ----------
+const RUN_DISTS = [
+  { key: '5',  label: '5 км',        km: 5,       lo: 4.8,  hi: 5.4,  tone: 'bronze' },
+  { key: '10', label: '10 км',       km: 10,      lo: 9.6,  hi: 10.7, tone: 'silver' },
+  { key: '21', label: 'Полумарафон', km: 21.0975, lo: 20.6, hi: 21.7, tone: 'gold' },
+  { key: '42', label: 'Марафон',     km: 42.195,  lo: 41.5, hi: 43.2, tone: 'royal' }
+];
+const RUN_TONE_COLORS = { bronze: '#B0703C', silver: '#8D9496', gold: '#C9A227', royal: '#A6592E', other: '#6E7F6A' };
+function runDistOf(km){ return RUN_DISTS.find(d => km >= d.lo && km <= d.hi) || null; }
+function raceDateObj(r){ return r.date ? new Date(r.date + 'T12:00:00') : null; }
+// Все результаты: официальные старты (время с протокола) и пробежки по трекам
+// (время в движении, шоссе — трейлы по темпу несравнимы)
+function runPerformances(){
+  const out = [];
+  races.filter(r => raceStatus(r) === 'done').forEach(r => {
+    const min = parseRaceTime(r.time), d = raceDateObj(r);
+    if(!min || !r.distanceKm || !d || isNaN(d)) return;
+    out.push({ src: 'race', id: r.id, name: r.name || 'Старт', date: d, km: r.distanceKm, min, pace: min / r.distanceKm,
+      share: raceShare(r), place: r.place, participants: r.participants, city: r.city, dist: runDistOf(r.distanceKm) });
+  });
+  getRuns().forEach(e => {
+    if(!e.durationMin || !e.distanceKm || !e.year || e.terrain === 'trail') return;
+    out.push({ src: 'track', id: e.id, name: e.name, date: new Date(e.year, (e.month || 6) - 1, 15, 12), km: e.distanceKm, min: e.durationMin,
+      pace: e.durationMin / e.distanceKm, dist: runDistOf(e.distanceKm), approxDate: !e.month });
+  });
+  return out.sort((a, b) => a.date - b.date);
+}
+// Рекорды по дистанциям: официальные старты главнее треков — у трека время
+// «в движении» и дистанция по GPS. Трек идёт в зачёт, только если стартов на дистанции нет.
+function runPBs(perfs){
+  const res = {};
+  RUN_DISTS.forEach(d => {
+    const all = perfs.filter(p => p.dist === d);
+    const pool = all.some(p => p.src === 'race') ? all.filter(p => p.src === 'race') : all;
+    // время приводим к точной дистанции по темпу: 10,0 и 9,9 км сравнимы
+    let best = null, prev = null;
+    pool.forEach(p => {
+      const t = p.pace * d.km;
+      // показываем настоящее время старта; к ровной дистанции пересчитываем только для сравнения и для треков
+      if(!best || t < best.t - 1e-9){ prev = best; best = { ...p, t, shown: p.src === 'race' ? p.min : t }; }
+    });
+    res[d.key] = { d, best, prev, count: all.length, pool };
+  });
+  return res;
+}
+// Прогноз по формуле Ригеля T2 = T1 · (D2/D1)^1.06 — от лучшего свежего результата (2 года)
+function riegelPredict(perfs, km){
+  const since = Date.now() - 730 * 86400000;
+  let best = null;
+  perfs.filter(p => p.src === 'race' && p.date.getTime() >= since && p.km >= 3).forEach(p => {
+    const t = p.min * Math.pow(km / p.km, 1.06);
+    if(!best || t < best.t) best = { t, from: p };
+  });
+  return best;
+}
+function fmtDelta(min){
+  const s = Math.round(Math.abs(min) * 60);
+  return (min < 0 ? '−' : '+') + (s >= 3600 ? `${Math.floor(s/3600)}:${String(Math.floor(s%3600/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}` : `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`);
+}
+const fmtRunDate = d => d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+
+function renderRunHero(perfs){
+  const runs = getRuns();
+  const done = races.filter(r => raceStatus(r) === 'done');
+  const totalKm = runs.reduce((s, r) => s + (r.distanceKm || 0), 0);
+  const totalMin = runs.reduce((s, r) => s + (r.durationMin || 0), 0);
+  const totalGain = runs.reduce((s, r) => s + (r.elevationGain || 0), 0);
+  const raceKm = done.reduce((s, r) => s + (r.distanceKm || 0), 0);
+  const tiles = [];
+  if(runs.length) tiles.push([totalKm >= 100 ? Math.round(totalKm) : totalKm.toFixed(1), 'км по трекам']);
+  if(done.length) tiles.push([done.length, done.length === 1 ? 'старт' : done.length < 5 ? 'старта' : 'стартов']);
+  if(done.length) tiles.push([Math.round(raceKm), 'км на стартах']);
+  if(runs.length) tiles.push([runs.length, 'пробежек']);
+  if(totalMin) tiles.push([Math.floor(totalMin / 60) + ' ч', 'в движении']);
+  if(totalGain) tiles.push([Math.round(totalGain).toLocaleString('ru-RU'), 'м набора']);
+  document.getElementById('runTotals').innerHTML = tiles.map(([v, l]) => `<div class="tp-stat"><b>${escapeHtml(String(v))}</b><span>${escapeHtml(l)}</span></div>`).join('');
+  // ближайший старт: обратный отсчёт, рекорд на этой дистанции и прогноз
+  const next = races.filter(r => raceStatus(r) === 'upcoming' && r.date && daysUntil(r.date) >= 0)
+                    .sort((a, b) => a.date.localeCompare(b.date))[0];
+  const box = document.getElementById('runNext');
+  if(!next){ box.innerHTML = ''; return; }
+  const left = daysUntil(next.date);
+  const d = next.distanceKm ? runDistOf(next.distanceKm) : null;
+  const pb = d ? runPBs(perfs)[d.key].best : null;
+  const pred = next.distanceKm ? riegelPredict(perfs, next.distanceKm) : null;
+  const lines = [];
+  if(pb) lines.push(`Рекорд на дистанции — <b>${formatRaceTime(pb.shown)}</b> (${formatPace(pb.pace)}), ${escapeHtml(pb.name)}. Чтобы побить — быстрее ${formatPace(pb.pace)}.`);
+  if(pred) lines.push(`Прогноз по лучшему свежему старту — <b>${formatRaceTime(pred.t)}</b> (${formatPace(pred.t / next.distanceKm)}).`);
+  box.innerHTML = `<div class="run-next">
+    <div class="run-next-days">${left}<small>${left === 0 ? 'сегодня' : daysWord(left)}</small></div>
+    <div class="run-next-body"><b>${escapeHtml(next.name || 'Старт')}</b> · ${next.distanceKm ? next.distanceKm.toFixed(1) + ' км' : ''} · ${escapeHtml(fmtRunDate(raceDateObj(next)))}
+      ${lines.map(l => `<div class="hint">${l}</div>`).join('')}</div></div>`;
+}
+
+function renderRunPBs(perfs){
+  const pbs = runPBs(perfs);
+  document.getElementById('runPBs').innerHTML = RUN_DISTS.map(d => {
+    const { best, prev, count } = pbs[d.key];
+    if(!best){
+      const pred = riegelPredict(perfs, d.km);
+      return `<div class="pb-card"><div class="pb-dist">${d.label}</div><div class="pb-time">—</div>
+        ${pred ? `<div class="pb-pred">прогноз ≈ ${formatRaceTime(pred.t)} · ${formatPace(pred.t / d.km)}</div>` : `<div class="pb-pred">ещё не бегали</div>`}</div>`;
+    }
+    const delta = prev ? best.t - prev.t : null;
+    return `<div class="pb-card has-pb"><div class="pb-dist">${d.label}${count > 1 ? ` · попыток ${count}` : ''}</div>
+      <div class="pb-time">${formatRaceTime(best.shown)}</div>
+      <div class="pb-pace">${formatPace(best.pace)}</div>
+      <div class="pb-meta">${escapeHtml(best.name)}<br>${best.approxDate ? best.date.getFullYear() : escapeHtml(fmtRunDate(best.date))}${best.src === 'track' ? ' · по треку' : ''}</div>
+      ${delta != null ? `<span class="pb-delta" title="К предыдущему рекорду: ${formatRaceTime(prev.shown)}">${fmtDelta(delta)} к прошлому</span>` : ''}</div>`;
+  }).join('');
+}
+
+function medalSvg(i, tone, label, opts){
+  const c = RUN_TONE_COLORS[tone] || RUN_TONE_COLORS.other;
+  const up = opts && opts.upcoming;
+  const ribbonL = up ? 'none' : '#A6592E', ribbonR = up ? 'none' : '#3F5240';
+  return `<svg viewBox="0 0 64 84" aria-hidden="true">
+    <defs><radialGradient id="mg${i}" cx="38%" cy="32%" r="75%"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".45" stop-color="${c}"/><stop offset="1" stop-color="${c}" stop-opacity=".85"/></radialGradient></defs>
+    <path d="M16 0h13l9 30h-13z" fill="${ribbonL}" stroke="${up ? 'var(--line)' : 'none'}" stroke-dasharray="${up ? '3 3' : ''}"/>
+    <path d="M48 0H35l-9 30h13z" fill="${ribbonR}" stroke="${up ? 'var(--line)' : 'none'}" stroke-dasharray="${up ? '3 3' : ''}"/>
+    <circle cx="32" cy="55" r="25" fill="${up ? 'none' : `url(#mg${i})`}" stroke="${up ? 'var(--text-dim)' : 'rgba(60,40,10,.45)'}" stroke-width="${up ? 1.5 : 1}" stroke-dasharray="${up ? '4 3' : ''}"/>
+    <circle cx="32" cy="55" r="19.5" fill="none" stroke="${up ? 'none' : 'rgba(255,255,255,.45)'}" stroke-width="1"/>
+    <text x="32" y="${label.length > 3 ? 59 : 61}" text-anchor="middle" font-family="Playfair Display, serif" font-style="italic" font-weight="700" font-size="${label.length > 3 ? 13 : 17}" fill="${up ? 'var(--text-dim)' : '#2B2416'}">${escapeHtml(label)}</text>
+    ${opts && opts.pb ? `<text x="51" y="36" text-anchor="middle" font-size="12" fill="#C9A227" stroke="#5A4510" stroke-width=".4">★</text>` : ''}
+  </svg>`;
+}
+function renderRunMedals(perfs){
+  const pbs = runPBs(perfs);
+  const pbIds = new Set(Object.values(pbs).map(x => x.best && x.best.src === 'race' ? x.best.id : null).filter(Boolean));
+  const runs = getRuns();
+  const done = races.filter(r => raceStatus(r) === 'done').sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  const upcoming = races.filter(r => raceStatus(r) === 'upcoming').sort((a, b) => String(a.date || '9').localeCompare(String(b.date || '9')));
+  // трек того же старта: тот же месяц и близкая дистанция — по нему можно показать забег на карте
+  const trackFor = r => {
+    const d = raceDateObj(r);
+    if(!d || !r.distanceKm) return null;
+    return runs.find(e => e.year === d.getFullYear() && e.month === d.getMonth() + 1 && e.distanceKm && Math.abs(e.distanceKm - r.distanceKm) / r.distanceKm < 0.25) || null;
+  };
+  const label = km => { const d = runDistOf(km || 0); return d ? (d.key === '21' ? '21.1' : d.key === '42' ? '42.2' : d.key) : (km ? (Math.round(km * 10) / 10).toString().replace('.0', '') : '?'); };
+  let i = 0;
+  const cards = [];
+  upcoming.forEach(r => {
+    const left = daysUntil(r.date);
+    cards.push(`<div class="medal upcoming">${medalSvg(i++, 'other', label(r.distanceKm), { upcoming: true })}
+      <div class="medal-name">${escapeHtml(r.name || 'Старт')}</div>
+      <div class="medal-meta">${left == null ? 'дата не указана' : left < 0 ? 'впишите результат' : left === 0 ? 'сегодня' : `через ${left} ${daysWord(left)}`}</div></div>`);
+  });
+  done.forEach(r => {
+    const d = runDistOf(r.distanceKm || 0);
+    const min = parseRaceTime(r.time);
+    const sh = raceShare(r);
+    const track = trackFor(r);
+    const date = raceDateObj(r);
+    cards.push(`<div class="medal${track ? ' clickable' : ''}" ${track ? `data-medal-track="${escapeAttr(track.id)}" title="Показать трек на карте"` : ''}>
+      ${medalSvg(i++, d ? d.tone : 'other', label(r.distanceKm), { pb: pbIds.has(r.id) })}
+      <div class="medal-name">${escapeHtml(r.name || 'Старт')}</div>
+      <div class="medal-meta">${date ? escapeHtml(fmtRunDate(date)) : ''}${min ? `<br>${formatRaceTime(min)}` : ''}${sh != null ? ` · <b>топ ${sh < 1 ? sh.toFixed(1) : Math.round(sh)}%</b>` : ''}</div></div>`);
+  });
+  const box = document.getElementById('runMedals');
+  box.innerHTML = cards.length ? cards.join('') : `<div class="hint">Добавьте официальные старты ниже — здесь появятся медали.</div>`;
+}
+
+let runProgMode = 'pace';
+const SVG_TIP = 'title'; // всплывающая подсказка точки; тег собираем так, чтобы сборка не путала его с заголовком страницы
+function renderRunProgress(perfs){
+  const box = document.getElementById('runProgress');
+  const share = runProgMode === 'share';
+  const pts = share ? perfs.filter(p => p.src === 'race' && p.share != null).map(p => ({ ...p, y: 100 - p.share }))
+                    : perfs.map(p => ({ ...p, y: p.pace }));
+  if(pts.length < 2){ box.innerHTML = `<div class="hint">${share ? 'Нужно хотя бы два старта с местом и числом участников.' : 'Нужно хотя бы два результата со временем.'}</div>`; return; }
+  const W = Math.max(280, Math.min(760, (box.clientWidth || 600))), H = 210, L0 = 46, R0 = 10, T0 = 12, B0 = 26;
+  const xs = pts.map(p => p.date.getTime());
+  let x0 = Math.min(...xs), x1 = Math.max(...xs);
+  if(x1 - x0 < 60 * 86400000){ x0 -= 30 * 86400000; x1 += 30 * 86400000; }
+  const ys = pts.map(p => p.y);
+  let y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const padY = (y1 - y0) * 0.15 || (share ? 5 : 0.2);
+  y0 -= padY; y1 += padY;
+  if(share){ y0 = Math.max(0, y0); y1 = Math.min(100, y1); }
+  const X = t => L0 + (t - x0) / (x1 - x0) * (W - L0 - R0);
+  // темп: быстрее — выше; «обогнал»: больше — выше
+  const Y = v => share ? T0 + (y1 - v) / (y1 - y0) * (H - T0 - B0) : T0 + (v - y0) / (y1 - y0) * (H - T0 - B0);
+  const ticks = [];
+  for(let k = 0; k <= 3; k++){
+    const v = y0 + (y1 - y0) * k / 3;
+    ticks.push(`<line x1="${L0}" x2="${W - R0}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="var(--line)" stroke-dasharray="2 4"/>
+      <text class="axis" x="${L0 - 6}" y="${(Y(v) + 3).toFixed(1)}" text-anchor="end">${share ? Math.round(v) + '%' : formatPace(v).replace(' /км', '')}</text>`);
+  }
+  const yearTicks = [];
+  for(let yv = new Date(x0).getFullYear(); yv <= new Date(x1).getFullYear() + 1; yv++){
+    const t = new Date(yv, 0, 1).getTime();
+    if(t < x0 || t > x1) continue;
+    yearTicks.push(`<line x1="${X(t).toFixed(1)}" x2="${X(t).toFixed(1)}" y1="${T0}" y2="${H - B0}" stroke="var(--line)"/>
+      <text class="axis" x="${(X(t) + 3).toFixed(1)}" y="${H - 8}">${yv}</text>`);
+  }
+  // линия тренда (МНК) и её смысл одной фразой
+  const n = pts.length, mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n;
+  let sxx = 0, sxy = 0;
+  pts.forEach(p => { sxx += (p.date.getTime() - mx) ** 2; sxy += (p.date.getTime() - mx) * (p.y - my); });
+  const k = sxx ? sxy / sxx : 0;
+  const tY = t => my + k * (t - mx);
+  const trend = `<line x1="${X(x0)}" x2="${X(x1)}" y1="${Y(tY(x0)).toFixed(1)}" y2="${Y(tY(x1)).toFixed(1)}" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="6 4" opacity=".8"/>`;
+  const perYear = k * 365 * 86400000;
+  const pbs = runPBs(perfs);
+  const pbKeys = new Set(Object.values(pbs).map(x => x.best && (x.best.src + x.best.id)).filter(Boolean));
+  const dots = pts.map(p => {
+    const c = p.dist ? RUN_TONE_COLORS[p.dist.tone] : RUN_TONE_COLORS.other;
+    const isPb = pbKeys.has(p.src + p.id);
+    const tip = `${p.name} · ${p.approxDate ? p.date.getFullYear() : fmtRunDate(p.date)} · ${p.km.toFixed(1)} км · ${formatRaceTime(p.min)} · ${formatPace(p.pace)}${p.share != null ? ` · топ ${Math.round(p.share)}%` : ''}${p.src === 'track' ? ' (по треку)' : ''}`;
+    return `<g><${SVG_TIP}>${escapeHtml(tip)}</${SVG_TIP}>${isPb ? `<circle cx="${X(p.date.getTime()).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="8.5" fill="none" stroke="#C9A227" stroke-width="1.5"/>` : ''}
+      <circle cx="${X(p.date.getTime()).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="${p.src === 'race' ? 5.5 : 4}" fill="${p.src === 'race' ? c : 'var(--panel)'}" stroke="${c}" stroke-width="${p.src === 'race' ? 1 : 2}"/></g>`;
+  }).join('');
+  const caption = share
+    ? (Math.abs(perYear) < 1 ? 'Доля обогнанных держится на одном уровне.' : `Тренд: ${perYear > 0 ? 'обгоняете больше' : 'обгоняете меньше'} — на ${Math.abs(perYear).toFixed(0)} п.п. в год.`)
+    : (Math.abs(perYear) < 1 / 60 ? 'Темп стабилен.' : `Тренд: темп ${perYear < 0 ? 'быстрее' : 'медленнее'} на ${fmtDelta(perYear).slice(1)} /км в год.`);
+  const used = new Set(pts.map(p => p.dist ? p.dist.key : 'other'));
+  const legend = [...RUN_DISTS.filter(d => used.has(d.key)).map(d => `<span><i style="background:${RUN_TONE_COLORS[d.tone]}"></i>${d.label}</span>`),
+    used.has('other') ? `<span><i style="background:${RUN_TONE_COLORS.other}"></i>другие</span>` : '',
+    share ? '' : `<span><i style="background:var(--panel);border:2px solid var(--text-dim);width:7px;height:7px;"></i>по треку</span>`,
+    `<span><i style="background:none;border:1.5px solid #C9A227;"></i>рекорд</span>`].join('');
+  box.innerHTML = `<div class="run-prog"><svg viewBox="0 0 ${W} ${H}" height="${H}">${ticks.join('')}${yearTicks.join('')}${trend}${dots}</svg>
+    <div class="run-prog-legend">${legend}</div><div class="run-cal-note">${caption} ${share ? 'Выше — больше участников позади.' : 'Выше — быстрее.'}</div></div>`;
+}
+
+function renderRunCalendar(){
+  const runs = getRuns();
+  const done = races.filter(r => raceStatus(r) === 'done');
+  const cells = new Map(); // 'год-месяц' → { km, n, race }
+  const cell = (y, m) => { const k = y + '-' + m; if(!cells.has(k)) cells.set(k, { km: 0, n: 0, race: [] }); return cells.get(k); };
+  runs.forEach(e => { if(!e.year || !e.month) return; const c = cell(e.year, e.month); c.km += e.distanceKm || 0; c.n++; });
+  done.forEach(r => {
+    const d = raceDateObj(r);
+    if(!d) return;
+    const c = cell(d.getFullYear(), d.getMonth() + 1);
+    c.race.push(r.name || 'старт');
+    // старт без трека — его километры тоже в календаре, но без двойного счёта
+    const has = runs.some(e => e.year === d.getFullYear() && e.month === d.getMonth() + 1 && e.distanceKm && r.distanceKm && Math.abs(e.distanceKm - r.distanceKm) / r.distanceKm < 0.25);
+    if(!has && r.distanceKm){ c.km += r.distanceKm; c.n++; }
+  });
+  const box = document.getElementById('runCalendar');
+  if(!cells.size){ box.innerHTML = `<div class="hint">Пробежек с датой пока нет.</div>`; return; }
+  const years = [...new Set([...cells.keys()].map(k => +k.split('-')[0]))].sort((a, b) => b - a);
+  const maxKm = Math.max(...[...cells.values()].map(c => c.km), 1);
+  const MON = ['я','ф','м','а','м','и','и','а','с','о','н','д'];
+  let html = `<div class="run-cal"><span></span>${MON.map(m => `<span class="rc-m">${m}</span>`).join('')}<span class="rc-m" style="text-align:right;">км</span>`;
+  years.forEach(y => {
+    let tot = 0;
+    html += `<span class="rc-y">${y}</span>`;
+    for(let m = 1; m <= 12; m++){
+      const c = cells.get(y + '-' + m);
+      if(!c){ html += `<span class="rc-c" title="${monthLabel(m) || m} ${y}: пробежек нет"></span>`; continue; }
+      tot += c.km;
+      const a = 0.18 + 0.82 * Math.min(1, c.km / maxKm);
+      const tip = `${monthLabel(m) || m} ${y}: ${c.n} ${c.n === 1 ? 'пробежка' : c.n < 5 ? 'пробежки' : 'пробежек'}, ${c.km.toFixed(1)} км${c.race.length ? ' · старты: ' + c.race.join(', ') : ''}`;
+      html += `<span class="rc-c${c.race.length ? ' medal-m' : ''}" style="background:rgba(63,82,64,${a.toFixed(2)});border-color:rgba(63,82,64,${Math.min(1, a + .1).toFixed(2)});" title="${escapeAttr(tip)}">${Math.round(c.km)}</span>`;
+    }
+    html += `<span class="rc-t">${Math.round(tot)}</span>`;
+  });
+  html += `</div><div class="run-cal-note">Чем темнее клетка — тем больше километров за месяц; золотая точка — месяц со стартом. Наведите или нажмите на клетку, чтобы увидеть подробности.</div>`;
+  box.innerHTML = html;
+}
+
+function renderRunExtras(){
+  const perfs = runPerformances();
+  renderRunHero(perfs);
+  renderRunPBs(perfs);
+  renderRunMedals(perfs);
+  renderRunProgress(perfs);
+  renderRunCalendar();
+}
+document.getElementById('runProgToggle').addEventListener('click', e => {
+  const b = e.target.closest('[data-prog]');
+  if(!b) return;
+  runProgMode = b.dataset.prog;
+  document.querySelectorAll('#runProgToggle [data-prog]').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+  renderRunProgress(runPerformances());
+});
+document.getElementById('runMedals').addEventListener('click', e => {
+  const m = e.target.closest('[data-medal-track]');
+  if(!m) return;
+  const entry = allEntries.find(x => x.id === m.dataset.medalTrack);
+  if(!entry) return;
+  document.getElementById('runningModal').style.display = 'none';
+  focusEntry(entry);
+});
+// клик по клетке календаря на телефоне — подсказка тостом (title там не показывается)
+document.getElementById('runCalendar').addEventListener('click', e => {
+  const c = e.target.closest('.rc-c[title]');
+  if(c) toast(c.getAttribute('title'));
+});
+
 function renderRunning(){
   const runs = getRuns();
   const summary = document.getElementById('runningSummary');
@@ -10615,10 +11071,9 @@ function renderRunning(){
     summary.textContent = races.length
       ? `Стартов записано: ${races.length} · беговых маршрутов пока нет`
       : 'Беговых маршрутов пока нет';
-    totals.innerHTML = '';
     list.innerHTML = `<div class="hint">Загрузите GPX с пробежкой — здесь появятся темп, дистанции и история забегов.</div>`;
-    renderPaceTrend([]);
     renderBestPaces([]);
+    renderRunExtras();
     return;
   }
 
@@ -10645,7 +11100,7 @@ function renderRunning(){
   if(totalMin > 0) cards.push(['Время в движении', hours >= 1 ? `${hours} ч ${Math.round(totalMin % 60)} мин` : `${Math.round(totalMin)} мин`]);
   if(fastest) cards.push(['Лучший темп', formatPace(fastest.durationMin / fastest.distanceKm)]);
   if(longest) cards.push(['Самый длинный', `${(longest.distanceKm||0).toFixed(1)} км`]);
-  totals.innerHTML = cards.map(([l,v]) => `<div class="stat-row"><span>${l}</span><b>${escapeHtml(v)}</b></div>`).join('');
+  void cards; // сводные цифры теперь плитками сверху (renderRunHero)
 
   // список забегов от свежих к старым
   const sorted = runs.slice().sort((a,b)=>(b.year||0)-(a.year||0) || (b.month||0)-(a.month||0));
@@ -10663,13 +11118,13 @@ function renderRunning(){
     </div>`;
   }).join('');
 
-  renderPaceTrend(allEntries.filter(e => e.status !== 'wishlist'));
   renderBestPaces(allEntries.filter(e => e.status !== 'wishlist'));
+  renderRunExtras();
 }
 
 document.getElementById('openRunningBtn').addEventListener('click', ()=>{
-  renderRunning();
   document.getElementById('runningModal').style.display = 'flex';
+  renderRunning();
 });
 document.getElementById('closeRunningModal').addEventListener('click', ()=>{
   document.getElementById('runningModal').style.display = 'none';
@@ -11201,7 +11656,127 @@ function openTripPage(tripName){
   document.getElementById('tripPageModal').style.display = 'flex';
 }
 
+// ---------- мини-карты маршрутов на странице поездки ----------
+// Раньше маршрут рисовался схемой поверх грубого контура страны — «кракозябра».
+// Теперь это настоящая маленькая карта: с сетью — рельеф и подписи OpenTopoMap,
+// без сети — подробные границы из borders/ и подписи остановок. Схема остаётся,
+// пока карта не загрузилась, и как запасной вариант.
+let tripMiniMaps = [];
+let tripMiniObserver = null;
+function destroyTripMiniMaps(){
+  tripMiniMaps.forEach(m => { try{ m.remove(); }catch(e){} });
+  tripMiniMaps = [];
+  if(tripMiniObserver){ tripMiniObserver.disconnect(); tripMiniObserver = null; }
+}
+function borderDetailAsync(tier, dk, timeoutMs){
+  return new Promise(resolve => {
+    const t0 = Date.now();
+    const tick = () => {
+      const got = borderLatLngs(tier, dk);
+      if(got && got[1] === tier) return resolve(got[0]);
+      if(Date.now() - t0 > (timeoutMs || 6000)) return resolve(got ? got[0] : null);
+      setTimeout(tick, 150);
+    };
+    tick();
+  });
+}
+function tripMiniOnline(){ return location.protocol !== 'file:' && navigator.onLine !== false && !tileFallbackDone; }
+function buildTripMiniMap(holder, entry, tripCities){
+  const coords = entryDrawCoords(entry);
+  const flat = getEntryCoords(entry);
+  if(!flat || flat.length < 2) return;
+  const el = document.createElement('div');
+  el.className = 'tp-mini-map';
+  holder.appendChild(el);
+  const m = L.map(el, { zoomControl: false, attributionControl: true, dragging: false, touchZoom: false, scrollWheelZoom: false,
+    doubleClickZoom: false, boxZoom: false, keyboard: false, tap: false, zoomSnap: 0.25, fadeAnimation: false });
+  m.attributionControl.setPrefix(false);
+  tripMiniMaps.push(m);
+  const bounds = L.latLngBounds(flat.map(c => [c[0], c[1]]));
+  const color = entry.color || DEFAULT_COLOR.route;
+  // подложка
+  const usePlain = () => {
+    holder.classList.add('plain');
+    const base = L.geoJSON(COUNTRIES_GEOJSON, { style: { color: '#B8A98A', weight: 0.8, fillColor: '#EFE7D2', fillOpacity: 1 }, interactive: false }).addTo(m);
+    base.bringToBack();
+    // подробные границы стран в кадре
+    const tier = 'f';
+    base.eachLayer(l => {
+      const k = l.feature && l.feature.properties && l.feature.properties.name;
+      const b = k && borderBBox('c:' + k);
+      if(!b || !b.intersects(bounds.pad(0.5))) return;
+      borderDetailAsync(tier, 'c:' + k).then(ll => { if(ll && m._loaded) l.setLatLngs(ll); });
+    });
+  };
+  if(tripMiniOnline()){
+    let ok = 0, bad = 0, switched = false;
+    const tiles = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17, referrerPolicy: TILE_REFERRER,
+      attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OSM</a>, <a href="https://opentopomap.org" target="_blank" rel="noopener">OpenTopoMap</a>' }).addTo(m);
+    tiles.on('tileload', () => { ok++; });
+    tiles.on('tileerror', () => { bad++; if(!ok && bad >= 3 && !switched){ switched = true; m.removeLayer(tiles); usePlain(); } });
+  } else usePlain();
+  // линия маршрута с подложкой-обводкой, чтобы читалась на рельефе
+  L.polyline(coords, { color: '#F6F0DE', weight: 6, opacity: 0.85, interactive: false }).addTo(m);
+  L.polyline(coords, { color, weight: 3, opacity: 0.95, interactive: false, dashArray: entry.isEstimated ? '7,5' : null }).addTo(m);
+  const first = flat[0], last = flat[flat.length - 1];
+  L.circleMarker(first, { radius: 4.5, color: '#F6F0DE', weight: 2, fillColor: color, fillOpacity: 1, interactive: false }).addTo(m);
+  L.circleMarker(last, { radius: 4.5, color, weight: 2.5, fillColor: '#F6F0DE', fillOpacity: 1, interactive: false }).addTo(m);
+  // подписи: остановки маршрута и города этой поездки, попавшие в кадр
+  const labels = [];
+  const seen = new Set();
+  const addLabel = (lat, lng, name) => {
+    if(!name || !isFinite(lat) || !isFinite(lng)) return;
+    const key = name.trim().toLowerCase();
+    if(seen.has(key)) return;
+    seen.add(key);
+    labels.push([lat, lng, name.trim()]);
+  };
+  if(Array.isArray(entry.waypointCoords)) entry.waypointCoords.forEach((c, i) => c && addLabel(c[0], c[1], (entry.waypointNames || [])[i]));
+  const view = bounds.pad(0.15);
+  (tripCities || []).forEach(c => { if(view.contains([c.lat, c.lng])) addLabel(c.lat, c.lng, c.name); });
+  m.fitBounds(bounds, { padding: [18, 18], maxZoom: 13 });
+  // без тайлов подписей нет — подскажем ближайшие населённые пункты из справочника
+  if(holder.classList.contains('plain')){
+    const vb = m.getBounds();
+    getWorldCities().filter(c => vb.contains([c.lat, c.lng])).sort((a, b) => b.pop - a.pop).slice(0, 4)
+      .forEach(c => addLabel(c.lat, c.lng, c.name));
+  }
+  const many = labels.length > 8;
+  const W = m.getSize().x;
+  labels.forEach(([lat, lng, name], i) => {
+    const mk = L.circleMarker([lat, lng], { radius: 3.2, color: '#2B3B2E', weight: 1.2, fillColor: '#F6F0DE', fillOpacity: 1, interactive: false }).addTo(m);
+    // у правого края подпись — слева от точки, чтобы не обрезалась
+    const right = m.latLngToContainerPoint([lat, lng]).x > W * 0.62;
+    if(!many || i === 0 || i === labels.length - 1 || i % 2 === 0) mk.bindTooltip(escapeHtml(name), { permanent: true, direction: right ? 'left' : 'right', offset: [right ? -5 : 5, 0], className: 'tp-map-label' });
+  });
+  L.control.scale({ metric: true, imperial: false, position: 'bottomleft', maxWidth: 80 }).addTo(m);
+  holder.classList.add('has-map');
+  // нажатие — показать маршрут на большой карте
+  holder.addEventListener('click', () => {
+    document.getElementById('tripPageModal').style.display = 'none';
+    destroyTripMiniMaps();
+    focusEntry(entry);
+  });
+}
+function setupTripMiniMaps(body, tripEntries){
+  const tripCities = tripEntries.filter(e => e.type === 'city' && isFinite(e.lat) && isFinite(e.lng));
+  const holders = [...body.querySelectorAll('[data-route-map]')];
+  if(!holders.length) return;
+  const start = holder => {
+    if(holder.__built) return;
+    holder.__built = true;
+    const entry = allEntries.find(e => e.id === holder.dataset.routeMap);
+    if(entry) try{ buildTripMiniMap(holder, entry, tripCities); }catch(err){ console.warn('мини-карта', err); }
+  };
+  // карты создаём, только когда блок доходит до экрана: в длинной поездке их десятки
+  if('IntersectionObserver' in window){
+    tripMiniObserver = new IntersectionObserver(items => items.forEach(it => { if(it.isIntersecting){ tripMiniObserver.unobserve(it.target); start(it.target); } }), { rootMargin: '200px 0px' });
+    holders.forEach(h => tripMiniObserver.observe(h));
+  } else holders.forEach(start);
+}
+
 function renderTripPage(){
+  destroyTripMiniMaps();
   const tripName = tripPageName;
   const body = document.getElementById('tripPageBody');
   document.getElementById('tripPageTitle').textContent = tripName || 'Поездка';
@@ -11268,7 +11843,7 @@ function renderTripPage(){
         ${metaBits ? `<div class="tp-stop-meta">${escapeHtml(metaBits)}</div>` : ''}
         ${e.type === 'route' && Array.isArray(e.waypointNames) && e.waypointNames.length
           ? `<div class="tp-stop-via">${e.waypointNames.map(escapeHtml).join(' → ')}</div>` : ''}
-        ${e.type === 'route' ? `<div class="tp-stop-spark">${buildRouteSparkSvg(e, 300, 110)}${buildElevationSvg(e, 300, 46)}</div>` : ''}
+        ${e.type === 'route' ? `<div class="tp-stop-spark"><div class="tp-route-map" data-route-map="${escapeAttr(e.id)}" title="Показать на большой карте">${buildRouteSparkSvg(e, 300, 110)}</div>${buildElevationSvg(e, 300, 46)}</div>` : ''}
         ${photo ? `<img class="tp-stop-photo" src="${escapeAttr(safeUrl(photo))}" alt="" loading="lazy" onerror="photoFailed(this)">` : ''}
         ${note ? `<div class="tp-stop-note" ${READ_ONLY ? '' : `data-tp-edit="${escapeAttr(e.id)}" title="Нажмите, чтобы изменить" style="cursor:text;"`}>${escapeHtml(note)}</div>`
                : (READ_ONLY ? '' : `<button class="tp-add-note" data-tp-note="${escapeAttr(e.id)}">+ добавить заметку</button>`)}
@@ -11306,6 +11881,7 @@ function renderTripPage(){
   body.querySelectorAll('[data-tp-edit]').forEach(el=>{
     el.addEventListener('click', ()=> openInlineNote(el.dataset.tpEdit, el));
   });
+  setupTripMiniMaps(body, allEntries.filter(e => e.trip === tripName));
 }
 
 function openInlineNote(entryId, anchorEl, onDone){
@@ -11348,6 +11924,7 @@ function openInlineNote(entryId, anchorEl, onDone){
 
 document.getElementById('closeTripPageModal').addEventListener('click', ()=>{
   document.getElementById('tripPageModal').style.display = 'none';
+  destroyTripMiniMaps();
 });
 document.getElementById('tripPageModal').addEventListener('click', (e)=>{
   if(e.target.id === 'tripPageModal') document.getElementById('tripPageModal').style.display = 'none';
@@ -12032,6 +12609,8 @@ function renderRaces(){
   if(addBtn) addBtn.addEventListener('click', ()=>{ editingRaceId = 'new'; renderRaces(); });
   const cancelBtn = document.getElementById('raceCancelBtn');
   if(cancelBtn) cancelBtn.addEventListener('click', ()=>{ editingRaceId = null; finishingRace = false; renderRaces(); });
+  // рекорды, медали и графики зависят от стартов — обновляем вместе с таблицей
+  if(document.getElementById('runningModal').style.display === 'flex') try{ renderRunExtras(); }catch(e){ console.warn(e); }
   const saveBtn = document.getElementById('raceSaveBtn');
   if(saveBtn) saveBtn.addEventListener('click', saveRaceForm);
   bindRaceRowActions(box);
@@ -12927,6 +13506,7 @@ function regionsAlongRoute(entry){
 }
 function computeRuRegions(visibleVisited){
   const visited = new Map(); // name -> Set(места)
+  const visits = new Map();  // name -> число визитов (без самого дома — как в топе городов)
   const passed = new Set();
   getAllCityVisits(visibleVisited).forEach(v=>{
     if(v.countryKey && v.countryKey !== HOME_COUNTRY_KEY) return;
@@ -12934,14 +13514,15 @@ function computeRuRegions(visibleVisited){
     if(!r) return;
     if(!visited.has(r.name)) visited.set(r.name, new Set());
     visited.get(r.name).add(v.name.trim());
+    if(v.name.trim().toLowerCase() !== HOME_CITY_NAME.toLowerCase()) visits.set(r.name, (visits.get(r.name) || 0) + 1);
   });
   visibleVisited.filter(e => e.type === 'route').forEach(e=>{
     regionsAlongRoute(e).forEach(n => { if(!visited.has(n)) passed.add(n); });
   });
-  return { visited, passed };
+  return { visited, visits, passed };
 }
 let ruRegionsLayer = null;
-let ruRegionsState = { visited: new Map(), passed: new Set() };
+let ruRegionsState = { visited: new Map(), visits: new Map(), passed: new Set() };
 let ruRegionsOn = (function(){ try{ return localStorage.getItem('travel-map-ru-regions') !== '0'; }catch(e){ return true; } })();
 function ruRegionStyle(f){
   const n = f.properties.name;
@@ -12975,12 +13556,15 @@ function updateRuRegions(visibleVisited){
   if(stat) stat.textContent = `${n} из ${RU_REGION_TOTAL}` + (ruRegionsState.passed.size ? ` · проездом ${ruRegionsState.passed.size}` : '');
   const list = document.getElementById('ruRegionsList');
   if(list){
-    const items = [...ruRegionsState.visited.entries()].sort((a,b) => b[1].size - a[1].size || a[0].localeCompare(b[0], 'ru'));
-    const passedItems = [...ruRegionsState.passed].sort((a,b) => a.localeCompare(b, 'ru'));
-    list.innerHTML = items.length || passedItems.length
-      ? items.map(([name, places]) => `<span class="rr-item">${escapeHtml(name)} <span class="rr-count">${places.size}</span></span>`).join(' · ') +
-        (passedItems.length ? `<div class="rr-passed">проездом: ${passedItems.map(escapeHtml).join(', ')}</div>` : '')
-      : `<div class="hint">Пока нет отметок внутри России</div>`;
+    const vis = ruRegionsState.visits;
+    const top = [...vis.entries()].sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ru')).slice(0, 5);
+    if(top.length){
+      renderTopList('ruRegionsList', top);
+      const total = ruRegionsState.visited.size, pass = ruRegionsState.passed.size;
+      list.insertAdjacentHTML('beforeend', `<div class="hint" style="margin-top:6px;">Всего: ${total} из ${RU_REGION_TOTAL}${pass ? ` · проездом ещё ${pass}` : ''} · визиты домой (${escapeHtml(HOME_CITY_NAME)}) не считаются</div>`);
+    } else {
+      list.innerHTML = `<div class="hint">Пока нет отметок внутри России</div>`;
+    }
   }
   const chip = document.getElementById('ruRegionsChip');
   if(chip) chip.classList.toggle('active', ruRegionsOn);
@@ -13643,6 +14227,13 @@ const MNAV_MQ = window.matchMedia('(max-width:768px) and (min-height:601px)');
 const MNAV_TITLES = { list: 'Записи', filters: 'Фильтры', add: 'Новая отметка', more: 'Ещё' };
 let mnavTab = 'map';
 function mnavOn(){ return document.body.classList.contains('mnav'); }
+function setListView(view){
+  document.body.classList.toggle('list-stats', view === 'stats');
+  document.querySelectorAll('#listSwitch [data-lsw]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.lsw === view)));
+  const sb = document.getElementById('sidebar');
+  if(sb && mnavOn()) sb.scrollTop = 0;
+}
+document.querySelectorAll('#listSwitch [data-lsw]').forEach(b => b.addEventListener('click', () => setListView(b.dataset.lsw)));
 function mnavShow(tab){
   if(!mnavOn()) return;
   if(READ_ONLY && tab === 'add') tab = 'map';
@@ -13856,6 +14447,31 @@ const COLLAPSE_KEY = 'travel-map-collapsed';
 // Легенда сворачивается: на телефоне она закрывает заметную часть карты.
 // Состояние запоминается, а на узких экранах по умолчанию свёрнута — там
 // карта дороже подсказки, которую обычно читают один раз.
+(function setupMapGlanceToggle(){
+  const card = document.getElementById('mapGlance');
+  if(!card) return;
+  const KEY = 'travel-map-glance-collapsed';
+  let saved = null;
+  try{ saved = localStorage.getItem(KEY); }catch(e){}
+  const isNarrow = window.matchMedia && window.matchMedia('(max-width:768px)').matches;
+  const apply = state => {
+    card.classList.toggle('collapsed', state);
+    card.setAttribute('aria-expanded', String(!state));
+    card.title = state ? 'Развернуть сводку' : 'Свернуть сводку';
+  };
+  apply(saved === null ? isNarrow : saved === '1');
+  const toggle = ev => {
+    if(ev && ev.target && ev.target.closest && ev.target.closest('a')) return;
+    const next = !card.classList.contains('collapsed');
+    apply(next);
+    try{ localStorage.setItem(KEY, next ? '1' : '0'); }catch(e){}
+  };
+  card.addEventListener('click', toggle);
+  card.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggle(); } });
+  // клики и прокрутка по карточке не должны двигать карту
+  if(window.L && L.DomEvent){ L.DomEvent.disableClickPropagation(card); L.DomEvent.disableScrollPropagation(card); }
+})();
+
 (function setupLegendToggle(){
   const legend = document.getElementById('legend');
   const btn = document.getElementById('legendToggle');
