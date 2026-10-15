@@ -90,11 +90,9 @@ const races = (Array.isArray(data.races) ? data.races : []).map(r => strip(r, ['
 const savedAt = typeof data.savedAt === 'string' ? data.savedAt : (typeof data.exportedAt === 'string' ? data.exportedAt : null);
 
 let html = fs.readFileSync(SRC, 'utf8');
-html = replaceOnce(html, /const READ_ONLY = false;/, 'const READ_ONLY = true;', 'READ_ONLY');
-html = replaceOnce(html, /const BAKED_ENTRIES = \[\];/, `const BAKED_ENTRIES = ${embed(entries)};`, 'BAKED_ENTRIES');
-html = replaceOnce(html, /const BAKED_TRIP_META = \{\};/, `const BAKED_TRIP_META = ${embed(tripMeta)};`, 'BAKED_TRIP_META');
-html = replaceOnce(html, /const BAKED_RACES = \[\];/, `const BAKED_RACES = ${embed(races)};`, 'BAKED_RACES');
-html = replaceOnce(html, /const BAKED_SAVED_AT = null;/, `const BAKED_SAVED_AT = ${embed(savedAt)};`, 'BAKED_SAVED_AT');
+// данные — в JSON-тег, который собранная index.html оставляет пустым
+html = replaceOnce(html, /<script type="application\/json" id="baked-data">[^<]*<\/script>/,
+  `<script type="application/json" id="baked-data">${embed({ readOnly: true, entries, tripMeta, races, savedAt })}</script>`, 'baked-data');
 html = replaceOnce(html, /<title>[^<]*<\/title>/, '<title>Travel Map</title>', 'title');
 html = replaceOnce(html, /<meta property="og:title" content="[^"]*">/, '<meta property="og:title" content="Travel Map">', 'og:title');
 html = replaceOnce(html, /<meta property="og:description" content="[^"]*">/,
