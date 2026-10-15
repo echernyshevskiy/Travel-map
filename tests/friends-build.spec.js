@@ -4,7 +4,7 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { sampleEntries, sampleRaces, ROOT } = require('./helpers');
+const { sampleEntries, sampleRaces, ROOT, readBaked } = require('./helpers');
 
 test('скрипт собирает версию для друзей без личного', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
@@ -22,10 +22,11 @@ test('скрипт собирает версию для друзей без ли
   const log = execFileSync('node', [path.join(ROOT, 'scripts', 'build-friends.mjs'), '--src', path.join(ROOT, 'index.html'), '--out', out, '--data', dataFile]).toString();
   expect(log).toContain('скрыто 1');
   const html = fs.readFileSync(out, 'utf8');
-  const baked = JSON.parse(html.match(/const BAKED_ENTRIES = (\[.*?\]);\n/s)[1]);
+  const data = readBaked(html);
+  const baked = data.entries;
   expect(baked.map(e => e.id)).not.toContain('ci_kz');
   expect(baked.filter(e => 'notes' in e || e.hidden)).toEqual([]);
-  expect(html).toContain('const READ_ONLY = true;');
+  expect(data.readOnly).toBe(true);
   expect(html).toContain('<title>Travel Map</title>');
   expect(html).not.toContain('Скрытая поездка');
   expect(html).toContain('Горы');

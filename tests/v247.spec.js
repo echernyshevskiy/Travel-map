@@ -53,23 +53,7 @@ test('трек с разрывами: куски на карте, в GPX и KML'
   await expectNoErrors(errors);
 });
 
-test('слияние по полям: заметка с одного устройства и год с другого не затирают друг друга', async ({ page }, info) => {
-  test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
-  await openApp(page);
-  const r = await page.evaluate(() => {
-    const base = { id: 'x', type: 'city', name: 'Казань', year: 2019, updatedAt: 100 };
-    const phone = { ...base, notes: 'с телефона', updatedAt: 200, fieldTimes: { notes: 200 }, ftBase: 100 };
-    const laptop = { ...base, year: 2021, updatedAt: 300, fieldTimes: { year: 300 }, ftBase: 100 };
-    const m1 = mergeFields(phone, laptop), m2 = mergeFields(laptop, phone);
-    const sameField = mergeFields({ ...base, name: 'A', updatedAt: 200, fieldTimes: { name: 200 }, ftBase: 100 },
-                                  { ...base, name: 'B', updatedAt: 300, fieldTimes: { name: 300 }, ftBase: 100 });
-    return { m1: [m1.notes, m1.year, m1.name], m2: [m2.notes, m2.year], same: sameField.name, at: m1.updatedAt };
-  });
-  expect(r.m1).toEqual(['с телефона', 2021, 'Казань']);
-  expect(r.m2).toEqual(['с телефона', 2021]);
-  expect(r.same).toBe('B');
-  expect(r.at).toBe(300);
-});
+// слияние по полям проверяют модульные тесты unit/sync-merge.test.js
 
 test('срок токена: разбор формата GitHub и предупреждение за две недели', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
