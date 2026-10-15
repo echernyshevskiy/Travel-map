@@ -20,6 +20,7 @@ on:
       - package-lock.json
       - vite.config.mjs
       - scripts/**
+      - sw.js
 
 permissions:
   contents: write
@@ -50,13 +51,13 @@ jobs:
       - name: Опубликовать, если что-то изменилось
         id: publish
         run: |
-          if git diff --quiet -- index.html friends/index.html; then
+          if git diff --quiet -- index.html friends/index.html friends/sw.js; then
             echo "Ничего не изменилось — публиковать нечего"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html friends/index.html
+          git add index.html friends/index.html friends/sw.js
           git commit -m "Сборка сайта: index.html и версия для друзей"
           git pull --rebase
           git push
