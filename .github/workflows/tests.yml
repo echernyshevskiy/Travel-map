@@ -1,5 +1,6 @@
-# Автотесты: при каждой загрузке файлов в репозиторий открывают обе версии
-# карты в настоящем Chromium (телефон и ПК) и проверяют основные сценарии.
+# Автотесты: при каждой загрузке файлов в репозиторий сначала проверяют код
+# (ESLint: необъявленные имена, лишний код) и чистую логику (src/lib — модульные тесты Vitest, пара секунд), затем собирают карту
+# из src/ и открывают обе версии в настоящем Chromium (телефон и ПК).
 # Результат — зелёная галочка или красный крестик у коммита; при ошибке
 # подробный отчёт со снимками лежит в разделе Actions → запуск → Artifacts.
 name: Тесты
@@ -12,7 +13,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,6 +21,14 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - name: Проверка кода (ESLint)
+        run: npm run lint
+      - name: Модульные тесты (src/lib)
+        run: npm run test:unit
+      - name: Собрать index.html из src/
+        run: npm run build
+      - name: Собрать версию для друзей на тестовых данных
+        run: node scripts/build-friends.mjs --data tests/fixtures/friends-sample.json
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test
       - uses: actions/upload-artifact@v4
