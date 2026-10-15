@@ -103,6 +103,21 @@ if(entries.some(e => 'notes' in e || e.hidden || e.docLinkUrl)) fail('в дан�
 if(entries.some(e => e.photos.some(p => !isImageLink(p)))) fail('в данных для друзей осталась ссылка на альбом');
 
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
+
+// Сервис-воркер версии для друзей — тот же sw.js, только со своим именем
+// хранилищ (APP_VARIANT), чтобы версии не стирали кэш друг друга. Раньше копия
+// лежала в friends/ отдельно и отставала от основной при правках.
+const SW_SRC = path.join(ROOT, 'sw.js'), SW_OUT = path.join(path.dirname(OUT), 'sw.js');
+if(fs.existsSync(SW_SRC)){
+  const sw = fs.readFileSync(SW_SRC, 'utf8');
+  if(!sw.includes("const APP_VARIANT = 'edit';")) fail("в sw.js не найдено const APP_VARIANT = 'edit'");
+  const swFriends = sw.replace("const APP_VARIANT = 'edit';", "const APP_VARIANT = 'friends';");
+  if(!fs.existsSync(SW_OUT) || fs.readFileSync(SW_OUT, 'utf8') !== swFriends){
+    fs.writeFileSync(SW_OUT, swFriends);
+    console.log('Сервис-воркер версии для друзей обновлён');
+  }
+}
+
 const before = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : null;
 if(before === html){ console.log(`Без изменений: записей ${entries.length}`); process.exit(0); }
 fs.writeFileSync(OUT, html);
