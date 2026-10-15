@@ -66,6 +66,29 @@ function applyTimelineOpacity(){
   try{ updateRouteStops(); }catch(err){ console.warn('остановки маршрутов', err); }
 }
 
+// Остановки рисуем на самой линии маршрута: координаты остановки — это центр
+// города или района, а дорога могла пройти в стороне (у районов — за десятки км).
+// Если трек проходит не дальше ROUTE_STOP_SNAP_KM, точка ставится в ближайшее
+// место на нём; дальше — остаётся где была: скорее всего, остановка указана с
+// ошибкой, и прятать это не нужно. Для маршрутов «по прямой» линия и так идёт
+// через остановки. Результат кэшируется: ползунок лет перерисовывает точки часто.
+const ROUTE_STOP_SNAP_KM = 30;
+const routeStopSnapCache = new Map(); // entry.id → { key, coords }
+function routeStopCoords(e){
+  if(e.isEstimated || !e.coordsEncoded && !(e.coords && e.coords.length)) return e.waypointCoords;
+  const key = (e.coordsEncoded || getEntryCoords(e).length) + '|' + entryBreaks(e).join(',') + '|' + JSON.stringify(e.waypointCoords);
+  const hit = routeStopSnapCache.get(e.id);
+  if(hit && hit.key === key) return hit.coords;
+  const segs = entrySegments(e);
+  const coords = e.waypointCoords.map(c => {
+    if(!c || !isFinite(c[0]) || !isFinite(c[1])) return c;
+    const s = snapToTrack(c, segs, ROUTE_STOP_SNAP_KM);
+    return s ? s.latlng : c;
+  });
+  routeStopSnapCache.set(e.id, { key, coords });
+  return coords;
+}
+
 function updateRouteStops(){
   routeStopsLayer.clearLayers();
   const currentYear = timelineYears[timelineIndex];
@@ -78,12 +101,14 @@ function updateRouteStops(){
     if(e.type !== 'route' || !Array.isArray(e.waypointCoords) || !Array.isArray(e.waypointNames)) return;
     const layer = layers[e.id];
     if(!layer || !map.hasLayer(layer)) return;
-    e.waypointCoords.forEach((c, i) => {
+    const shownAt = routeStopCoords(e);
+    e.waypointCoords.forEach((orig, i) => {
       const name = (e.waypointNames[i] || '').trim();
-      if(!c || !name || !isFinite(c[0]) || !isFinite(c[1])) return;
+      const c = shownAt[i];
+      if(!orig || !c || !name || !isFinite(c[0]) || !isFinite(c[1])) return;
       const key = name.toLowerCase();
       if(own.has(key)) return;
-      const pk = key + '|' + c[0].toFixed(2) + ',' + c[1].toFixed(2);
+      const pk = key + '|' + orig[0].toFixed(2) + ',' + orig[1].toFixed(2);
       if(seen.has(pk)) return;
       seen.add(pk);
       L.circleMarker(c, { pane: 'routePane', renderer: routeRenderer, radius: 4.5, color: '#2B3B2E', weight: 1.5, fillColor: e.color || DEFAULT_COLOR.route, fillOpacity: 1 })
@@ -91,7 +116,10 @@ function updateRouteStops(){
         .on('click', ev => {
           L.DomEvent.stopPropagation(ev);
           if(placingCity || placingCountry || quizMapActive()){ handleMapClick(ev); return; }
-          layer.openPopup(ev.latlng);
+          // на телефоне касание открывает и подсказку с названием остановки —
+          // она торчала из-под карточки маршрута. Карточка важнее, подсказку прячем
+          ev.target.closeTooltip();
+          layer.openPopup(c);
         })
         .addTo(routeStopsLayer);
     });
