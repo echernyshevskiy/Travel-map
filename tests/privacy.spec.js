@@ -2,13 +2,14 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
-const { openApp, ROOT } = require('./helpers');
+const { openApp, ROOT, readBaked } = require('./helpers');
 
 test('в файле версии для друзей нет заметок и скрытых записей', async () => {
   const html = fs.readFileSync(path.join(ROOT, 'friends', 'index.html'), 'utf8');
-  const m = html.match(/const BAKED_ENTRIES = (\[.*?\]);\n/s);
-  expect(m, 'в сборке не найдены данные').toBeTruthy();
-  const entries = JSON.parse(m[1]);
+  const baked = readBaked(html);
+  expect(baked, 'в сборке не найдены данные').toBeTruthy();
+  expect(baked.readOnly).toBe(true);
+  const entries = baked.entries;
   expect(entries.length).toBeGreaterThan(0);
   expect(entries.filter(e => e.notes)).toEqual([]);
   expect(entries.filter(e => e.hidden)).toEqual([]);

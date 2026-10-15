@@ -86,7 +86,7 @@ async function openApp(page, opts = {}){
   await page.goto(BASE + (build === 'friends' ? 'friends/' : ''));
   await page.waitForFunction(() => {
     const b = document.getElementById('bootOverlay');
-    return (!b || b.classList.contains('hiding')) && typeof allEntries !== 'undefined';
+    return (!b || b.classList.contains('hiding')) && !!window.__travelMap;
   });
   return { errors };
 }
@@ -95,4 +95,10 @@ function json(body){ return () => ({ status: 200, contentType: 'application/json
 
 async function expectNoErrors(errors){ expect(errors, errors.join('\n')).toEqual([]); }
 
-module.exports = { openApp, sampleEntries, sampleRaces, encodePolyline, json, expectNoErrors, ROOT, WAYPOINTS };
+// данные, которые сборка для друзей кладёт в JSON-тег index.html
+function readBaked(html){
+  const m = html.match(/<script type="application\/json" id="baked-data">([^<]*)<\/script>/);
+  return m ? JSON.parse(m[1]) : null;
+}
+
+module.exports = { readBaked, openApp, sampleEntries, sampleRaces, encodePolyline, json, expectNoErrors, ROOT, WAYPOINTS };

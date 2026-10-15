@@ -9,7 +9,7 @@ test('цифры в шапке совпадают со сводкой (уник�
   // два разных Парижа, Москва, Тверь, Петербург = 8
   await expect(page.locator('#statCountries')).toHaveText('2');
   await expect(page.locator('#statCities')).toHaveText('8');
-  await expect(page.locator('#glanceBar')).toContainText('8');
+  await expect(page.locator('#mapGlanceFull')).toContainText('8');
 });
 
 test('«выбрать всё» отражает фактический выбор', async ({ page }) => {
