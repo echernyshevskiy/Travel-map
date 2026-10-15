@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   haversine, pointInRing, pointInGeometry, trackDistanceKm, encodePolyline, decodePolyline,
   getEntryCoords, decodedCoordsCache, downsample, downsampleSegments, gpxDistanceKm,
-  geomAreaKm2, polyLabelPoint, mainRing,
+  geomAreaKm2, polyLabelPoint, mainRing, snapToTrack,
 } from '../src/lib/geo.js';
 
 // квадрат 1°×1° у экватора, координаты GeoJSON — [lng, lat]
@@ -112,5 +112,30 @@ describe('площадь и точка подписи', () => {
     const L = [[0, 0], [10, 0], [10, 2], [2, 2], [2, 10], [0, 10], [0, 0]];
     const pt = polyLabelPoint(L);   // → [lat, lng]
     expect(pointInRing(pt, L)).toBe(true);
+  });
+});
+
+describe('snapToTrack — остановка прижимается к линии маршрута', () => {
+  const track = [[[55.0, 37.0], [55.0, 38.0]]]; // отрезок вдоль параллели
+  it('проекция на середину отрезка', () => {
+    const s = snapToTrack([55.1, 37.5], track);
+    expect(s.latlng[0]).toBeCloseTo(55.0, 3);
+    expect(s.latlng[1]).toBeCloseTo(37.5, 3);
+    expect(s.km).toBeCloseTo(11.06, 1);
+  });
+  it('за концом отрезка — к ближайшему концу', () => {
+    const s = snapToTrack([55.0, 39.0], track);
+    expect(s.latlng).toEqual([55.0, 38.0].map(v => expect.closeTo(v, 6)));
+  });
+  it('дальше порога — null; разрыв между кусками не считается дорогой', () => {
+    expect(snapToTrack([56.0, 37.5], track, 50)).toBeNull();
+    const twoParts = [[[55, 37], [55, 37.1]], [[56, 37], [56, 37.1]]];
+    // точка между кусками ближе к «прыжку» 55→56, но прижимается к настоящему куску
+    const s = snapToTrack([55.4, 37.05], twoParts);
+    expect(s.latlng[0]).toBeCloseTo(55, 3);
+  });
+  it('пустой трек — null', () => {
+    expect(snapToTrack([55, 37], [])).toBeNull();
+    expect(snapToTrack([55, 37], [[]])).toBeNull();
   });
 });
