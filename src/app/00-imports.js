@@ -18,7 +18,7 @@ import COUNTRY_ISO from '../data/country_iso.json';
 import COUNTRY_INFO from '../data/country_info.json';
 
 // Независимая логика — настоящие ES-модули с модульными тестами (src/lib/)
-import { haversine, pointInGeometry, trackDistanceKm, encodePolyline, getEntryCoords, downsample, downsampleNumeric, downsampleSegments, gpxDistanceKm, geomAreaKm2, polyLabelPoint, mainRing, decodedCoordsCache } from '../lib/geo.js';
+import { haversine, pointInGeometry, trackDistanceKm, encodePolyline, getEntryCoords, downsample, downsampleNumeric, downsampleSegments, gpxDistanceKm, geomAreaKm2, polyLabelPoint, mainRing, decodedCoordsCache, snapToTrack } from '../lib/geo.js';
 import { escapeHtml, escapeAttr, safeUrl, normSearch, formatPace, parseRaceTime, formatRaceTime, fmtDelta, daysWord, pluralVisits, monthsWord } from '../lib/format.js';
 import { getAllCityVisits, uniqueCityVisits, distinctCityKeys } from '../lib/visits.js';
 import { SYNC_META, itemJson, mergeKind, parseTokenExpiry } from '../lib/sync-merge.js';
