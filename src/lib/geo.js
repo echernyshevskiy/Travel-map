@@ -198,3 +198,33 @@ export function encodeUnsignedNumber(num){
   output += String.fromCharCode(num + 63);
   return output;
 }
+
+// Ближайшая к точке позиция на треке. Остановки маршрута часто геокодированы в
+// центр города или даже района (у муниципалитетов ЮАР — центр округа), и точка
+// висела в стороне от линии. Для отображения её «прижимаем» к треку — туда, где
+// дорога действительно проходила ближе всего. Считаем в плоском приближении
+// вокруг точки (км), этого с запасом хватает на десятках километров.
+// pt — [lat, lng], segments — массив кусков трека [[lat, lng], …].
+// → { latlng: [lat, lng], km } или null, если трек дальше maxKm.
+export function snapToTrack(pt, segments, maxKm = Infinity){
+  const kx = 111.32 * Math.cos(pt[0] * Math.PI / 180), ky = 110.57;
+  let best = null, bestD2 = Infinity;
+  for(const seg of segments){
+    if(!seg || !seg.length) continue;
+    let px = (seg[0][1] - pt[1]) * kx, py = (seg[0][0] - pt[0]) * ky;
+    if(seg.length === 1 && px * px + py * py < bestD2){ bestD2 = px * px + py * py; best = [px, py]; }
+    for(let i = 1; i < seg.length; i++){
+      const qx = (seg[i][1] - pt[1]) * kx, qy = (seg[i][0] - pt[0]) * ky;
+      const dx = qx - px, dy = qy - py, len2 = dx * dx + dy * dy;
+      // проекция начала координат (самой точки) на отрезок p→q
+      const t = len2 ? Math.max(0, Math.min(1, -(px * dx + py * dy) / len2)) : 0;
+      const x = px + t * dx, y = py + t * dy, d2 = x * x + y * y;
+      if(d2 < bestD2){ bestD2 = d2; best = [x, y]; }
+      px = qx; py = qy;
+    }
+  }
+  if(!best) return null;
+  const km = Math.sqrt(bestD2);
+  if(km > maxKm) return null;
+  return { latlng: [pt[0] + best[1] / ky, pt[1] + best[0] / kx], km };
+}
