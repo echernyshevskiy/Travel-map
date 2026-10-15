@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<!--
+  Карта путешествий
+  Версия: v2.57
+  Дата сборки: 2026-10-12
+  История версий смотрите в переписке с Claude.
+-->
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- личная карта: не показывать в поисковиках (превью ссылок в мессенджерах это не отключает) -->
+<meta name="robots" content="noindex, nofollow">
+<title>Карта путешествий</title>
+<link rel="manifest" href="manifest.json">
+<!-- Теги предпросмотра: при отправке ссылки в мессенджер вместо голого адреса
+     показывается карточка с названием и описанием. -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Карта путешествий">
+<meta property="og:description" content="Личный трекер посещённых стран, городов и маршрутов">
+<meta property="og:image" content="icon-512.png">
+<meta property="og:locale" content="ru_RU">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Карта путешествий">
+<meta name="twitter:description" content="Личный трекер посещённых стран, городов и маршрутов">
+<meta name="description" content="Личный трекер посещённых стран, городов и маршрутов">
+<meta name="theme-color" content="#A6592E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Карта путешествий">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script>
+function showFatalErrorBanner(message){
+  // при любой фатальной ошибке заставка должна уйти, иначе она перекроет
+  // и само сообщение, и приложение
+  var boot = document.getElementById('bootOverlay');
+  if(boot && boot.parentNode) boot.parentNode.removeChild(boot);
+  var banner = document.createElement('div');
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#9C3B2E;color:#fff;padding:10px 40px 10px 14px;font-family:sans-serif;font-size:12px;z-index:99999;line-height:1.5;';
+  banner.textContent = message + ' Если приложение продолжает работать нормально — можно закрыть это сообщение. Если что-то не работает — сфотографируйте это сообщение и отправьте Claude.';
+  var closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.setAttribute('aria-label', 'Закрыть сообщение об ошибке');
+  closeBtn.style.cssText = 'position:absolute;top:6px;right:8px;background:none;border:none;color:#fff;font-size:16px;cursor:pointer;padding:4px 8px;';
+  closeBtn.onclick = function(){ banner.remove(); };
+  banner.appendChild(closeBtn);
+  if(document.body) document.body.prepend(banner);
+  else window.addEventListener('DOMContentLoaded', function(){ document.body.prepend(banner); });
+}
+window.addEventListener('error', function(e){
+  showFatalErrorBanner('Ошибка скрипта: ' + e.message + ' (файл: ' + (e.filename ? e.filename.split('/').pop() : '?') + ', строка ' + e.lineno + ').');
+});
+window.addEventListener('unhandledrejection', function(e){
+  var reason = e.reason && e.reason.message ? e.reason.message : String(e.reason);
+  showFatalErrorBanner('Ошибка в фоновой операции: ' + reason + '.');
+});
+</script>
+<script>
+// Флаги стран. Chrome и Edge на Windows не рисуют флаги-эмодзи и показывают
+// вместо них две буквы («GE»). Если браузер не умеет — подключаем встроенный
+// шрифт только с флагами (Twemoji, CC-BY 4.0; проверка — по образцу
+// country-flag-emoji-polyfill, MIT, TalkJS). Шрифт задан диапазоном символов
+// флагов, поэтому на остальной текст он не влияет.
+(function(){
+  try{
+    var stack = '"Twemoji Mozilla","Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji","EmojiOne Color","Android Emoji",sans-serif';
+    var c = document.createElement('canvas'); c.width = c.height = 1;
+    var ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.textBaseline = 'top'; ctx.font = '100px ' + stack; ctx.scale(0.01, 0.01);
+    var colour = function(t, fill){ ctx.clearRect(0,0,100,100); ctx.fillStyle = fill; ctx.fillText(t, 0, 0); return ctx.getImageData(0,0,1,1).data.join(','); };
+    var isEmoji = function(t){ var w = colour(t, '#fff'), b = colour(t, '#000'); return b === w && b.indexOf('0,0,0,') !== 0; };
+    // флаг не нарисовался цветным — значит, системе нужен наш шрифт
+    window.FLAG_FONT_NEEDED = !isEmoji('\uD83C\uDDE8\uD83C\uDDED');
+  }catch(e){ window.FLAG_FONT_NEEDED = true; }
+  if(!window.FLAG_FONT_NEEDED) return;
+  var st = document.createElement('style');
+  st.textContent = '@font-face{font-family:"Twemoji Country Flags";unicode-range:U+1F1E6-1F1FF,U+1F3F4,U+E0062-E0063,U+E0065,U+E0067,U+E006C,U+E006E,U+E0073-E0074,U+E0077,U+E007F;' +
+    'src:url(data:font/woff2;base64,__FLAG_FONT_B64__) format("woff2");font-display:swap;}';
+  document.head.appendChild(st);
+  // для рисунков на canvas (снимок, «Год в путешествиях») шрифт нужен заранее
+  try{ document.fonts.load('16px "Twemoji Country Flags"', '\uD83C\uDDEC\uD83C\uDDEA'); }catch(e){}
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div id="bootOverlay">
+  <div class="boot-inner">
+    <div class="boot-title">Карта путешествий</div>
+    <div class="boot-sub">Загружаем карту…</div>
+  </div>
+</div>
+
+<header>
+  <h1>Карта <span>путешествий</span></h1>
+  <div class="header-actions">
+    <div class="stats mono">
+      <span>Стран <b id="statCountries">0</b></span>
+      <span>Городов <b id="statCities">0</b></span>
+      <span>Маршрутов <b id="statRoutes">0</b></span>
+      <span>Всего км <b id="statKm">0</b></span>
+    </div>
+    <button id="openTableBtn" class="header-btn">Таблица отметок</button>
+    <div class="header-menu-wrap">
+      <button id="openSummaryMenu" class="header-btn" aria-haspopup="true" aria-expanded="false">Итоги ▾</button>
+      <div class="header-menu" id="summaryMenu" style="display:none;">
+        <button id="openPassportBtn" class="header-menu-item">Паспорт</button>
+        <button id="openCalendarBtn" class="header-menu-item">Календарь</button>
+        <button id="openRecapBtn" class="header-menu-item">Год в путешествиях</button>
+        <button id="openMilestonesBtn" class="header-menu-item">Вехи</button>
+        <button id="openDiaryBtn" class="header-menu-item">Дневник</button>
+        <button id="openCollectionsBtn" class="header-menu-item">Коллекции</button>
+        <button id="exportSnapshotBtn" class="header-menu-item">Снимок (Stories)</button>
+        <button id="openCompareBtn" class="header-menu-item">Год к году</button>
+        <button id="openChangelogBtn" class="header-menu-item">Журнал изменений</button>
+      </div>
+    </div>
+    <button id="openRunningBtn" class="header-btn" style="display:none;">Бег</button>
+    <button id="openGalleryBtn" class="header-btn">Фотогалерея</button>
+    <button id="openQuizBtn" class="header-btn">Квиз</button>
+    <button id="openDiagnosticsBtn" class="header-btn">Проверка данных</button>
+    <button id="openPhotoImportBtn" class="header-btn">Импорт</button>
+  </div>
+</header>
+
+<div class="layout">
+  <div id="sidebar">
+    <button id="scrollTopBtn" title="Наверх" aria-label="Прокрутить панель наверх">↑</button>
+    <!-- шапка выдвижной панели — только в мобильной раскладке с нижними вкладками -->
+    <div id="mnavSheetHead">
+      <span class="mnav-grip" aria-hidden="true"></span>
+      <span id="mnavSheetTitle"></span>
+      <button id="mnavCloseBtn" title="Закрыть панель" aria-label="Закрыть панель и вернуться к карте">✕</button>
+    </div>
+    <div class="section" id="moreSection" data-mtab="more">
+      <p class="section-title">Разделы</p>
+      <div id="moreActionsSlot"></div>
+    </div>
+
+    <div id="glanceBar" data-mtab="list" aria-live="polite"></div>
+
+    <div class="section" id="addEntrySection" data-mtab="add">
+      <p class="section-title">Добавить отметку</p>
+      <label>Тип</label>
+      <div class="type-toggle" id="typeToggle">
+        <div class="type-btn active" data-type="country">Страна</div>
+        <div class="type-btn" data-type="city">Город</div>
+        <div class="type-btn" data-type="route">Маршрут</div>
+      </div>
+
+      <label id="statusLabel">Статус</label>
+      <div class="type-toggle" id="statusToggle">
+        <div class="type-btn active" data-status="visited">Посещено</div>
+        <div class="type-btn" data-status="wishlist">Хочу посетить</div>
+      </div>
+
+      <div id="countryFields">
+        <label>Страна</label>
+        <div class="search-wrap">
+          <input type="text" id="countrySearch" placeholder="Начните вводить название..." autocomplete="off">
+          <div class="suggest-box" id="countrySuggest" style="display:none;"></div>
+        </div>
+        <div id="countrySelectedTag"></div>
+        <div class="hint">Россия — домашний регион, не отмечается как посещённая страна (выделена на карте отдельно). Внутри России отмечайте города и маршруты.</div>
+        <div class="alt-toggle" id="showCountryMapMode">или указать кликом на карте</div>
+        <div id="countryMapMode" style="display:none;">
+          <button class="place-btn" id="placeCountryBtn">Кликнуть внутри границ страны</button>
+        </div>
+      </div>
+
+      <div id="cityFields" style="display:none;">
+        <label>Город</label>
+        <div class="search-wrap">
+          <input type="text" id="citySearch" placeholder="Начните вводить название..." autocomplete="off">
+          <div class="suggest-box" id="citySuggest" style="display:none;"></div>
+        </div>
+        <div id="citySelectedTag"></div>
+        <div id="cityCountrySuggest"></div>
+        <div class="alt-toggle" id="showCityMapMode">или указать кликом на карте</div>
+        <div id="cityMapMode" style="display:none;">
+          <button class="place-btn" id="placeCityBtn">Указать точку на карте</button>
+        </div>
+        <label>Страна города</label>
+        <select id="fieldCityCountry"></select>
+        <div class="hint">Заполняется автоматически при выборе города. Исправьте, если определилась неверно или осталась пустой.</div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:12px;">
+          <input type="checkbox" id="fieldFavorite" style="width:16px;height:16px;accent-color:var(--amber);margin:0;">
+          <span style="margin:0;font-size:12.5px;color:var(--text);">❤ Любимый город</span>
+        </label>
+      </div>
+
+      <div id="routeFields" style="display:none;">
+        <label>Тип активности</label>
+        <select id="fieldActivity">
+          <option value="running">Бег</option>
+          <option value="hiking">Хайкинг</option>
+          <option value="cycling">Вело</option>
+          <option value="roadtrip">Автотрип</option>
+        </select>
+
+        <div id="terrainField" style="display:none;">
+          <label>Покрытие <span style="font-style:italic;color:var(--text-dim);">(определяется по набору высоты, можно исправить)</span></label>
+          <select id="fieldTerrain">
+            <option value="road">Шоссе</option>
+            <option value="trail">Трейл</option>
+          </select>
+        </div>
+
+        <div id="hikingDaysField" style="display:none;">
+          <label>Число дней в пути <span style="font-style:italic;color:var(--text-dim);">(если в файле нет меток времени по дням — определите сами)</span></label>
+          <input type="number" id="fieldTrackDays" min="1" max="365" step="1">
+        </div>
+
+        <div id="editWaypointsField" style="display:none;">
+          <label>Точки маршрута</label>
+          <div id="editWaypointsList"></div>
+          <div class="search-wrap">
+            <input type="text" id="editWaypointSearch" placeholder="Заменить выбранную точку — введите город…" autocomplete="off">
+            <div class="suggest-box" id="editWaypointSuggest" style="display:none;"></div>
+          </div>
+          <div class="hint">Нажмите ✎ у точки, затем найдите правильный город. Сама линия маршрута не перестраивается — меняются координаты точки для статистики и снимка.</div>
+        </div>
+
+        <div id="refreshWaypointsField" style="display:none;">
+          <button type="button" class="cancel-edit" id="refreshWaypointsBtn" style="margin-top:0;">Обновить координаты точек маршрута</button>
+          <div class="hint">Заново найдёт сохранённые названия городов и подставит координаты — нужно, чтобы эти города учитывались в статистике и на PNG-снимке.</div>
+        </div>
+
+        <div id="routeSourceBlock">
+        <label>Источник маршрута</label>
+        <div class="type-toggle">
+          <div class="type-btn active" data-source="gpx">GPX-файл</div>
+          <div class="type-btn" data-source="cities">По городам</div>
+        </div>
+
+        <div id="gpxSourceFields">
+          <label>GPX-файл (экспорт из Coros)</label>
+          <div class="file-drop" id="fileDrop">Нажмите, чтобы выбрать один или несколько .gpx файлов</div>
+          <input type="file" id="gpxInput" accept=".gpx" multiple style="display:none;">
+          <div class="hint">Название необязательно — если поездок несколько, каждый трек получит имя из файла (или "Название — имя файла", если поле заполнено). Год, цель, компания, сезон, поездка и цвет будут общими для всех.</div>
+        </div>
+
+        <div id="citiesSourceFields" style="display:none;">
+          <label>Города по порядку</label>
+          <div class="search-wrap">
+            <input type="text" id="routeCitySearch" placeholder="Начните вводить город…" autocomplete="off">
+            <div class="suggest-box" id="routeCitySuggest" style="display:none;"></div>
+          </div>
+          <div id="routeWaypointsList"></div>
+          <div id="routeCountrySuggest"></div>
+          <div class="hint">При сохранении маршрут попробует построить путь по реальным дорогам между городами. Если сервис маршрутизации недоступен — точки соединятся прямой линией, об этом сообщит подсказка. Название необязательно — по умолчанию возьмётся «Первый город — Последний город».</div>
+        </div>
+        </div>
+      </div>
+
+      <label>Название</label>
+      <input type="text" id="fieldName" placeholder="можно оставить как определено автоматически">
+
+      <label>Год</label>
+      <input type="number" id="fieldYear" min="1990" max="2100">
+
+      <label>Месяц <span style="font-style:italic;color:var(--text-dim);">(необязательно)</span></label>
+      <select id="fieldMonth">
+        <option value="">Не указан</option>
+        <option value="1">Январь</option>
+        <option value="2">Февраль</option>
+        <option value="3">Март</option>
+        <option value="4">Апрель</option>
+        <option value="5">Май</option>
+        <option value="6">Июнь</option>
+        <option value="7">Июль</option>
+        <option value="8">Август</option>
+        <option value="9">Сентябрь</option>
+        <option value="10">Октябрь</option>
+        <option value="11">Ноябрь</option>
+        <option value="12">Декабрь</option>
+      </select>
+
+      <label>Цель поездки</label>
+      <select id="fieldPurpose">
+        <option value="tourism">Туризм</option>
+        <option value="transit">Транзит</option>
+        <option value="sport">Спорт</option>
+        <option value="business">Бизнес</option>
+      </select>
+
+      <label>Компания</label>
+      <select id="fieldCompany">
+        <option value="alone">Один</option>
+        <option value="couple">С парой</option>
+        <option value="group">Сообщество</option>
+        <option value="friends">Друзья</option>
+        <option value="parents">Родители</option>
+      </select>
+
+      <div id="communityField" style="display:none;">
+        <label>Сообщество</label>
+        <select id="fieldCommunity">
+          <option value="">Не указано</option>
+          <option value="sila_territorii">Сила Территории</option>
+          <option value="power_of_running">Power of Running</option>
+          <option value="route_community">Route Community</option>
+        </select>
+      </div>
+
+      <label>Сезон</label>
+      <select id="fieldSeason">
+        <option value="winter">Зима</option>
+        <option value="spring">Весна</option>
+        <option value="summer">Лето</option>
+        <option value="autumn">Осень</option>
+      </select>
+
+      <label>Поездка <span style="font-style:italic;color:var(--text-dim);">(необязательно)</span></label>
+      <input type="text" id="fieldTrip" list="tripDatalist" placeholder="например, Армения, май 2026">
+      <datalist id="tripDatalist"></datalist>
+
+      <label>Цвет на карте</label>
+      <div class="color-row">
+        <div class="color-swatches" id="colorSwatches" role="radiogroup" aria-label="Цвет на карте"></div>
+        <input type="color" id="fieldColor" value="#A6592E" list="colorPresets" title="Свой цвет" aria-label="Свой цвет">
+        <datalist id="colorPresets"></datalist>
+      </div>
+
+      <label>Ссылки на фото/видео (облако, каждая с новой строки)</label>
+      <textarea id="fieldPhoto" placeholder="https://...&#10;https://... (например, фото и отдельно дрон-съёмка)" style="min-height:60px;"></textarea>
+
+      <label>Ссылка на пост в Instagram <span style="font-style:italic;color:var(--text-dim);">(необязательно)</span></label>
+      <input type="text" id="fieldInstagram" placeholder="https://www.instagram.com/p/...">
+      <div class="hint">Если также указать хотя бы одно фото выше — первое станет обложкой мини-карточки со ссылкой на пост.</div>
+
+      <label>Ссылка на карту / место <span style="font-style:italic;color:var(--text-dim);">(необязательно)</span></label>
+      <input type="text" id="fieldMapLink" placeholder="https://maps.google.com/... — ресторан, точка, место">
+
+      <label>Ссылка на документ <span style="font-style:italic;color:var(--text-dim);">(необязательно)</span></label>
+      <input type="text" id="fieldDocLink" placeholder="https://docs.google.com/... — план, заметки, бронь">
+
+      <label>Заметка</label>
+      <textarea id="fieldNotes" placeholder="необязательно"></textarea>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:10px;">
+        <input type="checkbox" id="fieldHidden" style="width:16px;height:16px;accent-color:var(--amber);margin:0;">
+        <span style="margin:0;font-size:12.5px;color:var(--text);">🔒 Не показывать друзьям</span>
+      </label>
+      <div class="hint" style="margin-top:2px;">Запись не попадёт в версию для друзей. Заметки туда не попадают никогда.</div>
+
+      <button class="save-btn" id="saveBtn">Сохранить</button>
+      <button class="cancel-edit" id="cancelEditBtn" style="display:none;">Отменить редактирование</button>
+    </div>
+
+    <div class="section" data-mtab="filters">
+      <button class="cancel-edit" id="resetFiltersBtn" style="margin-top:0;display:none;">Сбросить все фильтры</button>
+      <p class="section-title">Фильтр по году</p>
+      <div class="chips" id="yearChips"></div>
+    </div>
+
+    <div class="section" data-mtab="filters">
+      <p class="section-title">Фильтр по месяцу</p>
+      <div class="chips" id="monthChips"></div>
+    </div>
+
+    <div class="section" data-mtab="filters">
+      <p class="section-title">Цель поездки</p>
+      <div class="chips" id="purposeChips"></div>
+    </div>
+
+    <div class="section" data-mtab="filters">
+      <p class="section-title">Компания</p>
+      <div class="chips" id="companyChips"></div>
+    </div>
+
+    <div class="section" data-mtab="filters">
+      <p class="section-title">Сообщество</p>
+      <div class="chips" id="communityChips"></div>
+    </div>
+
+    <div class="section" data-mtab="filters">
+      <p class="section-title">Сезон</p>
+      <div class="chips" id="seasonChips"></div>
+    </div>
+
+    <div class="section" data-mtab="filters">
+      <p class="section-title">Тип активности (маршруты)</p>
+      <div class="chips" id="activityChips"></div>
+    </div>
+
+    <div class="section" data-mtab="filters">
+      <p class="section-title">Статус</p>
+      <div class="chips" id="statusChips"></div>
+    </div>
+
+    <div class="section" data-mtab="filters">
+      <p class="section-title">Поездки</p>
+      <div class="chips" id="tripChips"></div>
+      <div id="tripCard"></div>
+    </div>
+
+    <div class="section" data-mtab="filters" style="flex:0;">
+      <p class="section-title">Показывать</p>
+      <div class="chips">
+        <div class="chip active" data-layer="country">Страны</div>
+        <div class="chip active" data-layer="city">Города</div>
+        <div class="chip active" data-layer="route">Маршруты</div>
+        <div class="chip active" id="ruRegionsChip" title="Закрасить регионы России, где вы были">Регионы России</div>
+        <div class="chip" id="heatChip" title="Все треки одним слоем: чем чаще ходили, тем ярче. При приближении — исследованные квадраты">Тепловая карта</div>
+      </div>
+    </div>
+
+    <div class="section" id="syncSection" data-mtab="more" style="flex:0;">
+      <p class="section-title">Синхронизация</p>
+      <div id="syncStatus" class="sync-status">Не подключено — данные только на этом устройстве</div>
+      <div id="syncConnectForm">
+        <label>Закрытый репозиторий для данных</label>
+        <input type="text" id="syncRepoInput" placeholder="логин/travel-map-data" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <label>Токен доступа</label>
+        <input type="password" id="syncTokenInput" placeholder="github_pat_…" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <label>Токен действует до <span style="opacity:.7;">(необязательно — напомню за 2 недели)</span></label>
+        <input type="date" id="syncTokenExpInput">
+        <button class="save-btn" id="syncConnectBtn" style="margin-top:10px;">Подключить</button>
+        <details class="sync-help">
+          <summary>Как настроить — 5 минут, бесплатно</summary>
+          <ol>
+            <li>На github.com: «+» → <b>New repository</b>. Имя — например, <i>travel-map-data</i>. Обязательно выберите <b>Private</b>. Создайте.</li>
+            <li>Аватар → <b>Settings</b> → <b>Developer settings</b> → <b>Personal access tokens</b> → <b>Fine-grained tokens</b> → <b>Generate new token</b>.</li>
+            <li>Название — любое, срок (<i>Expiration</i>) — например, год. <b>Repository access</b>: <i>Only select repositories</i> → только репозиторий с данными.</li>
+            <li><b>Permissions</b> → <b>Repository permissions</b> → <b>Contents</b>: <i>Read and write</i>. Больше ничего не нужно.</li>
+            <li><b>Generate token</b> и сразу скопируйте его — GitHub покажет токен один раз.</li>
+            <li>Вставьте сюда репозиторий и токен, нажмите «Подключить». На каждом устройстве — то же самое.</li>
+          </ol>
+          <div class="hint">Токен хранится только в этом браузере и отправляется только на api.github.com; в файл приложения и версию для друзей он не попадает. Данные лежат в файле <i>travel-data.json</i>, каждая синхронизация — сохранённая версия в истории репозитория.</div>
+        </details>
+      </div>
+      <div id="syncConnected" style="display:none;">
+        <button class="cancel-edit" id="syncNowBtn" style="margin-top:8px;">Синхронизировать сейчас</button>
+        <button class="cancel-edit" id="syncHistoryBtn">История версий на GitHub</button>
+        <button class="cancel-edit" id="syncReplaceTokenBtn">Заменить токен</button>
+        <button class="cancel-edit" id="syncDisconnectBtn">Отключить на этом устройстве</button>
+      </div>
+    </div>
+
+    <div class="section" data-mtab="more" style="flex:0;">
+      <p class="section-title">Резервная копия</p>
+      <button class="cancel-edit" id="exportBtn" style="margin-top:0;">Скачать данные (JSON)</button>
+      <button class="cancel-edit" id="exportCsvBtn">Скачать таблицу (CSV)</button>
+      <button class="cancel-edit" id="exportXlsxBtn">Скачать таблицу (XLSX)</button>
+      <button class="cancel-edit" id="exportGpxBtn">Скачать карту (GPX)</button>
+      <button class="cancel-edit" id="exportKmlBtn">Скачать карту (KML)</button>
+      <div class="hint">GPX — для навигаторов и часов (Garmin, OsmAnd, Coros): маршруты треками, города точками. KML — для Google My Maps, Google Earth и Organic Maps: ещё и страны контурами, планы отдельным слоем.</div>
+      <button class="cancel-edit" id="importBtn">Загрузить из файла</button>
+      <input type="file" id="importInput" accept=".json" style="display:none;">
+      <div class="backup-reminder" id="backupReminder" style="display:none;"></div>
+      <div class="hint" id="backupHint">Отметки хранятся только в этом браузере на этом устройстве. Файл — подстраховка на случай очистки данных или смены телефона: храните его у себя.</div>
+    </div>
+
+    <div id="listSwitch" data-mtab="list" role="tablist" aria-label="Что показать">
+      <button type="button" role="tab" data-lsw="entries" aria-selected="true">Записи <span id="listSwitchCount"></span></button>
+      <button type="button" role="tab" data-lsw="stats" aria-selected="false">Статистика</button>
+    </div>
+    <div class="section" id="mnavStatsSection" data-mtab="list">
+      <p class="section-title">Статистика (с учётом фильтров)</p>
+      <div class="stat-grid">
+        <div class="stat-row"><span>Пропутешествовано лет</span><b id="statYearsF">0</b></div>
+        <div class="stat-row"><span>Пропутешествовано месяцев</span><b id="statMonthsTraveledF">0</b></div>
+        <div class="stat-row"><span>Месяцев подряд (макс.)</span><b id="statMonthsStreakF">0</b></div>
+        <div class="stat-row"><span>Самый долгий перерыв</span><b id="statGapF">—</b></div>
+        <div class="stat-row"><span>Посещено стран</span><b id="statCountriesF">0</b></div>
+        <div class="stat-row"><span>Открыто карты мира</span><b id="statWorldPct">0%</b></div>
+        <div class="stat-row"><span>Посещено городов</span><b id="statCitiesF">0</b></div>
+        <div class="stat-row"><span>Регионов России</span><b id="statRuRegionsF">0</b></div>
+        <div class="stat-row" title="Квадраты сетки ~1,5 км (тайлы масштаба 14), через которые прошли треки"><span>Исследовано квадратов</span><b id="statSquaresF">0</b></div>
+        <div class="stat-row" title="Наибольший сплошной квадрат из исследованных клеток"><span>Наибольший квадрат</span><b id="statMaxSquareF">—</b></div>
+        <div class="stat-row"><span>Пробегано маршрутов</span><b id="statRunningF">0</b></div>
+        <div class="stat-row"><span>Пройдено маршрутов</span><b id="statHikingF">0</b></div>
+        <div class="stat-row"><span>Велозаездов</span><b id="statCyclingF">0</b></div>
+        <div class="stat-row"><span>Проехано маршрутов</span><b id="statRoadtripF">0</b></div>
+        <div class="stat-row"><span>Суммарный набор высоты</span><b id="statElevationF">0 м</b></div>
+        <div class="stat-row"><span>Самый длинный маршрут</span><b id="statLongestF">—</b></div>
+        <div class="stat-row"><span>Дом</span><b id="statHomeF">Москва</b></div>
+        <div class="stat-row"><span>Самая дальняя точка</span><b id="statFarthestF">—</b></div>
+      </div>
+
+      <p class="section-title" style="margin-top:16px;">По годам</p>
+      <div class="year-chart" id="yearChart"></div>
+
+      <p class="section-title" style="margin-top:16px;">Новых стран в год <span style="font-style:italic;color:var(--text-dim);text-transform:none;letter-spacing:0;">(по всем данным, фильтры не влияют)</span></p>
+      <div class="year-chart" id="newCountriesChart"></div>
+      <div class="hint" id="newCountriesHint"></div>
+
+      <p class="section-title" style="margin-top:16px;">Сезонность <span style="font-style:italic;color:var(--text-dim);text-transform:none;letter-spacing:0;">(за все годы вместе)</span></p>
+      <div class="season-chart" id="seasonChart"></div>
+
+      <p class="section-title" style="margin-top:16px;">По частям света</p>
+      <div class="continent-list" id="continentStats"></div>
+
+      <p class="section-title" style="margin-top:16px;">Топ-5 стран по визитам</p>
+      <div class="top-list" id="topCountriesList"></div>
+
+      <p class="section-title" style="margin-top:16px;">Топ-5 городов по визитам</p>
+      <div class="top-list" id="topCitiesList"></div>
+      <p class="section-title" style="margin-top:16px;" id="ruRegionsTitle">Топ-5 регионов России по визитам</p>
+      <div id="ruRegionsList" class="top-list"></div>
+    </div>
+
+    <div class="section" id="mnavSearchSection" data-mtab="list" style="flex:0;padding-bottom:10px;">
+      <p class="section-title">Поиск</p>
+      <div class="search-wrap">
+        <input type="text" id="globalSearch" placeholder="Ваши записи, а также любая страна или город мира…" autocomplete="off" style="padding-right:32px;">
+        <button id="clearSearchBtn" title="Очистить поиск" aria-label="Очистить поиск" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;display:none;">✕</button>
+        <div class="suggest-box world-suggest" id="worldSuggest" style="display:none;" role="listbox"></div>
+      </div>
+    </div>
+
+    <div id="entryList" data-mtab="list"></div>
+  </div>
+
+  <div id="mapWrap">
+    <div id="map"></div>
+    <div class="compass-rose"><span>N</span></div>
+    <div class="quiz-map-panel" id="quizMapPanel" style="display:none;" aria-live="polite"></div>
+    <div class="service-status" id="serviceStatus" style="display:none;"></div>
+    <div class="map-controls">
+      <button id="themeToggleBtn" class="topo-toggle-btn map-full-btn" title="Переключить тёмную/светлую тему" aria-label="Переключить тёмную/светлую тему">🌙</button>
+      <button id="mapFullBtn" class="topo-toggle-btn map-full-btn" title="Развернуть карту на весь экран" aria-label="Развернуть карту на весь экран">⤢</button>
+      <button id="topoToggleBtn" class="topo-toggle-btn" title="Переключить на рельефную карту" aria-label="Переключить на рельефную карту">🏔 Рельеф</button>
+    </div>
+    <div class="collection-chip" id="collectionChip" style="display:none;"></div>
+    <div class="map-glance" id="mapGlance" role="button" tabindex="0" aria-expanded="true" title="Свернуть сводку" style="display:none;">
+      <div class="mg-compact" id="mapGlanceCompact"></div>
+      <div class="mg-full" id="mapGlanceFull"></div>
+    </div>
+    <div class="legend" id="legend">
+      <button class="legend-toggle" id="legendToggle" aria-expanded="true" aria-controls="legendBody" title="Свернуть легенду">
+        <span>Легенда</span><span class="legend-chevron">▾</span>
+      </button>
+      <div class="legend-body" id="legendBody">
+        <div><span class="dot country"></span> Страна (заливка)</div>
+        <div><span class="dot city"></span> Город (точка)</div>
+        <div><span class="dot route"></span> Маршрут</div>
+        <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line);font-style:italic;">пунктир — план / маршрут по прямой</div>
+        <div style="margin-top:4px;font-style:italic;">насыщенность заливки — число визитов</div>
+        <div style="margin-top:4px;font-style:italic;">🏠 серая заливка — дом</div>
+        <div style="margin-top:4px;font-style:italic;" id="legendRuRegions">регионы России: заливка — были, штрих — проездом</div>
+        <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
+        <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
+        <div class="legend-credits">флаги: <a href="https://github.com/twitter/twemoji" target="_blank" rel="noopener" style="color:inherit;">Twemoji</a>, CC BY 4.0 · города: Natural Earth, <a href="https://github.com/hflabs/city" target="_blank" rel="noopener" style="color:inherit;">hflabs/city</a>, CC BY-SA 4.0 · границы: Natural Earth, регионы: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:inherit;">OpenStreetMap</a> (ODbL)</div>
+        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.57</div>
+      </div>
+    </div>
+    <div class="toast" id="toast"></div>
+    <div class="timeline-bar" id="timelineBar" style="display:none;">
+      <button id="timelinePlayBtn" title="Воспроизвести по годам" aria-label="Воспроизвести по годам">▶</button>
+      <div class="timeline-year" id="timelineYearLabel">—</div>
+      <input type="range" id="timelineSlider" min="0" max="0" value="0" step="1">
+      <button id="timelineModeBtn" title="Переключить режим" aria-label="Переключить режим">Накопительно</button>
+    </div>
+  </div>
+</div>
+<!-- Нижние вкладки на телефоне: карта на весь экран, остальное выезжает снизу -->
+<nav id="mnavBar" role="tablist" aria-label="Разделы">
+  <button type="button" class="mnav-btn" data-mtab-btn="map" role="tab" aria-selected="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z"/><path d="M9 4v13.5M15 6.5V20"/></svg><span>Карта</span></button>
+  <button type="button" class="mnav-btn" data-mtab-btn="list" role="tab" aria-selected="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg><span>Список</span></button>
+  <button type="button" class="mnav-btn" data-mtab-btn="filters" role="tab" aria-selected="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8.5V20l-4-2v-4.5z"/></svg><span>Фильтры</span><i class="mnav-dot" id="mnavFilterDot"></i></button>
+  <button type="button" class="mnav-btn" data-mtab-btn="add" role="tab" aria-selected="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg><span>Добавить</span></button>
+  <button type="button" class="mnav-btn" data-mtab-btn="more" role="tab" aria-selected="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg><span>Ещё</span><i class="mnav-dot" id="mnavSyncDot"></i></button>
+</nav>
+
+<div class="modal-overlay" id="tableModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Все отметки</h2>
+      <button id="closeTableModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-sub" id="modalCount"></div>
+    <div style="padding:0 20px 12px;">
+      <input type="text" id="tableSearchInput" placeholder="Поиск по названию, поездке, заметке…" style="max-width:320px;">
+    </div>
+    <div class="bulk-bar" id="bulkBar" style="display:none;">
+      <span class="bulk-count" id="bulkCount">Выбрано: 0</span>
+      <select id="bulkSeasonValue">
+        <option value="winter">Зима</option>
+        <option value="spring">Весна</option>
+        <option value="summer">Лето</option>
+        <option value="autumn">Осень</option>
+      </select>
+      <button id="bulkApplySeason" class="cancel-edit" style="margin-top:0;">Сезон</button>
+      <select id="bulkPurposeValue">
+        <option value="tourism">Туризм</option>
+        <option value="transit">Транзит</option>
+        <option value="sport">Спорт</option>
+        <option value="business">Бизнес</option>
+      </select>
+      <button id="bulkApplyPurpose" class="cancel-edit" style="margin-top:0;">Цель</button>
+      <select id="bulkCompanyValue">
+        <option value="alone">Один</option>
+        <option value="couple">С парой</option>
+        <option value="group">Сообщество</option>
+        <option value="friends">Друзья</option>
+        <option value="parents">Родители</option>
+      </select>
+      <button id="bulkApplyCompany" class="cancel-edit" style="margin-top:0;">Компания</button>
+      <input type="text" id="bulkTripValue" list="tripDatalist" placeholder="Название поездки" style="width:150px;">
+      <button id="bulkApplyTrip" class="cancel-edit" style="margin-top:0;">Поездка</button>
+      <button id="bulkApplyVisited" class="cancel-edit" style="margin-top:0;color:var(--amber);border-color:var(--amber-dim);">✓ Отметить посещёнными</button>
+      <button id="bulkToggleHidden" class="cancel-edit" style="margin-top:0;">🔒 Скрыть от друзей / показать</button>
+      <button id="bulkDelete" class="cancel-edit" style="margin-top:0;color:var(--danger);border-color:var(--danger);">Удалить выбранные</button>
+      <button id="bulkClear" class="cancel-edit" style="margin-top:0;">Снять выделение</button>
+    </div>
+    <div class="table-wrap">
+      <table id="entriesTable">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="selectAllCheckbox"></th>
+            <th>Тип</th>
+            <th>Название</th>
+            <th>Год</th>
+            <th>Цель</th>
+            <th>Компания</th>
+            <th>Сезон</th>
+            <th>Активность / дист.</th>
+            <th>Статус</th>
+            <th>Поездка</th>
+            <th>Фото</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="entriesTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="passportModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Паспорт путешественника</h2>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button id="ppPrint" class="cancel-edit" style="margin-top:0;padding:5px 10px;font-size:11px;">Печать / PDF</button>
+        <button id="closePassportModal" title="Закрыть" aria-label="Закрыть">✕</button>
+      </div>
+    </div>
+    <div class="modal-sub" id="passportCount"></div>
+    <div style="padding:0 20px 12px;">
+      <input type="text" id="passportSearchInput" placeholder="Поиск по названию страны…" style="max-width:320px;">
+    </div>
+    <div class="table-wrap">
+      <div class="passport-book" id="passportBook"></div>
+      <div class="pp-nav">
+        <button id="ppPrev" aria-label="Предыдущий разворот">‹</button>
+        <span id="ppPos"></span>
+        <button id="ppNext" aria-label="Следующий разворот">›</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="photoImportModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Импорт поездок</h2>
+      <button id="closePhotoImportModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="import-tabs" role="tablist">
+      <button type="button" data-imp-tab="photo" aria-selected="true">Из фотографий</button>
+      <button type="button" data-imp-tab="gtl" aria-selected="false">Из истории Google Maps</button>
+    </div>
+    <div id="impPhotoPane">
+    <div class="modal-sub">Файлы не загружаются и никуда не отправляются — читаются только дата съёмки и координаты, если они есть.</div>
+    <div class="table-wrap">
+      <div style="padding:4px 20px 12px;">
+        <div class="file-drop" id="photoDrop">Нажмите, чтобы выбрать фотографии с поездки</div>
+        <input type="file" id="photoInput" accept="image/*" multiple style="display:none;">
+        <div class="hint" id="photoStatus"></div>
+        <progress id="photoProgress" class="photo-progress" max="1" value="0" style="display:none;"></progress>
+      </div>
+      <div id="photoResults"></div>
+    </div>
+    </div>
+    <div id="impGtlPane" style="display:none;">
+    <div class="modal-sub">Файл читается прямо в браузере и никуда не отправляется. Домашний регион (40 км от дома) пропускается.</div>
+    <div class="table-wrap">
+      <div style="padding:4px 20px 12px;">
+        <details class="sync-help" style="margin:0 0 10px;">
+          <summary>Как выгрузить историю из Google Maps</summary>
+          <ol>
+            <li><b>Android:</b> Настройки телефона → Местоположение → Сервисы геолокации → Хронология → «Экспортировать данные хронологии». Получится файл <i>Timeline.json</i>.</li>
+            <li><b>iPhone:</b> Google Карты → ваш профиль → Хронология → «⋯» → Настройки местоположения и конфиденциальности → «Экспортировать данные хронологии». Получится <i>location-history.json</i>.</li>
+            <li><b>Старый архив Google Takeout</b> (до 2024 года): файлы из папки <i>Semantic Location History</i> (можно выбрать сразу несколько) или <i>Records.json</i>.</li>
+          </ol>
+          <div class="hint">Названия пунктов меню у Google иногда меняются; ищите «Хронология» и «Экспорт».</div>
+        </details>
+        <div class="file-drop" id="gtlDrop">Нажмите, чтобы выбрать файл истории (.json)</div>
+        <input type="file" id="gtlInput" accept=".json,application/json" multiple style="display:none;">
+        <div class="hint" id="gtlStatus"></div>
+        <progress id="gtlProgress" class="photo-progress" max="1" value="0" style="display:none;"></progress>
+        <div class="gtl-filters" id="gtlFilters" style="display:none;">
+          <select id="gtlYear" aria-label="Год"></select>
+          <label><input type="checkbox" id="gtlHideKnown" checked> скрыть то, что уже отмечено</label>
+        </div>
+      </div>
+      <div id="gtlResults"></div>
+    </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="collectionsModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2 id="collectionsTitle">Коллекции</h2>
+      <button id="closeCollectionsModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-sub" id="collectionsSub">Чек-листы мест: что уже есть в ваших отметках и что осталось</div>
+    <div class="table-wrap"><div id="collectionsBody" style="padding:4px 20px 20px;"></div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="recapModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Год в путешествиях</h2>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <select id="recapYear" style="margin:0;padding:5px 8px;font-size:12px;width:auto;"></select>
+        <button id="closeRecapModal" title="Закрыть" aria-label="Закрыть">✕</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <div id="recapBody"></div>
+      <div style="padding:4px 20px 18px;">
+        <button class="cancel-edit" id="recapDownload" style="margin-top:0;">Скачать картинкой</button>
+        <div class="hint">Картинка вертикальная, подходит для сторис.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="compareModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Год к году</h2>
+      <button id="closeCompareModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div style="padding:12px 20px 6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <select id="compareYearA" style="width:auto;min-width:96px;margin:0;"></select>
+      <span style="font-family:'Twemoji Country Flags','Courier Prime',monospace;font-size:11px;color:var(--text-dim);">против</span>
+      <select id="compareYearB" style="width:auto;min-width:96px;margin:0;"></select>
+    </div>
+    <div class="table-wrap"><div id="compareBody" style="padding:0 20px 20px;"></div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="changelogModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Журнал изменений</h2>
+      <button id="closeChangelogModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-sub" id="changelogSummary"></div>
+    <div class="table-wrap"><div id="changelogBody" style="padding:0 20px 20px;"></div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="tripPageModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2 id="tripPageTitle">Поездка</h2>
+      <button id="closeTripPageModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="table-wrap"><div id="tripPageBody"></div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="quizModal" style="display:none;">
+  <div class="modal-panel quiz-panel">
+    <div class="modal-header">
+      <h2>Квиз</h2>
+      <button id="closeQuizModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div id="quizBody" class="quiz-body"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="milestonesModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Вехи</h2>
+      <button id="closeMilestonesModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-sub" id="milestonesSummary"></div>
+    <div class="table-wrap"><div id="milestonesBody" style="padding:0 20px 20px;"></div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="diaryModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Дневник</h2>
+      <button id="closeDiaryModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-sub" id="diarySummary"></div>
+    <div style="padding:0 20px 12px;">
+      <input type="text" id="diarySearchInput" placeholder="Поиск по тексту заметок…" style="max-width:340px;">
+    </div>
+    <div class="table-wrap"><div id="diaryBody" style="padding:0 20px 20px;"></div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="runningModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Бег</h2>
+      <button id="closeRunningModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-sub" id="runningSummary"></div>
+    <div class="table-wrap">
+      <div style="padding:0 20px 18px;">
+        <div class="run-hero" id="runTotals"></div>
+        <div id="runNext"></div>
+
+        <p class="run-h">Личные рекорды</p>
+        <div class="pb-grid" id="runPBs"></div>
+
+        <p class="run-h">Стена медалей</p>
+        <div class="medal-wall" id="runMedals"></div>
+
+        <p class="run-h">Прогрессия
+          <span class="run-toggle" id="runProgToggle" role="tablist">
+            <button type="button" data-prog="pace" aria-selected="true">темп</button><button type="button" data-prog="share" aria-selected="false">обогнал</button>
+          </span></p>
+        <div id="runProgress"></div>
+
+        <p class="run-h">Календарь пробежек</p>
+        <div id="runCalendar"></div>
+
+        <p class="section-title" style="margin-top:18px;">Лучший темп по дистанциям <span style="font-style:italic;color:var(--text-dim);text-transform:none;letter-spacing:0;">(включая трейлы и треки)</span></p>
+        <div class="stat-grid" id="bestPaceList"></div>
+
+        <p class="section-title" style="margin-top:18px;">Предстоящие старты</p>
+        <div id="upcomingBlock"></div>
+
+        <p class="section-title" style="margin-top:18px;">Официальные старты</p>
+        <div id="racesBlock"></div>
+
+        <p class="section-title" style="margin-top:18px;">Забеги из маршрутов</p>
+        <div id="runList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="galleryModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Фотогалерея</h2>
+      <button id="closeGalleryModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-sub" id="galleryCount"></div>
+    <div class="table-wrap" id="galleryBody"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="calendarModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Календарь поездок</h2>
+      <button id="closeCalendarModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-sub" id="calendarCount"></div>
+    <div class="table-wrap">
+      <table id="calendarTable" class="calendar-table"></table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="diagnosticsModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Проверка данных</h2>
+      <button id="closeDiagnosticsModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-sub">Клик по записи открывает её для редактирования.</div>
+    <div class="table-wrap" id="diagnosticsBody"></div>
+  </div>
+</div>
+
+<div class="story-overlay" id="storyModal" style="display:none;">
+  <div class="story-header">
+    <h2 id="storyTitle">Поездка</h2>
+    <button id="closeStoryModal">✕ Закрыть</button>
+  </div>
+  <div class="story-body">
+    <div class="story-map-pane">
+      <div id="storyMap"></div>
+    </div>
+    <div class="story-feed" id="storyFeed"></div>
+  </div>
+</div>
+
+<!-- Запечённые данные: в основной версии пусто, в версию для друзей их
+     подставляет scripts/build-friends.mjs -->
+<script type="application/json" id="baked-data">{"readOnly":false,"entries":[],"tripMeta":{},"races":[],"savedAt":null}</script>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
