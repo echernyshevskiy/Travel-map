@@ -114,6 +114,11 @@ async function nominatimThrottle(){
 // ожидание 8 секундами, а после сбоя полторы минуты не ждём его вовсе —
 // сразу берём встроенный справочник городов.
 const NOMINATIM_TIMEOUT = 8000;
+// Сколько ждём остальные сетевые запросы. Зависший без ответа запрос не должен
+// навсегда занимать очередь: синхронизация без ограничения ждала бы GitHub до
+// перезагрузки страницы, а подгрузка границ — занимала бы все три «слота».
+// Объект, а не числа — автотесты укорачивают ожидание, не трогая код.
+const NET_TIMEOUTS = { github: 30000, githubPut: 60000, borders: 20000 };
 let nominatimDownUntil = 0;
 const nominatimDown = () => Date.now() < nominatimDownUntil;
 async function nominatimJson(url){

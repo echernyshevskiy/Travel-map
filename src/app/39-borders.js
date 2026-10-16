@@ -43,7 +43,9 @@ function pumpBorders(){
     const [tier, bundle] = borderQueue.shift();
     const id = tier + '/' + bundle;
     borderInflight++;
-    fetch(borderUrl(tier, bundle))
+    const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctl ? setTimeout(() => ctl.abort(), NET_TIMEOUTS.borders) : null;
+    fetch(borderUrl(tier, bundle), ctl ? { signal: ctl.signal } : undefined)
       .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
       .then(pack => {
         Object.entries(pack || {}).forEach(([dk, g]) => {
@@ -53,7 +55,7 @@ function pumpBorders(){
         scheduleBorders(40);
       })
       .catch(() => borderBundles.set(id, 'failed')) // нет файла или сети — остаются лёгкие контуры
-      .finally(() => { borderInflight--; pumpBorders(); });
+      .finally(() => { clearTimeout(timer); borderInflight--; pumpBorders(); });
   }
 }
 // подробный контур нужного уровня; пока он грузится — другой уровень, если уже есть
