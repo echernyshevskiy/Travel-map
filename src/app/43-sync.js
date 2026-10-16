@@ -102,14 +102,19 @@ class SyncError extends Error{
 }
 async function gh(cfg, method, apiPath, body){
   let res;
+  // таймер не снимаем после ответа: он ограничивает и чтение тела (данные с
+  // треками весят мегабайты), а у завершённого запроса отмена ни на что не влияет
+  const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  if(ctl) setTimeout(() => ctl.abort(), method === 'GET' ? NET_TIMEOUTS.github : NET_TIMEOUTS.githubPut);
   try{
     res = await fetch('https://api.github.com' + apiPath, {
-      method, cache: 'no-store',
+      method, cache: 'no-store', signal: ctl ? ctl.signal : undefined,
       headers: Object.assign({ 'Accept': 'application/vnd.github+json', 'Authorization': 'Bearer ' + cfg.token },
                              body ? { 'Content-Type': 'application/json' } : {}),
       body: body ? JSON.stringify(body) : undefined
     });
   }catch(e){
+    if(e && e.name === 'AbortError') throw new SyncError('GitHub не отвечает — попробую позже', 'offline');
     throw new SyncError('Нет связи с GitHub — синхронизирую, когда появится сеть', 'offline');
   }
   // GitHub сообщает срок действия fine-grained токена (если браузеру этот заголовок доступен)
@@ -226,7 +231,7 @@ async function applyMergedLocally(merged){
 }
 
 // ---- запуск ----
-let syncRunning = null, syncAgain = false, syncTimer = null, syncState = 'idle';
+let syncRunning = null, syncAgain = false, syncRetryLater = false, syncTimer = null, syncState = 'idle';
 function scheduleSync(delay){
   if(READ_ONLY || !readSyncConfig()) return;
   clearTimeout(syncTimer);
@@ -270,8 +275,12 @@ async function syncNow(opts){
         return true;
       }
       throw new SyncError('Файл на GitHub всё время меняется — попробую позже', 'server');
-    }catch(err){
+    }catch(caught){
+      // ответ начал приходить, но чтение оборвалось по таймауту
+      const err = caught && caught.name === 'AbortError' ? new SyncError('GitHub не отвечает — попробую позже', 'offline') : caught;
       syncPatch({ lastError: err.message || String(err) });
+      // сеть вроде есть, а GitHub молчит — повторим сами через минуту, не дожидаясь новой правки
+      if(err.kind === 'offline' && navigator.onLine !== false) syncRetryLater = true;
       syncState = err.kind === 'offline' ? 'offline' : 'error';
       if(opts.manual) toast(err.message || 'Синхронизация не удалась');
       return false;
@@ -279,6 +288,7 @@ async function syncNow(opts){
       syncRunning = null;
       renderSyncStatus();
       if(syncAgain){ syncAgain = false; scheduleSync(1500); }
+      else if(syncRetryLater){ syncRetryLater = false; scheduleSync(60000); }
     }
   })();
   return syncRunning;
