@@ -11,6 +11,7 @@ function fakeGitHub(){
   gh.handler = route => {
     const req = route.request();
     if(gh.offline) return route.abort('internetdisconnected');
+    if(gh.hang) return; // сервер молчит: запрос висит без ответа
     if(req.headers()['authorization'] !== 'Bearer ' + TOKEN) return route.fulfill({ status: 401, body: '{}' });
     const p = new URL(req.url()).pathname;
     if(p === `/repos/${REPO}`) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ private: gh.private }) });
@@ -114,4 +115,23 @@ test('публичный репозиторий и неверный токен �
   const stored = await b.page.evaluate(() => localStorage.getItem('travel-map-data'));
   expect(stored).not.toContain('github_pat_');
   expect(gh2.file).not.toContain('github_pat_');
+});
+
+test('GitHub не отвечает: синхронизация не зависает, а потом проходит', async ({ browser }) => {
+  const gh = fakeGitHub();
+  const a = await device(browser, gh, [city('c1', 'Казань')]);
+  await connect(a.page);
+  gh.hang = true;
+  await a.page.evaluate(() => { NET_TIMEOUTS.github = 700; NET_TIMEOUTS.githubPut = 700; });
+  const t0 = Date.now();
+  expect(await a.page.evaluate(() => syncNow({ manual: true, quiet: true }))).toBe(false);
+  expect(Date.now() - t0).toBeLessThan(5000);
+  expect(await a.page.evaluate(() => JSON.parse(localStorage.getItem('travel-map-sync')).lastError)).toContain('не отвечает');
+  // ничего не «залипло»: следующая попытка идёт с нуля и проходит
+  gh.hang = false;
+  await a.page.evaluate(() => { allEntries.push({ id: 'c9', type: 'city', name: 'Пермь', year: 2024, lat: 58, lng: 56.2, countryKey: 'Russia', status: 'visited', color: '#3F5240', photos: [] }); });
+  expect(await a.page.evaluate(() => syncNow({ manual: true, quiet: true }))).toBe(true);
+  expect(gh.data().entries.map(e => e.name).sort()).toEqual(['Казань', 'Пермь']);
+  await expectNoErrors(a.errors);
+  await a.ctx.close();
 });
