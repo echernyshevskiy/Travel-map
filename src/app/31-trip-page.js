@@ -35,7 +35,7 @@ function borderDetailAsync(tier, dk, timeoutMs){
     tick();
   });
 }
-function tripMiniOnline(){ return location.protocol !== 'file:' && navigator.onLine !== false && !tileFallbackDone; }
+function tripMiniOnline(){ return SERVED_OVER_HTTP && navigator.onLine !== false && !tileFallbackDone; }
 function buildTripMiniMap(holder, entry, tripCities){
   const coords = entryDrawCoords(entry);
   const flat = getEntryCoords(entry);
@@ -166,7 +166,11 @@ function renderTripPage(){
   s.entries.forEach(e => (e.photos || []).forEach(p => { if(p && !photos.includes(p)) photos.push(p); }));
   const coverCandidate = (meta.coverPhoto && photos.includes(meta.coverPhoto)) ? meta.coverPhoto : photos.find(p => !photoLinkProblem(p));
 
+  // точные даты, если они есть хотя бы у части записей, — точнее месяцев
+  const span = dateSpan(s.entries);
+  if(span) period = formatDateRange(span.from, span.to);
   const stats = [];
+  if(span && span.days > 1) stats.push([span.days, daysWord(span.days)]);
   if(s.cities > 0) stats.push([s.cities, 'городов']);
   if(s.countries > 0) stats.push([s.countries, 'стран']);
   if(s.routesCount > 0) stats.push([s.routesCount, 'маршрутов']);
@@ -188,7 +192,7 @@ function renderTripPage(){
     const metaBits = [
       e.type === 'route' ? (activityLabel(e.activity) || 'маршрут') : null,
       (e.type === 'route' && e.distanceKm) ? `${e.distanceKm.toFixed(1)} км` : null,
-      monthLabel(e.month) ? `${monthLabel(e.month)} ${e.year}` : (e.year ? String(e.year) : null),
+      whenLabel(e) || null,
       e.countryKey ? (COUNTRY_RU[e.countryKey] || e.countryKey) : null,
     ].filter(Boolean).join(' · ');
     return `<div class="tp-stop">
@@ -197,7 +201,7 @@ function renderTripPage(){
         <div class="tp-stop-name" data-tp-focus="${escapeAttr(e.id)}">${flag ? flag + ' ' : ''}${escapeHtml(e.name)}</div>
         ${metaBits ? `<div class="tp-stop-meta">${escapeHtml(metaBits)}</div>` : ''}
         ${e.type === 'route' && Array.isArray(e.waypointNames) && e.waypointNames.length
-          ? `<div class="tp-stop-via">${e.waypointNames.map(escapeHtml).join(' → ')}</div>` : ''}
+          ? `<div class="tp-stop-via">${e.waypointNames.map(n => escapeHtml(cleanPlaceName(n))).join(' → ')}</div>` : ''}
         ${e.type === 'route' ? `<div class="tp-stop-spark"><div class="tp-route-map" data-route-map="${escapeAttr(e.id)}" title="Показать на большой карте">${buildRouteSparkSvg(e, 300, 110)}</div>${buildElevationSvg(e, 300, 46)}</div>` : ''}
         ${photo ? `<img class="tp-stop-photo" src="${escapeAttr(safeUrl(photo))}" alt="" loading="lazy" data-photo>` : ''}
         ${note ? `<div class="tp-stop-note" ${READ_ONLY ? '' : `data-tp-edit="${escapeAttr(e.id)}" title="Нажмите, чтобы изменить" style="cursor:text;"`}>${escapeHtml(note)}</div>`
@@ -212,6 +216,7 @@ function renderTripPage(){
       <div class="tp-title">${escapeHtml(tripName)}</div>
       <div class="tp-period">${escapeHtml(period)}</div>
       ${flags ? `<div class="tp-flags">${flags}</div>` : ''}
+      ${stops.length ? `<button type="button" class="cancel-edit tp-tour-btn" data-tour-trip="${escapeAttr(tripName)}">🌍 Облёт на глобусе</button>` : ''}
     </div>
     ${meta.narrative ? `<div class="tp-intro">${escapeHtml(meta.narrative)}</div>` : ''}
     ${stats.length ? `<div class="tp-stats">${stats.map(([v,l]) => `<div class="tp-stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div>` : ''}

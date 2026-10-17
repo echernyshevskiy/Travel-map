@@ -39,6 +39,9 @@ function timelineTargetStyle(entry, included){
   return null;
 }
 
+// Кто ещё рисует отметки помимо слоёв Leaflet (глобус) — подписывается сюда:
+// вызывается после любого изменения фильтров, ползунка лет или данных
+const mapRedrawHooks = [];
 function applyTimelineOpacity(){
   const currentYear = timelineYears[timelineIndex];
   if(currentYear === undefined) return;
@@ -64,6 +67,7 @@ function applyTimelineOpacity(){
     }
   });
   try{ updateRouteStops(); }catch(err){ console.warn('остановки маршрутов', err); }
+  mapRedrawHooks.forEach(fn => { try{ fn(); }catch(err){ console.warn('перерисовка', err); } });
 }
 
 // Остановки рисуем на самой линии маршрута: координаты остановки — это центр
@@ -112,7 +116,7 @@ function updateRouteStops(){
       if(seen.has(pk)) return;
       seen.add(pk);
       L.circleMarker(c, { pane: 'routePane', renderer: routeRenderer, radius: 4.5, color: '#2B3B2E', weight: 1.5, fillColor: e.color || DEFAULT_COLOR.route, fillOpacity: 1 })
-        .bindTooltip(`${escapeHtml(name)} <span style="opacity:.7;">· ${escapeHtml(e.name)}</span>`, { direction: 'top', offset: [0, -4] })
+        .bindTooltip(`${escapeHtml(cleanPlaceName(name))} <span style="opacity:.7;">· ${escapeHtml(e.name)}</span>`, { direction: 'top', offset: [0, -4] })
         .on('click', ev => {
           L.DomEvent.stopPropagation(ev);
           if(placingCity || placingCountry || quizMapActive()){ handleMapClick(ev); return; }

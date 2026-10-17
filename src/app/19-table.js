@@ -172,7 +172,7 @@ function renderTable(){
       <td>${READ_ONLY ? '' : `<input type="checkbox" class="row-checkbox" ${selectedIds.has(entry.id) ? 'checked' : ''}>`}</td>
       <td><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${entry.color};margin-right:6px;"></span>${typeLabel}</td>
       <td class="name-cell">${((entry.type === 'country' || entry.type === 'city') && countryFlag(entry.countryKey)) ? countryFlag(entry.countryKey) + ' ' : ''}${(entry.type === 'city' && entry.favorite) ? '❤ ' : ''}${escapeHtml(entry.name)}</td>
-      <td>${monthLabel(entry.month) ? monthLabel(entry.month) + ' ' : ''}${entry.year}</td>
+      <td>${escapeHtml(whenLabel(entry))}</td>
       <td>${purposeLabel(entry.purpose)}</td>
       <td>${companyLabel(entry.company) || '—'}${communityLabel(entry.community) ? ' · ' + communityLabel(entry.community) : ''}</td>
       <td>${seasonLabel(entry.season) || '—'}</td>

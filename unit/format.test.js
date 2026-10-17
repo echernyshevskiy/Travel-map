@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   escapeHtml, safeUrl, normSearch, formatPace, parseRaceTime, formatRaceTime,
-  fmtDelta, daysWord, pluralVisits, monthsWord,
+  fmtDelta, daysWord, pluralVisits, monthsWord, cleanPlaceName, looksLikeAdminArea,
+  parseIsoDate, formatDateRange, daysInclusive, dateSpan, localDateAt,
 } from '../src/lib/format.js';
 
 describe('escapeHtml и safeUrl', () => {
@@ -69,5 +70,65 @@ describe('склонения', () => {
     expect(daysWord(n)).toBe(d);
     expect(pluralVisits(n)).toBe(v);
     expect(monthsWord(n)).toBe(m);
+  });
+});
+
+describe('названия мест от геокодера', () => {
+  it.each([
+    ['Theewaterskloof Local Municipality', 'Theewaterskloof'],
+    ['Kouga Local Municipality', 'Kouga'],
+    ['City of Cape Town Metropolitan Municipality', 'City of Cape Town'],
+    ['Municipality of Kotor', 'Kotor'],
+    ['городской округ Самара', 'Самара'],
+    ['Тольятти городской округ', 'Тольятти'],
+    ['Comune di Lucca', 'Lucca'],
+    ['Gemeinde Zermatt', 'Zermatt'],
+    ['Тбилиси', 'Тбилиси'],
+    ['Orange County', 'Orange County'],
+    ['', ''],
+  ])('%s → %s', (a, b) => expect(cleanPlaceName(a)).toBe(b));
+  it('служебное слово целиком не выкидывает название', () => {
+    expect(cleanPlaceName('Municipality')).toBe('Municipality');
+  });
+  it('районы и сельсоветы распознаются', () => {
+    expect(looksLikeAdminArea('Ак-Суйский район')).toBe(true);
+    expect(looksLikeAdminArea('Нарочский сельский Совет')).toBe(true);
+    expect(looksLikeAdminArea('Kouga Local Municipality')).toBe(true);
+    expect(looksLikeAdminArea('Казань')).toBe(false);
+  });
+});
+
+describe('точные даты', () => {
+  it('разбор проверяет и формат, и сам день', () => {
+    expect(parseIsoDate('2025-09-12')).toMatchObject({ y: 2025, m: 9, d: 12 });
+    for(const bad of ['2025-02-30', '2025-13-01', '12.09.2025', '', null, undefined, '2025-9-1']) expect(parseIsoDate(bad)).toBeNull();
+    expect(parseIsoDate('2024-02-29')).not.toBeNull();   // високосный
+  });
+  it.each([
+    ['2025-09-12', null, '12 сен 2025'],
+    ['2025-09-12', '2025-09-12', '12 сен 2025'],
+    ['2025-09-12', '2025-09-18', '12–18 сен 2025'],
+    ['2025-06-28', '2025-07-03', '28 июн – 3 июл 2025'],
+    ['2024-12-30', '2025-01-02', '30 дек 2024 – 2 янв 2025'],
+    ['2025-05-09', '2025-05-11', '9–11 мая 2025'],
+    ['2025-09-18', '2025-09-12', '18 сен 2025'],          // конец раньше начала — только начало
+    [null, '2025-09-12', null],
+  ])('%s — %s → %s', (a, b, want) => expect(formatDateRange(a, b)).toBe(want));
+  it('дни включительно, через границу месяца и года', () => {
+    expect(daysInclusive('2025-09-12', '2025-09-18')).toBe(7);
+    expect(daysInclusive('2024-12-30', '2025-01-02')).toBe(4);
+    expect(daysInclusive('2025-09-12')).toBe(1);
+    expect(daysInclusive('плохо')).toBe(0);
+  });
+  it('размах поездки по записям с датами', () => {
+    expect(dateSpan([{ dateFrom: '2025-06-28', dateTo: '2025-07-01' }, { dateFrom: '2025-07-03' }, { year: 2025 }]))
+      .toEqual({ from: '2025-06-28', to: '2025-07-03', days: 6 });
+    expect(dateSpan([{ year: 2025, month: 6 }])).toBeNull();
+  });
+  it('местная дата по долготе: вечер в Хабаровске — уже завтра по UTC', () => {
+    const t = Date.UTC(2025, 5, 1, 15, 30);               // 15:30 UTC = 01:30 следующего дня в UTC+10
+    expect(localDateAt(t, 135)).toBe('2025-06-02');
+    expect(localDateAt(t, -75)).toBe('2025-06-01');
+    expect(localDateAt(NaN, 0)).toBeNull();
   });
 });

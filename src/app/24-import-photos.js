@@ -124,7 +124,7 @@ async function reverseGeocodeOnline(lat, lng){
   const url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&accept-language=ru&zoom=10&lat=${lat}&lon=${lng}`;
   const d = await nominatimJson(url) || {};
   const a = d.address || {};
-  const name = a.city || a.town || a.village || a.municipality || a.county || a.state || null;
+  const name = cleanPlaceName(a.city || a.town || a.village || a.municipality || a.county || a.state || '') || null;
   if(!name) return null;
   return { name, countryKey: findAnyCountryKeyByRuName(a.country, a.country_code ? a.country_code.toUpperCase() : null) };
 }

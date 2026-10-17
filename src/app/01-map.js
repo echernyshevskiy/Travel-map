@@ -11,6 +11,10 @@ map.fitBounds(WORLD_VIEW_BOUNDS);
 //     поэтому задаём referrerPolicy явно;
 //  3) при открытии файла с диска Referer не существует в принципе — там
 //     плитки OSM работать не будут никогда, см. переключение ниже.
+// Страница открыта с настоящего сайта (http/https), а не файлом с диска, не
+// встроенным предпросмотром (about:srcdoc), не blob: и т. п. Только тогда есть
+// Referer для подложки, работают относительные адреса (файлы границ) и кэш.
+const SERVED_OVER_HTTP = /^https?:$/.test(location.protocol);
 const TILE_REFERRER = 'strict-origin-when-cross-origin';
 const streetLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 18,
