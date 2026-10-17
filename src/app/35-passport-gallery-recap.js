@@ -171,7 +171,7 @@ function renderGallery(){
     const e = it.entry;
     const flag = (e.type === 'country' || e.type === 'city') ? countryFlag(e.countryKey) : '';
     const cap = `${flag ? flag + ' ' : ''}${escapeHtml(e.name)}`;
-    const sub = `${monthLabel(e.month) ? monthLabel(e.month) + ' ' : ''}${e.year}`;
+    const sub = `${escapeHtml(whenLabel(e))}`;
     const albumLinks = it.albums.length
       ? `<a class="gal-album-link" href="${escapeAttr(safeUrl(it.albums[0]))}" target="_blank" rel="noopener">🗂 альбом${it.albums.length > 1 ? ` (${it.albums.length})` : ''} · ${escapeHtml(galleryHostLabel(it.albums[0]))}</a>`
       : '';

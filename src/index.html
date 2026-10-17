@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.58
+  Версия: v2.60
   Дата сборки: 2026-10-12
   История версий смотрите в переписке с Claude.
 -->
@@ -110,6 +110,7 @@ window.addEventListener('unhandledrejection', function(e){
         <button id="openCalendarBtn" class="header-menu-item">Календарь</button>
         <button id="openRecapBtn" class="header-menu-item">Год в путешествиях</button>
         <button id="openMilestonesBtn" class="header-menu-item">Вехи</button>
+        <button id="openTravelerBtn" class="header-menu-item">Тип путешественника</button>
         <button id="openDiaryBtn" class="header-menu-item">Дневник</button>
         <button id="openCollectionsBtn" class="header-menu-item">Коллекции</button>
         <button id="exportSnapshotBtn" class="header-menu-item">Снимок (Stories)</button>
@@ -277,6 +278,17 @@ window.addEventListener('unhandledrejection', function(e){
         <option value="11">Ноябрь</option>
         <option value="12">Декабрь</option>
       </select>
+      <!-- точные даты — по желанию: год и месяц остаются главными -->
+      <button type="button" class="link-btn" id="exactDatesToggle" aria-expanded="false">+ точные даты</button>
+      <div id="exactDatesFields" style="display:none;">
+        <label>Точные даты <span style="font-style:italic;color:var(--text-dim);">(необязательно)</span></label>
+        <div class="date-range">
+          <input type="date" id="fieldDateFrom" aria-label="Первый день">
+          <span>—</span>
+          <input type="date" id="fieldDateTo" aria-label="Последний день (можно не указывать)">
+        </div>
+        <div class="hint" style="margin-top:4px;">Год и месяц подставятся сами. Последний день можно не указывать.</div>
+      </div>
 
       <label>Цель поездки</label>
       <select id="fieldPurpose">
@@ -522,6 +534,8 @@ window.addEventListener('unhandledrejection', function(e){
     <div class="map-controls">
       <button id="themeToggleBtn" class="topo-toggle-btn map-full-btn" title="Переключить тёмную/светлую тему" aria-label="Переключить тёмную/светлую тему">🌙</button>
       <button id="mapFullBtn" class="topo-toggle-btn map-full-btn" title="Развернуть карту на весь экран" aria-label="Развернуть карту на весь экран">⤢</button>
+      <button id="globeArcsBtn" class="topo-toggle-btn globe-only" title="Дуги из дома к посещённым странам" aria-pressed="true">✈ Дуги</button>
+      <button id="globeToggleBtn" class="topo-toggle-btn" title="Показать Землю шаром" aria-pressed="false">🌍 Глобус</button>
       <button id="topoToggleBtn" class="topo-toggle-btn" title="Переключить на рельефную карту" aria-label="Переключить на рельефную карту">🏔 Рельеф</button>
     </div>
     <div class="collection-chip" id="collectionChip" style="display:none;"></div>
@@ -544,7 +558,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
         <div class="legend-credits">флаги: <a href="https://github.com/twitter/twemoji" target="_blank" rel="noopener" style="color:inherit;">Twemoji</a>, CC BY 4.0 · города: Natural Earth, <a href="https://github.com/hflabs/city" target="_blank" rel="noopener" style="color:inherit;">hflabs/city</a>, CC BY-SA 4.0 · границы: Natural Earth, регионы: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:inherit;">OpenStreetMap</a> (ODbL)</div>
-        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.58</div>
+        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.60</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -780,6 +794,15 @@ window.addEventListener('unhandledrejection', function(e){
   </div>
 </div>
 
+<div class="modal-overlay" id="travelerModal" style="display:none;">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2>Тип путешественника</h2>
+      <button id="closeTravelerModal" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="table-wrap"><div id="travelerBody" style="padding:4px 20px 20px;"></div></div>
+  </div>
+</div>
 <div class="modal-overlay" id="milestonesModal" style="display:none;">
   <div class="modal-panel">
     <div class="modal-header">

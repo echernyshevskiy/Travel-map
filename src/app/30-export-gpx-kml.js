@@ -240,7 +240,7 @@ function buildKml(){
   visited.filter(e => e.type === 'route').forEach(e=>{
     const coords = getEntryCoords(e);
     if(!coords || coords.length < 2) return;
-    const desc = [e.year ? `${monthLabel(e.month) ? monthLabel(e.month) + ' ' : ''}${e.year}` : null,
+    const desc = [e.year ? `${escapeHtml(whenLabel(e))}` : null,
                   activityLabel(e.activity), `${(e.distanceKm || 0).toFixed(1)} км${e.isEstimated ? ' (по прямой)' : ''}`,
                   e.elevationGain ? `+${Math.round(e.elevationGain)} м` : null,
                   e.trip ? `Поездка: ${e.trip}` : null, (e.notes || '').trim() || null].filter(Boolean).join(' · ');

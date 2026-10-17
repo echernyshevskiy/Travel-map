@@ -20,7 +20,9 @@ function showUndoToast(message){
 function snapshotEntries(entries, fields){
   return entries.map(e => {
     const snap = { id: e.id };
-    fields.forEach(f => { snap[f] = e[f]; });
+    // копия, а не ссылка: массивы (точки маршрута, их страны) правятся на месте,
+    // и снимок по ссылке «отменял» бы на уже исправленное значение
+    fields.forEach(f => { snap[f] = e[f] === undefined ? undefined : JSON.parse(JSON.stringify(e[f])); });
     return snap;
   });
 }
