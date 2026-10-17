@@ -87,7 +87,9 @@ function borderTargets(){
   return out;
 }
 function applyBorderDetail(){
-  if(!BORDERS_INDEX || location.protocol === 'file:') return; // с диска файлы границ браузер не отдаст
+  // с диска или из встроенного предпросмотра файлов границ рядом нет —
+  // остаются встроенные контуры (раньше в предпросмотре это была ошибка Invalid URL)
+  if(!BORDERS_INDEX || !SERVED_OVER_HTTP) return;
   const tier = borderTier(map.getZoom());
   // подробности держим только у того, что в кадре (с запасом): Leaflet
   // пересчитывает при зуме все точки контура, даже невидимые

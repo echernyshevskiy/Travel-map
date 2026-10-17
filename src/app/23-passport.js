@@ -293,7 +293,29 @@ function computeDiagnostics(){
 
   const typeLabel = e => e.type === 'country' ? 'страна' : e.type === 'city' ? 'город' : 'маршрут';
 
-  return { countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs, missingCoords, brokenLinks, nonImagePhotos, duplicateGroups, noCountry, missingCountryYears, routesNoWpCountry, tripSuggestions, typeLabel };
+  // Остановки, до которых трек маршрута не доходит ближе 30 км: на карте они
+  // остаются в стороне от линии — скорее всего, геокодер нашёл не то место
+  const farStops = [];
+  allEntries.forEach(e => {
+    if(e.type !== 'route' || e.isEstimated || !Array.isArray(e.waypointCoords) || !Array.isArray(e.waypointNames)) return;
+    const segs = entrySegments(e).filter(s => s.length >= 2);
+    if(!segs.length || segs.reduce((n, s) => n + s.length, 0) <= e.waypointCoords.length) return;
+    e.waypointCoords.forEach((c, i) => {
+      if(!c || !e.waypointNames[i]) return;
+      const s = snapToTrack(c, segs, Infinity);
+      if(s && s.km > ROUTE_STOP_SNAP_KM) farStops.push({ entry: e, i, name: e.waypointNames[i], km: s.km });
+    });
+  });
+  farStops.sort((a, b) => b.km - a.km);
+  // Вместо города — район, муниципалитет или сельсовет
+  const adminNames = [];
+  allEntries.forEach(e => {
+    if(e.type === 'city' && looksLikeAdminArea(e.name)) adminNames.push({ entry: e, i: null, name: e.name, clean: cleanPlaceName(e.name) });
+    if(e.type === 'route' && Array.isArray(e.waypointNames)) e.waypointNames.forEach((n, i) => {
+      if(n && looksLikeAdminArea(n)) adminNames.push({ entry: e, i, name: n, clean: cleanPlaceName(n) });
+    });
+  });
+  return { farStops, adminNames, countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs, missingCoords, brokenLinks, nonImagePhotos, duplicateGroups, noCountry, missingCountryYears, routesNoWpCountry, tripSuggestions, typeLabel };
 }
 
 // суммарное число находок — для бейджа на кнопке, чтобы не приходилось
@@ -301,7 +323,7 @@ function computeDiagnostics(){
 function countDiagnosticsIssues(){
   try{
     const d = computeDiagnostics();
-    return d.countryMismatches.length + d.outlierWaypoints.length + d.noMonth.length +
+    return d.farStops.length + d.adminNames.length + d.countryMismatches.length + d.outlierWaypoints.length + d.noMonth.length +
            d.similarPairs.length + d.similarTripPairs.length + d.missingCoords.length +
            d.brokenLinks.length + d.nonImagePhotos.length + d.duplicateGroups.length + d.noCountry.length +
            d.missingCountryYears.length + d.routesNoWpCountry.length;
@@ -331,7 +353,7 @@ function computeDiagnosticsBadgeNow(){
 
 function renderDiagnostics(){
   const container = document.getElementById('diagnosticsBody');
-  const { countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs,
+  const { farStops, adminNames, countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs,
           missingCoords, brokenLinks, nonImagePhotos, duplicateGroups, noCountry,
           missingCountryYears, routesNoWpCountry, tripSuggestions, typeLabel } = computeDiagnostics();
 
@@ -360,6 +382,20 @@ function renderDiagnostics(){
     'Похоже на ошибку геокодирования — одноимённый город на другом континенте (например, «Дублин, Огайо» вместо «Дублин, Ирландия»). Откройте маршрут и пересоздайте именно эту точку через поиск, явно выбрав нужную страну из списка вариантов.',
     outlierWaypoints, 'Все точки маршрутов стоят рядом друг с другом — аномалий не найдено.',
     o => `<div class="diag-row" data-diag-id="${o.entry.id}">${escapeHtml(o.name)}<div class="diag-row-meta">${escapeHtml(o.entry.name)} · ~${Math.round(o.dist).toLocaleString('ru-RU')} км от остальных точек</div></div>`
+  );
+  html += buildDiagSection(
+    'Остановки далеко от трека',
+    'Трек маршрута не проходит ближе 30 км от этой остановки, поэтому на карте точка висит в стороне. Чаще всего геокодер нашёл одноимённое место в другой области или стране — откройте маршрут и выберите остановку заново.',
+    farStops, 'Все остановки маршрутов с треками лежат на своих треках.',
+    o => `<div class="diag-row" data-diag-id="${o.entry.id}">${escapeHtml(cleanPlaceName(o.name))}<div class="diag-row-meta">${escapeHtml(o.entry.name)} · ${Math.round(o.km).toLocaleString('ru-RU')} км от трека</div></div>`
+  );
+  html += buildDiagSection(
+    'Район вместо города',
+    'Геокодер записал административную единицу — район, муниципалитет, сельсовет. Где из названия понятно место, его можно сократить одной кнопкой; остальные лучше выбрать заново через поиск.',
+    adminNames, 'Все названия — населённые пункты.',
+    (o, i) => `<div class="diag-row" style="cursor:default;"><span data-diag-id="${o.entry.id}" style="cursor:pointer;">${escapeHtml(o.name)}</span>
+      <div class="diag-row-meta">${o.i == null ? 'город' : 'остановка маршрута «' + escapeHtml(o.entry.name) + '»'}</div>
+      ${!READ_ONLY && o.clean && o.clean !== o.name ? `<div class="diag-merge"><button data-fixadmin-idx="${i}">Сократить до «${escapeHtml(o.clean)}»</button></div>` : ''}</div>`
   );
   html += buildDiagSection(
     'Записи без месяца',
@@ -495,6 +531,21 @@ function renderDiagnostics(){
       rebuildAll();
       renderDiagnostics();
       if(saved) showUndoToast(`Страна исправлена: ${m.label} → ${m.actual}`);
+    });
+  });
+
+  container.querySelectorAll('[data-fixadmin-idx]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const o = adminNames[parseInt(btn.dataset.fixadminIdx, 10)];
+      if(!o || !o.clean) return;
+      recordBulkAction('сокращение названия', [o.entry], ['name', 'waypointNames'], []);
+      if(o.i == null) o.entry.name = o.clean;
+      else o.entry.waypointNames[o.i] = o.clean;
+      btn.disabled = true;
+      const saved = await saveData();
+      rebuildAll();
+      renderDiagnostics();
+      if(saved) showUndoToast(`Название: ${o.name} → ${o.clean}`);
     });
   });
 

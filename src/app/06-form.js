@@ -188,7 +188,7 @@ async function queryNominatimFetch(q, biasLatLng){
   const data = await nominatimJson(url);
   return (Array.isArray(data) ? data : []).map(d => {
     const addr = d.address || {};
-    const short = addr.city || addr.town || addr.village || addr.municipality || addr.hamlet || addr.suburb || addr.county || d.display_name.split(',')[0];
+    const short = cleanPlaceName(addr.city || addr.town || addr.village || addr.municipality || addr.hamlet || addr.suburb || addr.county || d.display_name.split(',')[0]);
     const region = [addr.state, addr.country].filter(Boolean).join(', ');
     return { name: short, full: region ? `${short} — ${region}` : short, lat: parseFloat(d.lat), lng: parseFloat(d.lon), country: addr.country || null, countryCode: addr.country_code ? addr.country_code.toUpperCase() : null };
   });

@@ -60,6 +60,9 @@ function sanitizeEntryFields(entry){
     const days = d >= 1 && d <= 365 ? d : 1;
     if(entry.trackDays !== days){ entry.trackDays = days; changed = true; }
   }
+  // точные даты — только в виде ГГГГ-ММ-ДД; конец не раньше начала
+  if(entry.dateFrom != null && !parseIsoDate(entry.dateFrom)){ delete entry.dateFrom; changed = true; }
+  if(entry.dateTo != null && (!entry.dateFrom || !parseIsoDate(entry.dateTo) || entry.dateTo <= entry.dateFrom)){ delete entry.dateTo; changed = true; }
   if(changed) migrationChanged = true;
 }
 function sanitizeRace(r){

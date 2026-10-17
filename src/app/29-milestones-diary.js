@@ -8,8 +8,8 @@ const MILESTONE_CITIES = [1, 10, 25, 50, 100, 150, 200, 300, 500];
 function computeMilestones(){
   const visited = allEntries.filter(e => e.status !== 'wishlist' && e.year);
   // сортируем по времени; записи без месяца считаем началом года
-  const chrono = visited.slice().sort((a,b)=> (a.year - b.year) || ((a.month || 0) - (b.month || 0)));
-  const when = e => `${monthLabel(e.month) ? monthLabel(e.month) + ' ' : ''}${e.year}`;
+  const chrono = visited.slice().sort((a,b)=> (a.year - b.year) || ((a.month || 0) - (b.month || 0)) || (a.dateFrom || '').localeCompare(b.dateFrom || ''));
+  const when = e => `${escapeHtml(whenLabel(e))}`;
 
   const reached = [];
   const seenCountries = new Set();
@@ -126,7 +126,7 @@ function renderDiary(){
     return;
   }
 
-  const sorted = shown.slice().sort((a,b)=> (b.year||0) - (a.year||0) || (b.month||0) - (a.month||0) || a.name.localeCompare(b.name,'ru'));
+  const sorted = shown.slice().sort((a,b)=> (b.year||0) - (a.year||0) || (b.month||0) - (a.month||0) || (b.dateFrom || '').localeCompare(a.dateFrom || '') || a.name.localeCompare(b.name,'ru'));
   const counts = new Map();
   sorted.forEach(e => counts.set(e.year, (counts.get(e.year) || 0) + 1));
 
@@ -148,7 +148,7 @@ function renderDiary(){
     html += `<div class="diary-entry">
       <div class="diary-head" data-diary-id="${escapeAttr(e.id)}">
         <span class="diary-place">${flag ? flag + ' ' : ''}${highlight(e.name)}</span>
-        <span class="diary-when">${monthLabel(e.month) ? monthLabel(e.month) + ' ' : ''}${e.year || ''}</span>
+        <span class="diary-when">${escapeHtml(whenLabel(e))}</span>
       </div>
       <div class="diary-note"${READ_ONLY ? '' : ` data-diary-edit="${escapeAttr(e.id)}" title="Нажмите, чтобы изменить" style="cursor:text;"`}>${highlight(e.notes.trim())}</div>
       ${e.trip ? `<div class="diary-trip">${highlight(e.trip)}</div>` : ''}

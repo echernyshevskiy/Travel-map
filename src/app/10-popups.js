@@ -3,6 +3,11 @@ function companyLabel(key){ const p = COMPANIES.find(p => p.key === key); return
 function communityLabel(key){ const c = COMMUNITIES.find(c => c.key === key); return c ? c.ru : null; }
 function seasonLabel(key){ const p = SEASONS.find(p => p.key === key); return p ? p.ru : null; }
 function monthLabel(key){ const m = MONTHS.find(m => m.key === key); return m ? m.short : null; }
+// «когда» записи: точные даты, если указаны, иначе месяц и год
+function whenLabel(e){
+  if(!e) return '';
+  return formatDateRange(e.dateFrom, e.dateTo) || [monthLabel(e.month), e.year].filter(Boolean).join(' ');
+}
 function seasonForMonth(month){
   // Северное полушарие — самая частая ситуация для этой карты; если поездка
   // была в южном полушарии, сезон можно переопределить вручную после подстановки
@@ -52,7 +57,7 @@ function buildPopup(entry){
   const flag = entry.type === 'country' ? countryFlag(entry.countryKey) : (entry.type === 'city' ? countryFlag(entry.countryKey) : '');
   const flagPrefix = flag ? `${flag} ` : '';
   let html = `<div style="font-family:'Twemoji Country Flags','EB Garamond',serif;min-width:170px;">
-    <b>${flagPrefix}${heart}${escapeHtml(entry.name)}</b>${wishTag}<br><span style="color:var(--text-dim);">${monthLabel(entry.month) ? monthLabel(entry.month) + ' ' : ''}${entry.year} · ${purposeLabel(entry.purpose)}</span>`;
+    <b>${flagPrefix}${heart}${escapeHtml(entry.name)}</b>${wishTag}<br><span style="color:var(--text-dim);">${escapeHtml(whenLabel(entry))} · ${purposeLabel(entry.purpose)}</span>`;
   if(entry.type === 'city' && entry.countryKey && flag) html += `<br><span style="color:var(--text-dim);">${flag} ${escapeHtml(COUNTRY_RU[entry.countryKey] || entry.countryKey)}</span>`;
   if(entry.type === 'country') html += buildCountryInfoHtml(entry.countryKey);
   if(entry.trip) html += `<br><span style="color:var(--amber);font-style:italic;">${escapeHtml(entry.trip)}</span>`;
@@ -62,7 +67,7 @@ function buildPopup(entry){
     html += `<br>${entry.distanceKm.toFixed(1)} км${entry.isEstimated ? ' <span style="color:var(--text-dim);font-style:italic;">(по прямой)</span>' : ''}`;
     const statsLine = routeStatsLine(entry);
     if(statsLine) html += `<br><span style="color:var(--text-dim);">${statsLine}</span>`;
-    if(entry.waypointNames && entry.waypointNames.length) html += `<br><span style="color:var(--text-dim);">через: ${entry.waypointNames.map(escapeHtml).join(' → ')}</span>`;
+    if(entry.waypointNames && entry.waypointNames.length) html += `<br><span style="color:var(--text-dim);">через: ${entry.waypointNames.map(n => escapeHtml(cleanPlaceName(n))).join(' → ')}</span>`;
     html += buildSparkline(entry.profile);
   }
   if(entry.notes) html += `<br><span style="font-style:italic;">${escapeHtml(entry.notes)}</span>`;
@@ -95,6 +100,9 @@ function buildPopup(entry){
   }
   if(entry.mapLinkUrl) html += `<a class="ig-badge" href="${escapeAttr(safeUrl(entry.mapLinkUrl))}" target="_blank" rel="noopener">🗺️ Место на карте →</a>`;
   if(entry.docLinkUrl) html += `<a class="ig-badge" href="${escapeAttr(safeUrl(entry.docLinkUrl))}" target="_blank" rel="noopener">📄 Документ →</a>`;
+  if(entry.type === 'route'){
+    html += `<button type="button" class="popup-tour-btn" data-tour-entry="${escapeAttr(entry.id)}">🌍 Облёт на глобусе${entry.trip ? ' · вся поездка' : ''}</button>`;
+  }
   if(!READ_ONLY && entry.status === 'wishlist'){
     html += `<button data-popup-act="upgrade" data-id="${escapeAttr(entry.id)}" style="margin-top:9px;width:100%;padding:6px 8px;background:var(--amber);border:none;color:var(--on-accent);border-radius:3px;cursor:pointer;font-size:12px;font-family:'Twemoji Country Flags','EB Garamond',serif;">✓ Отметить как посещённое</button>`;
   }
