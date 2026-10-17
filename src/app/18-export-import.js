@@ -29,6 +29,8 @@ function entriesToRows(){
     'Название': e.name,
     'Год': e.year,
     'Месяц': MONTHS.find(m => m.key === e.month)?.ru || '',
+    'Дата_с': e.dateFrom || '',
+    'Дата_по': e.dateTo || '',
     'Поездка': e.trip || '',
     'Порядок_в_поездке': (e.trip && e.tripOrder != null) ? e.tripOrder : '',
     'Статус': e.status === 'wishlist' ? 'План' : 'Посещено',

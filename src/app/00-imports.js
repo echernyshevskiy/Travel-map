@@ -16,10 +16,15 @@ import COUNTRY_RU from '../data/country_ru.json';
 import COUNTRY_CONTINENT from '../data/country_continent.json';
 import COUNTRY_ISO from '../data/country_iso.json';
 import COUNTRY_INFO from '../data/country_info.json';
+// объекты ЮНЕСКО — текстом, разбираются при первом открытии коллекций (старт не замедляют)
+import UNESCO_TXT from '../data/unesco.json?raw';
 
 // Независимая логика — настоящие ES-модули с модульными тестами (src/lib/)
-import { haversine, pointInGeometry, trackDistanceKm, encodePolyline, getEntryCoords, downsample, downsampleNumeric, downsampleSegments, gpxDistanceKm, geomAreaKm2, polyLabelPoint, mainRing, decodedCoordsCache, snapToTrack } from '../lib/geo.js';
-import { escapeHtml, escapeAttr, safeUrl, normSearch, formatPace, parseRaceTime, formatRaceTime, fmtDelta, daysWord, pluralVisits, monthsWord } from '../lib/format.js';
+import { haversine, pointInGeometry, trackDistanceKm, encodePolyline, getEntryCoords, downsample, downsampleNumeric, downsampleSegments, gpxDistanceKm, geomAreaKm2, polyLabelPoint, mainRing, decodedCoordsCache, snapToTrack, simplifyLine } from '../lib/geo.js';
+import { escapeHtml, escapeAttr, safeUrl, normSearch, formatPace, parseRaceTime, formatRaceTime, fmtDelta, daysWord, pluralVisits, monthsWord, cleanPlaceName, looksLikeAdminArea, parseIsoDate, formatDateRange, dateSpan, localDateAt } from '../lib/format.js';
 import { getAllCityVisits, uniqueCityVisits, distinctCityKeys } from '../lib/visits.js';
 import { SYNC_META, itemJson, mergeKind, parseTokenExpiry } from '../lib/sync-merge.js';
 import { gtlExtract } from '../lib/timeline-parse.js';
+import { travelerProfile } from '../lib/traveler.js';
+// проекция для режима «Глобус» (только нужные части d3-geo, ~30 КБ)
+import { geoOrthographic, geoPath, geoGraticule10, geoArea, geoCentroid, geoInterpolate } from 'd3-geo';

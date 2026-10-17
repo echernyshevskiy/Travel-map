@@ -64,7 +64,7 @@ function renderList(precomputedVisible){
       parts.push(`<div class="entry-year-head">${entry.year}<span>${yearCounts.get(entry.year) || 0}</span></div>`);
     }
     const extras = [seasonLabel(entry.season), companyLabel(entry.company), communityLabel(entry.community), entry.type === 'route' ? activityLabel(entry.activity) : null].filter(Boolean);
-    let meta = `${monthLabel(entry.month) ? monthLabel(entry.month) + ' ' : ''}${entry.year} · ${purposeLabel(entry.purpose)}`;
+    let meta = `${escapeHtml(whenLabel(entry))} · ${purposeLabel(entry.purpose)}`;
     if(entry.type === 'route'){
       meta += ` · ${entry.distanceKm.toFixed(1)} км${entry.isEstimated ? ' (по прямой)' : ''}`;
       if(entry.elevationGain !== null && entry.elevationGain !== undefined) meta += ` · +${Math.round(entry.elevationGain)}м`;
@@ -225,6 +225,7 @@ function startEdit(entry){
   document.getElementById('fieldName').value = entry.name;
   document.getElementById('fieldYear').value = entry.year;
   document.getElementById('fieldMonth').value = entry.month || '';
+  setFormDates(entry.dateFrom, entry.dateTo);
   document.getElementById('fieldPhoto').value = (entry.photos || []).join('\n');
   document.getElementById('fieldInstagram').value = entry.instagramUrl || '';
   document.getElementById('fieldMapLink').value = entry.mapLinkUrl || '';

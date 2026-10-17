@@ -76,3 +76,79 @@ export function monthsWord(n){
   if(t >= 2 && t <= 4) return 'месяца';
   return 'месяцев';
 }
+
+// Геокодер иногда отдаёт вместо города административную единицу:
+// «Theewaterskloof Local Municipality», «городской округ Самара», «Comune di Lucca».
+// Служебные слова убираем, само название оставляем. Районы и сельсоветы
+// («Ак-Суйский район») так не лечатся — их показывает «Проверка данных».
+const PLACE_NAME_TRIM = [
+  /\s+(local|district|metropolitan|regional|city|town)\s+municipality$/i,
+  /\s+municipality$/i,
+  /^municipality\s+of\s+/i,
+  /^(городской|муниципальный)\s+округ\s+(город\s+)?/i,
+  /\s+(городской|муниципальный)\s+округ$/i,
+  /^муниципальное\s+образование\s+(город\s+)?/i,
+  /^(comune|città|citta)\s+di\s+/i,
+  /^(gemeinde|stadt|markt)\s+/i,
+  /^(ville|commune)\s+de\s+/i,
+  /^(municipio|municipalidad)\s+de\s+/i,
+];
+export function cleanPlaceName(name){
+  let s = String(name == null ? '' : name).trim();
+  if(!s) return s;
+  for(const re of PLACE_NAME_TRIM){ const t = s.replace(re, '').trim(); if(t && t !== s){ s = t; } }
+  return s;
+}
+// Похоже на район или сельсовет, а не на населённый пункт
+export function looksLikeAdminArea(name){
+  return /(municipality|district|county|район|сельск(ий|ое)\s+(совет|поселение)|сельсовет|поселение|городской округ|муниципальн)/i.test(String(name || ''));
+}
+
+// ---------- точные даты (необязательные) ----------
+// У записи по-прежнему главные год и месяц; точные даты — дополнение:
+// dateFrom и dateTo в виде 'ГГГГ-ММ-ДД'. Здесь — разбор, подпись и счёт дней.
+const MONTHS_GEN = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+export function parseIsoDate(s){
+  if(typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const [y, m, d] = s.split('-').map(Number);
+  const t = Date.UTC(y, m - 1, d), dt = new Date(t);
+  if(dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
+  return { y, m, d, t };
+}
+// «12 сен 2025», «12–18 сен 2025», «28 июн – 3 июл 2025», «30 дек 2024 – 2 янв 2025»
+export function formatDateRange(from, to){
+  const a = parseIsoDate(from);
+  if(!a) return null;
+  const b = parseIsoDate(to);
+  if(!b || b.t <= a.t) return `${a.d} ${MONTHS_GEN[a.m - 1]} ${a.y}`;
+  if(a.y === b.y && a.m === b.m) return `${a.d}–${b.d} ${MONTHS_GEN[a.m - 1]} ${a.y}`;
+  if(a.y === b.y) return `${a.d} ${MONTHS_GEN[a.m - 1]} – ${b.d} ${MONTHS_GEN[b.m - 1]} ${a.y}`;
+  return `${a.d} ${MONTHS_GEN[a.m - 1]} ${a.y} – ${b.d} ${MONTHS_GEN[b.m - 1]} ${b.y}`;
+}
+// дней включительно: 12–18 сентября — 7 дней
+export function daysInclusive(from, to){
+  const a = parseIsoDate(from), b = parseIsoDate(to || from);
+  if(!a || !b || b.t < a.t) return a ? 1 : 0;
+  return Math.round((b.t - a.t) / 86400000) + 1;
+}
+// Общий размах дат у набора записей (поездка): с первого dateFrom по последний
+// dateTo (или dateFrom). Записи без точных дат не учитываются; нет ни одной — null
+export function dateSpan(entries){
+  let lo = null, hi = null;
+  (entries || []).forEach(e => {
+    const a = parseIsoDate(e && e.dateFrom);
+    if(!a) return;
+    const b = parseIsoDate(e.dateTo);
+    const end = b && b.t >= a.t ? e.dateTo : e.dateFrom;
+    if(!lo || e.dateFrom < lo) lo = e.dateFrom;
+    if(!hi || end > hi) hi = end;
+  });
+  return lo ? { from: lo, to: hi, days: daysInclusive(lo, hi) } : null;
+}
+// Местная дата места по UTC-времени и долготе (15° ≈ час): трек, начатый
+// поздним вечером в другой стране, не «переезжает» на следующий день
+export function localDateAt(ms, lng){
+  if(!isFinite(ms)) return null;
+  const off = isFinite(lng) ? Math.round(lng / 15) : 0;
+  return new Date(ms + off * 3600000).toISOString().slice(0, 10);
+}

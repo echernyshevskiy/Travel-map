@@ -38,10 +38,22 @@ function customCollections(){
   return Object.keys(tripMeta).filter(k => k.startsWith(COLLECTION_PREFIX)).map(k => ({ ...tripMeta[k], id: k, custom: true }))
     .filter(c => c && Array.isArray(c.items)).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 }
+// Всемирное наследие ЮНЕСКО: src/data/unesco.json собирается scripts/build-unesco.mjs
+// из данных whc.unesco.org — [id, название, lat, lng, категория c/n/m, страна, год включения, транснациональный].
+// Культурный объект засчитывается в 10 км от отметки или трека, природный и
+// смешанный — в 30 км (у парков и заповедников точка — лишь их середина).
+const UNESCO_CAT = { c: 'культурный', n: 'природный', m: 'смешанный' };
+let unescoItems = null;
+function unescoCollection(){
+  if(!unescoItems) unescoItems = JSON.parse(UNESCO_TXT).map(([uid, name, lat, lng, cat, key, year, multi]) =>
+    ({ kind: 'place', name, lat, lng, r: cat === 'c' ? 10 : 30, key: key || null, cat, inscribed: year, uid, multi: !!multi }));
+  return { id: 'unesco', group: 'Мир', title: 'Всемирное наследие ЮНЕСКО', big: true, items: unescoItems };
+}
 // все коллекции в одном виде: { id, group, title, items: [{ kind, name, lat, lng, r, key }] }
 function allCollections(){
   const out = COLLECTIONS_RU.map(c => ({ id: c.id, group: c.group, title: c.title,
     items: c.items.map(([name, lat, lng, r]) => ({ kind: c.place ? 'place' : 'city', name, lat, lng, r: r || (c.place ? 30 : 20) })) }));
+  out.push(unescoCollection());
   out.splice(2, 0, { id: 'ru-regions', group: 'Россия', title: 'Регионы России', items: RU_REGIONS.map(r => ({ kind: 'region', name: r.name })) });
   const countries = quizCountries();
   COLLECTION_CONTINENTS.forEach(cont => {
@@ -60,38 +72,53 @@ function allCollections(){
                                                    : { kind: 'city', name: it.name, lat: it.lat, lng: it.lng, r: 20, key: it.countryKey || null }) }));
   return out;
 }
+// Сетка 0,5° для поиска «что рядом»: в коллекции ЮНЕСКО больше тысячи объектов,
+// и перебор всех отметок и точек треков для каждого занимал бы секунды.
+const COLL_GRID = 0.5, COLL_GRID_W = 360 / COLL_GRID;
+function collGridAdd(grid, v){
+  const k = Math.floor(v.lat / COLL_GRID) * 10000 + ((Math.floor(v.lng / COLL_GRID) % COLL_GRID_W) + COLL_GRID_W) % COLL_GRID_W;
+  let a = grid.get(k);
+  if(!a) grid.set(k, a = []);
+  a.push(v);
+}
+function collGridNear(grid, lat, lng, r){
+  const dy = Math.ceil(r / 111 / COLL_GRID);
+  const dx = Math.min(COLL_GRID_W / 2, Math.ceil(r / (111 * Math.max(0.05, Math.cos(lat * Math.PI / 180))) / COLL_GRID));
+  const cy = Math.floor(lat / COLL_GRID), cx = Math.floor(lng / COLL_GRID);
+  let year = null, hit = false;
+  for(let y = cy - dy; y <= cy + dy; y++) for(let x = cx - dx; x <= cx + dx; x++){
+    const a = grid.get(y * 10000 + ((x % COLL_GRID_W) + COLL_GRID_W) % COLL_GRID_W);
+    if(a) a.forEach(v => { if(haversine([v.lat, v.lng], [lat, lng]) <= r){ hit = true; if(v.year && (!year || v.year < year)) year = v.year; } });
+  }
+  return hit ? { got: true, year } : null;
+}
 // точки посещений: отметки городов и остановки маршрутов (с годом)
 function collectionVisitIndex(){
   const visited = allEntries.filter(e => e.status !== 'wishlist');
-  const pts = [];
-  getAllCityVisits(visited).forEach(v => { if(v.lat != null && v.lng != null) pts.push(v); });
+  const pts = new Map();
+  getAllCityVisits(visited).forEach(v => { if(v.lat != null && v.lng != null) collGridAdd(pts, v); });
   const countries = new Map();
   visited.forEach(e => { if(e.type === 'country' && e.countryKey){ const y = countries.get(e.countryKey); if(!y || e.year < y) countries.set(e.countryKey, e.year); } });
   // дом — тоже «посещённая» страна
   if(!countries.has(HOME_COUNTRY_KEY)) countries.set(HOME_COUNTRY_KEY, null);
-  // треки нужны только для мест вроде чудес света — прореживаем
-  const tracks = visited.filter(e => e.type === 'route').map(e => {
+  // треки нужны только для мест (чудеса света, ЮНЕСКО) — прореживаем
+  const tracks = new Map();
+  visited.filter(e => e.type === 'route').forEach(e => {
     const c = getEntryCoords(e) || [];
-    const step = Math.max(1, Math.floor(c.length / 120));
-    return { year: e.year, pts: c.filter((_, i) => i % step === 0) };
+    const step = Math.max(1, Math.floor(c.length / 400));
+    for(let i = 0; i < c.length; i += step) collGridAdd(tracks, { lat: c[i][0], lng: c[i][1], year: e.year });
   });
   const regions = ruRegionsState && ruRegionsState.visited ? ruRegionsState.visited : new Map();
   return { pts, countries, tracks, regions };
 }
 function collectionItemStatus(it, idx){
-  const near = (lat, lng, r) => {
-    let year = null, hit = false;
-    idx.pts.forEach(v => { if(haversine([v.lat, v.lng], [lat, lng]) <= r){ hit = true; if(v.year && (!year || v.year < year)) year = v.year; } });
-    return hit ? { got: true, year } : null;
-  };
   if(it.kind === 'country'){ return idx.countries.has(it.key) ? { got: true, year: idx.countries.get(it.key) } : { got: false }; }
   if(it.kind === 'region'){ return idx.regions.has(it.name) ? { got: true, year: null } : { got: false }; }
-  const byPoint = near(it.lat, it.lng, it.r || 20);
+  const byPoint = collGridNear(idx.pts, it.lat, it.lng, it.r || 20);
   if(byPoint) return byPoint;
   if(it.kind === 'place'){
-    for(const t of idx.tracks){
-      if(t.pts.some(c => haversine(c, [it.lat, it.lng]) <= (it.r || 30))) return { got: true, year: t.year };
-    }
+    const byTrack = collGridNear(idx.tracks, it.lat, it.lng, it.r || 30);
+    if(byTrack) return byTrack;
   }
   return { got: false };
 }
@@ -137,6 +164,7 @@ function renderCollections(){
     }
   });
   body.innerHTML = html;
+  body.onclick = null;
   body.querySelectorAll('[data-coll]').forEach(b => b.addEventListener('click', () => { collectionOpenId = b.dataset.coll; renderCollections(); }));
   const nb = document.getElementById('collNewBtn');
   if(nb) nb.addEventListener('click', async () => {
@@ -170,41 +198,54 @@ function renderCollectionDetail(col, idx){
       <div class="suggest-box" id="collAddSuggest" style="display:none;"></div></div>`;
   }
   if(!col.items.length) html += `<div class="hint">Пока пусто — найдите город или страну в поле выше.</div>`;
-  html += order.map(({ it, s, i }) => {
-    const sub = it.kind === 'country' ? 'страна' : it.kind === 'region' ? 'регион' : it.kind === 'place' ? 'место' : (it.key ? (COUNTRY_RU[it.key] || '') : '');
-    const flag = it.kind === 'country' ? countryFlag(it.key) + ' ' : (it.key ? countryFlag(it.key) + ' ' : '');
+  const row = ({ it, s, i }, inGroup) => {
+    const sub = it.uid ? [inGroup ? '' : (COUNTRY_RU[it.key] || it.key || ''), UNESCO_CAT[it.cat], it.multi ? 'в нескольких странах' : ''].filter(Boolean).join(', ')
+      : it.kind === 'country' ? 'страна' : it.kind === 'region' ? 'регион' : it.kind === 'place' ? 'место' : (it.key ? (COUNTRY_RU[it.key] || '') : '');
+    const flag = it.kind === 'country' ? countryFlag(it.key) + ' ' : (it.key && !col.big ? countryFlag(it.key) + ' ' : '');
     return `<div class="coll-item${s.got ? ' got' : ''}"><span class="ci-mark">${s.got ? '✓' : ''}</span>
       <span class="ci-name">${flag}${escapeHtml(it.name)}<small>${escapeHtml([sub, s.got && s.year ? (s.year + '') : (s.got ? 'есть' : '')].filter(Boolean).join(' · '))}</small></span>
-      <span class="ci-act">${it.lat != null ? `<button class="cancel-edit" data-ci-map="${i}" title="Показать на карте">на карте</button>` : ''}
+      <span class="ci-act">${it.uid ? `<a class="cancel-edit" href="https://whc.unesco.org/ru/list/${+it.uid}/" target="_blank" rel="noopener" title="Описание на сайте ЮНЕСКО">ⓘ</a>` : ''}
+        ${it.lat != null ? `<button class="cancel-edit" data-ci-map="${i}" title="Показать на карте">на карте</button>` : ''}
         ${!s.got && !READ_ONLY && it.kind !== 'region' ? `<button class="cancel-edit" data-ci-plan="${i}" title="Добавить в планы">в планы</button>` : ''}
         ${col.custom && !READ_ONLY ? `<button class="cancel-edit" data-ci-del="${i}" title="Убрать из коллекции">✕</button>` : ''}</span></div>`;
-  }).join('');
+  };
+  // большой список (ЮНЕСКО) — поиск и группы по странам, строки группы рисуются при раскрытии
+  let groups = null;
+  if(col.big){
+    const byKey = new Map();
+    order.forEach(o => { const k = o.it.key || ''; if(!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(o); });
+    groups = [...byKey.entries()].map(([k, list]) => ({ k, name: k ? (COUNTRY_RU[k] || k) : 'Открытое море', list, got: list.filter(o => o.s.got).length }))
+      .sort((a, b) => (b.got > 0) - (a.got > 0) || (a.k === HOME_COUNTRY_KEY ? -1 : b.k === HOME_COUNTRY_KEY ? 1 : 0) || a.name.localeCompare(b.name, 'ru'));
+    html += `<div class="hint" style="margin:0 0 8px;">Объект засчитывается, если рядом есть ваша отметка, остановка или трек. Список и описания — на <a href="https://whc.unesco.org/ru/list/" target="_blank" rel="noopener" style="color:inherit;">whc.unesco.org</a>.</div>
+      <div class="search-wrap" style="margin-bottom:8px;"><input type="text" id="collSearch" placeholder="Найти объект или страну…" autocomplete="off"></div>
+      <div id="collSearchRes"></div><div id="collGroups">` +
+      groups.map((g, gi) => `<details class="coll-cc" data-cc="${gi}"${g.k === HOME_COUNTRY_KEY && g.got ? ' open' : ''}><summary>${g.k ? countryFlag(g.k) + ' ' : ''}${escapeHtml(g.name)}<small>${g.got} из ${g.list.length}</small></summary><div class="coll-cc-body"></div></details>`).join('') + `</div>`;
+  } else {
+    html += order.map(o => row(o)).join('');
+  }
   body.innerHTML = html;
   document.getElementById('collBack').addEventListener('click', () => { collectionOpenId = null; renderCollections(); });
   const mb = document.getElementById('collMapBtn');
   if(mb) mb.addEventListener('click', () => showCollectionOnMap(col, p));
-  body.querySelectorAll('[data-ci-map]').forEach(b => b.addEventListener('click', () => {
-    const it = col.items[+b.dataset.ciMap];
-    document.getElementById('collectionsModal').style.display = 'none';
-    mnavShow('map');
-    map.setView([it.lat, it.lng], 9);
-    showSearchPin({ name: it.name, lat: it.lat, lng: it.lng, countryKey: it.key || (findCountryFeature({ lat: it.lat, lng: it.lng }) || { properties: {} }).properties.name || null });
-  }));
-  body.querySelectorAll('[data-ci-plan]').forEach(b => b.addEventListener('click', async () => {
-    const it = col.items[+b.dataset.ciPlan];
-    const base = { id: genId(), year: new Date().getFullYear(), photos: [], notes: `Из коллекции «${col.title}»`, purpose: 'tourism', status: 'wishlist', favorite: false };
-    if(it.kind === 'country'){
-      allEntries.push({ ...base, type: 'country', name: COUNTRY_RU[it.key] || it.key, countryKey: it.key, color: DEFAULT_COLOR.country });
-    } else {
-      const ck = it.key || ((findCountryFeature({ lat: it.lat, lng: it.lng }) || { properties: {} }).properties.name) || null;
-      allEntries.push({ ...base, type: 'city', name: it.name, lat: it.lat, lng: it.lng, countryKey: ck, color: DEFAULT_COLOR.city });
-    }
-    recordBulkAction('добавление в планы', null, [], [allEntries[allEntries.length - 1].id]);
-    const saved = await saveData();
-    rebuildAll();
-    if(saved) showUndoToast(`В планах: ${it.name}`);
-    b.remove();
-  }));
+  if(groups){
+    const fill = d => { const b = d.querySelector('.coll-cc-body'); if(!b.childElementCount) b.innerHTML = groups[+d.dataset.cc].list.map(o => row(o, true)).join(''); };
+    body.querySelectorAll('details.coll-cc').forEach(d => { if(d.open) fill(d); d.addEventListener('toggle', () => { if(d.open) fill(d); }); });
+    const inp = document.getElementById('collSearch'), res = document.getElementById('collSearchRes'), gw = document.getElementById('collGroups');
+    inp.addEventListener('input', () => {
+      const q = normSearch(inp.value.trim());
+      if(q.length < 2){ res.innerHTML = ''; gw.style.display = ''; return; }
+      const hits = order.filter(o => normSearch(o.it.name).includes(q) || (o.it.key && normSearch(COUNTRY_RU[o.it.key] || '').includes(q)));
+      gw.style.display = 'none';
+      res.innerHTML = hits.length ? hits.slice(0, 80).map(o => row(o)).join('') + (hits.length > 80 ? `<div class="hint">…и ещё ${hits.length - 80} — уточните запрос</div>` : '')
+        : `<div class="hint">Ничего не найдено</div>`;
+    });
+  }
+  // строки большого списка появляются позже — обработчики делегированы
+  body.onclick = e => {
+    const mapBtn = e.target.closest('[data-ci-map]'), planBtn = e.target.closest('[data-ci-plan]');
+    if(mapBtn) showCollItemOnMap(col.items[+mapBtn.dataset.ciMap]);
+    else if(planBtn) addCollItemToPlans(col, col.items[+planBtn.dataset.ciPlan], planBtn);
+  };
   if(col.custom && !READ_ONLY){
     const meta = tripMeta[col.id];
     const persist = async () => { meta.updatedAt = Date.now(); await saveData(); renderCollections(); };
@@ -239,6 +280,26 @@ function renderCollectionDetail(col, idx){
       }));
     });
   }
+}
+function showCollItemOnMap(it){
+  document.getElementById('collectionsModal').style.display = 'none';
+  mnavShow('map');
+  map.setView([it.lat, it.lng], it.uid && it.cat !== 'c' ? 8 : 9);
+  showSearchPin({ name: it.name, lat: it.lat, lng: it.lng, countryKey: it.key || (findCountryFeature({ lat: it.lat, lng: it.lng }) || { properties: {} }).properties.name || null });
+}
+async function addCollItemToPlans(col, it, btn){
+  const base = { id: genId(), year: new Date().getFullYear(), photos: [], notes: `Из коллекции «${col.title}»`, purpose: 'tourism', status: 'wishlist', favorite: false };
+  if(it.kind === 'country'){
+    allEntries.push({ ...base, type: 'country', name: COUNTRY_RU[it.key] || it.key, countryKey: it.key, color: DEFAULT_COLOR.country });
+  } else {
+    const ck = it.key || ((findCountryFeature({ lat: it.lat, lng: it.lng }) || { properties: {} }).properties.name) || null;
+    allEntries.push({ ...base, type: 'city', name: it.name, lat: it.lat, lng: it.lng, countryKey: ck, color: DEFAULT_COLOR.city });
+  }
+  recordBulkAction('добавление в планы', null, [], [allEntries[allEntries.length - 1].id]);
+  btn.remove();
+  const saved = await saveData();
+  rebuildAll();
+  if(saved) showUndoToast(`В планах: ${it.name}`);
 }
 // коллекция на карте: собранное — зелёным, остальное — пунктирным кольцом
 let collectionLayer = null;

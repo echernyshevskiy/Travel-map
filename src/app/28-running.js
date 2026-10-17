@@ -331,11 +331,11 @@ function renderRunning(){
   void cards; // сводные цифры теперь плитками сверху (renderRunHero)
 
   // список забегов от свежих к старым
-  const sorted = runs.slice().sort((a,b)=>(b.year||0)-(a.year||0) || (b.month||0)-(a.month||0));
+  const sorted = runs.slice().sort((a,b)=>(b.year||0)-(a.year||0) || (b.month||0)-(a.month||0) || (b.dateFrom || '').localeCompare(a.dateFrom || ''));
   list.innerHTML = sorted.map(r=>{
     const pace = (r.durationMin && r.distanceKm) ? formatPace(r.durationMin / r.distanceKm) : null;
     const meta = [
-      `${monthLabel(r.month) ? monthLabel(r.month) + ' ' : ''}${r.year || ''}`.trim(),
+      `${escapeHtml(whenLabel(r))}`.trim(),
       `${(r.distanceKm||0).toFixed(1)} км`,
       pace,
       r.terrain === 'trail' ? 'трейл' : r.terrain === 'road' ? 'шоссе' : null,

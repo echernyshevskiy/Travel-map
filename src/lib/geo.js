@@ -228,3 +228,29 @@ export function snapToTrack(pt, segments, maxKm = Infinity){
   if(km > maxKm) return null;
   return { latlng: [pt[0] + best[1] / ky, pt[1] + best[0] / kx], km };
 }
+
+// Упрощение линии (Дуглас — Пекер) в градусах: точки, отклоняющиеся от хорды
+// меньше чем на tol, выбрасываются. Нужен глобусу: во время вращения шар
+// рисуется по облегчённым контурам, а подробные возвращаются в покое.
+// Концы сохраняются — замкнутое кольцо остаётся замкнутым.
+export function simplifyLine(pts, tol){
+  if(!pts || pts.length < 3 || !(tol > 0)) return pts ? pts.slice() : [];
+  const keep = new Uint8Array(pts.length);
+  keep[0] = keep[pts.length - 1] = 1;
+  const stack = [[0, pts.length - 1]];
+  const t2 = tol * tol;
+  while(stack.length){
+    const [a, b] = stack.pop();
+    const ax = pts[a][0], ay = pts[a][1], dx = pts[b][0] - ax, dy = pts[b][1] - ay;
+    const len2 = dx * dx + dy * dy;
+    let best = -1, bestD = t2;
+    for(let i = a + 1; i < b; i++){
+      let px = pts[i][0] - ax, py = pts[i][1] - ay;
+      if(len2){ const t = Math.max(0, Math.min(1, (px * dx + py * dy) / len2)); px -= t * dx; py -= t * dy; }
+      const d2 = px * px + py * py;
+      if(d2 > bestD){ bestD = d2; best = i; }
+    }
+    if(best > 0){ keep[best] = 1; stack.push([a, best], [best, b]); }
+  }
+  return pts.filter((_, i) => keep[i]);
+}

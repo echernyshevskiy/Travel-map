@@ -39,7 +39,7 @@ function openTripStory(tripName){
         <div class="story-card-body">
           <div class="story-card-step">Остановка ${i+1} из ${entries.length} · ${typeLabel}</div>
           <h3>${flag ? flag + ' ' : ''}${escapeHtml(e.name)}</h3>
-          <div class="story-card-meta">${monthLabel(e.month) ? monthLabel(e.month) + ' ' : ''}${e.year} · ${purposeLabel(e.purpose)}${e.season ? ' · ' + seasonLabel(e.season) : ''}</div>
+          <div class="story-card-meta">${escapeHtml(whenLabel(e))} · ${purposeLabel(e.purpose)}${e.season ? ' · ' + seasonLabel(e.season) : ''}</div>
           ${e.type === 'route' ? `<div class="story-card-meta" style="margin-top:4px;">${e.distanceKm.toFixed(1)} км${e.isEstimated ? ' (по прямой)' : ''}</div>` : ''}
           ${e.notes ? `<p class="story-card-notes">${escapeHtml(e.notes)}</p>` : ''}
           ${e.instagramUrl ? `<a class="ig-badge" href="${escapeAttr(safeUrl(e.instagramUrl))}" target="_blank" rel="noopener">📷 Открыть в Instagram →</a>` : ''}

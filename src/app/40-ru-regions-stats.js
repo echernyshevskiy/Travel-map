@@ -112,6 +112,7 @@ function updateRuRegions(visibleVisited){
   if(chip) chip.classList.toggle('active', ruRegionsOn);
   const leg = document.getElementById('legendRuRegions');
   if(leg) leg.style.display = ruRegionsOn ? '' : 'none';
+  try{ globeRedraw(); }catch(e){} // на шаре регионы рисуются по тому же состоянию (до запуска шара — пропускаем)
 }
 document.getElementById('ruRegionsChip').addEventListener('click', ()=>{
   ruRegionsOn = !ruRegionsOn;

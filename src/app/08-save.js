@@ -38,7 +38,7 @@ document.getElementById('gpxInput').addEventListener('change', (e)=>{
         // следующим днём — а помните вы его тем вечером. Часовой пояс берём
         // из долготы первой точки: 15° долготы ≈ один час. Это приближение,
         // но ошибается максимум на час, тогда как пояс устройства — на сутки.
-        let startYear = null, startMonth = null;
+        let startYear = null, startMonth = null, startDate = null, endDate = null;
         if(parsed.times.length > 0){
           const t = new Date(parsed.times[0]);
           if(!isNaN(t.getTime())){
@@ -47,10 +47,14 @@ document.getElementById('gpxInput').addEventListener('change', (e)=>{
             const local = new Date(t.getTime() + offsetH * 3600000);
             startYear = local.getUTCFullYear();
             startMonth = local.getUTCMonth() + 1;
+            startDate = localDateAt(t.getTime(), lng);
+            const lastT = new Date(parsed.times[parsed.times.length - 1]).getTime();
+            const lastLng = parsed.coords.length ? parsed.coords[parsed.coords.length - 1][1] : lng;
+            endDate = localDateAt(lastT, lastLng);
           }
         }
         const trackDaysInfo = countDistinctDays(parsed.times); // объединённый в один файл многодневный поход — не один день, а столько, сколько разных календарных дат встретилось в самом треке; если меток времени вовсе нет (например, файлы из планировщиков маршрутов вроде The Ride Atlas), auto-детект бессмысленен — тогда используется ручное поле «Число дней»
-        finishFile({ coords, segBreaks: ds.breaks, distanceKm, fileName: file.name, baseName, elevationGain, maxElevation, durationMin, profile, startYear, startMonth, trackDays: trackDaysInfo.days, hasTimeData: trackDaysInfo.hasTimeData });
+        finishFile({ coords, segBreaks: ds.breaks, distanceKm, fileName: file.name, baseName, elevationGain, maxElevation, durationMin, profile, startYear, startMonth, startDate, endDate, trackDays: trackDaysInfo.days, hasTimeData: trackDaysInfo.hasTimeData });
       }catch(err){
         finishFile(null);
       }
@@ -154,6 +158,46 @@ document.getElementById('fieldYear').addEventListener('input', ()=>{
 });
 document.getElementById('fieldCompany').addEventListener('change', updateCommunityVisibility);
 
+// ---------- точные даты в форме ----------
+function setExactDatesOpen(open){
+  document.getElementById('exactDatesFields').style.display = open ? '' : 'none';
+  const t = document.getElementById('exactDatesToggle');
+  t.textContent = open ? '− убрать точные даты' : '+ точные даты';
+  t.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function setFormDates(from, to){
+  document.getElementById('fieldDateFrom').value = from || '';
+  document.getElementById('fieldDateTo').value = to || '';
+  setExactDatesOpen(!!from);
+}
+// даты из формы: { dateFrom, dateTo } — только корректные; конец не раньше начала
+function readFormDates(){
+  if(document.getElementById('exactDatesFields').style.display === 'none') return { dateFrom: undefined, dateTo: undefined };
+  const from = document.getElementById('fieldDateFrom').value, to = document.getElementById('fieldDateTo').value;
+  if(!parseIsoDate(from)) return { dateFrom: undefined, dateTo: undefined };
+  return { dateFrom: from, dateTo: parseIsoDate(to) && to > from ? to : undefined };
+}
+function applyDates(entry, d){
+  if(d.dateFrom) entry.dateFrom = d.dateFrom; else delete entry.dateFrom;
+  if(d.dateTo) entry.dateTo = d.dateTo; else delete entry.dateTo;
+}
+document.getElementById('exactDatesToggle').addEventListener('click', ()=>{
+  const open = document.getElementById('exactDatesFields').style.display === 'none';
+  if(!open) setFormDates('', '');
+  else setExactDatesOpen(true);
+});
+// первый день задаёт год и месяц (и сезон — через обработчик месяца)
+document.getElementById('fieldDateFrom').addEventListener('change', ()=>{
+  const d = parseIsoDate(document.getElementById('fieldDateFrom').value);
+  if(!d) return;
+  document.getElementById('fieldYear').value = d.y;
+  const m = document.getElementById('fieldMonth');
+  m.value = String(d.m);
+  m.dispatchEvent(new Event('change'));
+  const to = document.getElementById('fieldDateTo');
+  to.min = document.getElementById('fieldDateFrom').value;
+});
+
 document.getElementById('fieldMonth').addEventListener('change', ()=>{
   const month = parseInt(document.getElementById('fieldMonth').value);
   const season = seasonForMonth(month);
@@ -179,6 +223,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
   const color = document.getElementById('fieldColor').value;
   const status = currentType === 'route' ? 'visited' : currentStatus;
   const trip = document.getElementById('fieldTrip').value.trim();
+  const formDates = readFormDates();
 
   if(editingId){
     const entry = allEntries.find(x => x.id === editingId);
@@ -187,8 +232,9 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
         mapLinkUrl: entry.mapLinkUrl, docLinkUrl: entry.docLinkUrl,
         notes: entry.notes, purpose: entry.purpose, company: entry.company, community: entry.community, season: entry.season, color: entry.color,
         trip: entry.trip, tripOrder: entry.tripOrder, status: entry.status, activity: entry.activity, favorite: entry.favorite, trackDays: entry.trackDays,
-        lat: entry.lat, lng: entry.lng, countryKey: entry.countryKey, hidden: entry.hidden };
+        lat: entry.lat, lng: entry.lng, countryKey: entry.countryKey, hidden: entry.hidden, dateFrom: entry.dateFrom, dateTo: entry.dateTo };
       entry.name = name || entry.name; entry.year = year; entry.month = month; entry.photos = photos; entry.instagramUrl = instagramUrl; entry.notes = notes;
+      applyDates(entry, formDates);
       entry.mapLinkUrl = mapLinkUrl; entry.docLinkUrl = docLinkUrl;
       entry.purpose = purpose; entry.company = company; entry.community = community; entry.season = season; entry.color = color;
       if(hideFromFriends) entry.hidden = true; else delete entry.hidden;
@@ -280,6 +326,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
         coordsEncoded: encodePolyline(g.coords), segBreaks: (g.segBreaks && g.segBreaks.length) ? g.segBreaks : undefined, distanceKm: g.distanceKm,
         elevationGain: g.elevationGain, maxElevation: g.maxElevation,
         durationMin: g.durationMin, profile: g.profile,
+        dateFrom: g.startDate || undefined, dateTo: g.endDate && g.startDate && g.endDate > g.startDate ? g.endDate : undefined,
         trackDays: g.hasTimeData ? g.trackDays : (parseInt(document.getElementById('fieldTrackDays').value) || 1),
         terrain: activity === 'running' ? (document.getElementById('fieldTerrain').value || guessTerrain(g.distanceKm, g.elevationGain)) : undefined
       });
@@ -347,6 +394,7 @@ function exitEditMode(fullReset){
   if(!fullReset) return; // после сохранения оставляем когда/зачем/с кем — обычно следующая точка из той же поездки
   document.getElementById('fieldYear').value = new Date().getFullYear();
   document.getElementById('fieldMonth').value = '';   // сбрасывался не всегда — из-за этого месяц расходился с сезоном
+  setFormDates('', '');
   document.getElementById('fieldPurpose').value = 'tourism';
   document.getElementById('fieldCompany').value = 'alone';
   document.getElementById('fieldCommunity').value = '';
@@ -362,6 +410,9 @@ function resetEntryFormFields(){
 // флаг «не показывать друзьям» — на все записи, созданные этим сохранением
 // (GPX может дать сразу несколько маршрутов)
 function markNewEntriesHidden(fromIndex, hidden){
+  // точные даты из формы — новым записям, у которых нет своих (у GPX — из трека)
+  const d = readFormDates();
+  if(d.dateFrom) for(let i = fromIndex; i < allEntries.length; i++){ if(!allEntries[i].dateFrom) applyDates(allEntries[i], d); }
   if(!hidden) return;
   for(let i = fromIndex; i < allEntries.length; i++) allEntries[i].hidden = true;
 }

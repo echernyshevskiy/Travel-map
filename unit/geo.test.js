@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   haversine, pointInRing, pointInGeometry, trackDistanceKm, encodePolyline, decodePolyline,
   getEntryCoords, decodedCoordsCache, downsample, downsampleSegments, gpxDistanceKm,
-  geomAreaKm2, polyLabelPoint, mainRing, snapToTrack,
+  geomAreaKm2, polyLabelPoint, mainRing, snapToTrack, simplifyLine,
 } from '../src/lib/geo.js';
 
 // квадрат 1°×1° у экватора, координаты GeoJSON — [lng, lat]
@@ -137,5 +137,27 @@ describe('snapToTrack — остановка прижимается к лини�
   it('пустой трек — null', () => {
     expect(snapToTrack([55, 37], [])).toBeNull();
     expect(snapToTrack([55, 37], [[]])).toBeNull();
+  });
+});
+
+describe('simplifyLine — облегчение контуров для глобуса', () => {
+  it('прямую сводит к концам, угол сохраняет', () => {
+    const line = Array.from({ length: 50 }, (_, i) => [i, 0]);
+    expect(simplifyLine(line, 0.1)).toEqual([[0, 0], [49, 0]]);
+    const corner = [[0, 0], [5, 0.01], [10, 0], [10, 5], [10, 10]];
+    expect(simplifyLine(corner, 0.1)).toEqual([[0, 0], [10, 0], [10, 10]]);
+  });
+  it('замкнутое кольцо остаётся замкнутым и не теряет форму', () => {
+    const ring = Array.from({ length: 72 }, (_, i) => [Math.cos(i * 5 * Math.PI / 180) * 10, Math.sin(i * 5 * Math.PI / 180) * 10]);
+    ring.push(ring[0]);
+    const s = simplifyLine(ring, 0.5);
+    expect(s[0]).toEqual(s[s.length - 1]);
+    expect(s.length).toBeLessThan(ring.length);
+    expect(s.length).toBeGreaterThan(5);
+  });
+  it('короткие и пустые линии не ломаются', () => {
+    expect(simplifyLine([[1, 1], [2, 2]], 1)).toEqual([[1, 1], [2, 2]]);
+    expect(simplifyLine([], 1)).toEqual([]);
+    expect(simplifyLine(null, 1)).toEqual([]);
   });
 });
