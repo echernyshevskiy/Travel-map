@@ -67,3 +67,19 @@ test('название места по координатам — до посё�
   expect(asked).toContain('zoom=14');
   await expectNoErrors(errors);
 });
+
+test('без сети: поиск посёлка в «Проверке данных» честно говорит, что ищет только по справочнику городов', async ({ page, context }) => {
+  const { errors } = await openApp(page, { entries: [...sampleEntries(), gpxRoute()] });
+  await context.setOffline(true);
+  await page.evaluate(() => { renderDiagnostics(); document.getElementById('diagnosticsModal').style.display = 'flex'; });
+  const btn = page.locator('[data-findplace^="admin:"]').first();
+  await btn.click();
+  const box = btn.locator('xpath=ancestor::div[contains(@class,"diag-row")]').locator('.diag-find');
+  await expect(box).toContainText('Без сети ищу только по встроенному справочнику');
+  // город из справочника находится и без сети
+  await box.locator('input').fill('Минск');
+  await expect(box.locator('[data-place-pick]').first()).toContainText('Минск');
+  await expect(box).toContainText('Без сети');
+  await context.setOffline(false);
+  await expectNoErrors(errors);
+});
