@@ -387,7 +387,8 @@ function renderDiagnostics(){
     'Остановки далеко от трека',
     'Трек маршрута не проходит ближе 30 км от этой остановки, поэтому на карте точка висит в стороне. Чаще всего геокодер нашёл одноимённое место в другой области или стране — откройте маршрут и выберите остановку заново.',
     farStops, 'Все остановки маршрутов с треками лежат на своих треках.',
-    o => `<div class="diag-row" data-diag-id="${o.entry.id}">${escapeHtml(cleanPlaceName(o.name))}<div class="diag-row-meta">${escapeHtml(o.entry.name)} · ${Math.round(o.km).toLocaleString('ru-RU')} км от трека</div></div>`
+    (o, i) => `<div class="diag-row" style="cursor:default;"><span data-diag-id="${o.entry.id}" style="cursor:pointer;">${escapeHtml(cleanPlaceName(o.name))}</span><div class="diag-row-meta">${escapeHtml(o.entry.name)} · ${Math.round(o.km).toLocaleString('ru-RU')} км от трека</div>
+      ${!READ_ONLY ? `<div class="diag-merge"><button data-findplace="far:${i}">Выбрать место заново…</button></div><div class="diag-find" hidden></div>` : ''}</div>`
   );
   html += buildDiagSection(
     'Район вместо города',
@@ -395,7 +396,7 @@ function renderDiagnostics(){
     adminNames, 'Все названия — населённые пункты.',
     (o, i) => `<div class="diag-row" style="cursor:default;"><span data-diag-id="${o.entry.id}" style="cursor:pointer;">${escapeHtml(o.name)}</span>
       <div class="diag-row-meta">${o.i == null ? 'город' : 'остановка маршрута «' + escapeHtml(o.entry.name) + '»'}</div>
-      ${!READ_ONLY && o.clean && o.clean !== o.name ? `<div class="diag-merge"><button data-fixadmin-idx="${i}">Сократить до «${escapeHtml(o.clean)}»</button></div>` : ''}</div>`
+      ${!READ_ONLY ? `<div class="diag-merge">${o.clean && o.clean !== o.name ? `<button data-fixadmin-idx="${i}">Сократить до «${escapeHtml(o.clean)}»</button>` : ''}<button data-findplace="admin:${i}">Найти населённый пункт…</button></div><div class="diag-find" hidden></div>` : ''}</div>`
   );
   html += buildDiagSection(
     'Записи без месяца',
@@ -534,6 +535,43 @@ function renderDiagnostics(){
     });
   });
 
+  // замена района или далёкой остановки на найденный населённый пункт:
+  // поиск начинается с догадки по названию и смещён к прежней точке
+  container.querySelectorAll('[data-findplace]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const [kind, idx] = btn.dataset.findplace.split(':');
+      const o = (kind === 'far' ? farStops : adminNames)[parseInt(idx, 10)];
+      const box = btn.closest('.diag-row').querySelector('.diag-find');
+      if(!o || !box) return;
+      if(!box.hidden){ box.hidden = true; return; }
+      box.hidden = false;
+      const here = o.i == null ? (o.entry.lat != null ? [o.entry.lat, o.entry.lng] : null) : ((o.entry.waypointCoords || [])[o.i] || null);
+      box.innerHTML = `<div class="search-wrap"><input type="text" autocomplete="off" placeholder="Название посёлка или города" value="${escapeAttr(placeStemGuess(o.name))}">
+        <div class="suggest-box" style="display:none;"></div></div>`;
+      const inp = box.querySelector('input'), sug = box.querySelector('.suggest-box');
+      let timer = 0, seq = 0, found = [];
+      const run = () => {
+        const q = inp.value.trim();
+        if(q.length < 2){ sug.style.display = 'none'; return; }
+        const my = ++seq;
+        sug.innerHTML = '<div class="suggest-empty">Ищу…</div>'; sug.style.display = 'block';
+        queryNominatimSettlements(q, here).then(list => {
+          if(my !== seq) return;
+          found = list.slice(0, 8);
+          sug.innerHTML = found.length ? found.map((m, j) => `<div class="suggest-item" data-place-pick="${j}">${escapeHtml(m.full)}${here ? ` <small style="color:var(--text-dim);">· ${Math.round(haversine(here, [m.lat, m.lng]))} км</small>` : ''}</div>`).join('')
+            : '<div class="suggest-empty">Ничего не найдено — попробуйте другое написание</div>';
+        }).catch(() => { if(my === seq) sug.innerHTML = '<div class="suggest-empty">Поиск недоступен — нужна сеть</div>'; });
+      };
+      inp.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 450); });
+      sug.addEventListener('click', e => {
+        const el = e.target.closest('[data-place-pick]');
+        if(el) diagReplacePlace(o, found[+el.dataset.placePick]);
+      });
+      inp.focus();
+      run();
+    });
+  });
+
   container.querySelectorAll('[data-fixadmin-idx]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const o = adminNames[parseInt(btn.dataset.fixadminIdx, 10)];
@@ -653,3 +691,31 @@ function renderDiagnostics(){
   });
 }
 
+
+async function diagReplacePlace(o, m){
+  if(!o || !m) return;
+  const e = o.entry;
+  const key = m.countryKey || findAnyCountryKeyByRuName(m.country, m.countryCode) || null;
+  recordBulkAction('замену места', [e], [...WAYPOINT_GEOMETRY_FIELDS, 'lat', 'lng', 'countryKey'], []);
+  let geo = { rebuilt: false };
+  if(o.i == null){
+    e.name = m.name; e.lat = m.lat; e.lng = m.lng;
+    if(key) e.countryKey = key;
+  } else {
+    const oldNames = e.waypointNames.slice();
+    const n = e.waypointNames.length;
+    e.waypointNames = e.waypointNames.slice();
+    e.waypointCoords = (Array.isArray(e.waypointCoords) ? e.waypointCoords : Array(n).fill(null)).slice();
+    e.waypointCountryKeys = (Array.isArray(e.waypointCountryKeys) ? e.waypointCountryKeys : Array(n).fill(null)).slice();
+    e.waypointNames[o.i] = m.name;
+    e.waypointCoords[o.i] = [m.lat, m.lng];
+    e.waypointCountryKeys[o.i] = key;
+    // у записанного трека линия не меняется, у маршрута «по городам» — перестраивается
+    geo = await rebuildRouteGeometry(e, oldNames);
+  }
+  const saved = await saveData();
+  rebuildAll();
+  renderDiagnostics();
+  updateDiagnosticsBadge();
+  if(saved) showUndoToast(`${cleanPlaceName(o.name)} → ${m.name}` + geometryToastSuffix(geo));
+}

@@ -167,7 +167,7 @@ async function queryNominatimSettlements(q, biasLatLng, opts){
   }
 }
 async function queryNominatimOnline(q, biasLatLng){
-  const ckey = 's:' + q.trim().toLowerCase() + (biasLatLng ? '@' + biasLatLng[0].toFixed(1) + ',' + biasLatLng[1].toFixed(1) : '');
+  const ckey = 's2:' + q.trim().toLowerCase() + (biasLatLng ? '@' + biasLatLng[0].toFixed(1) + ',' + biasLatLng[1].toFixed(1) : '');
   const cached = geoCacheGet(ckey);
   if(cached !== undefined) return cached;
   const result = await queryNominatimFetch(q, biasLatLng);
@@ -186,9 +186,22 @@ async function queryNominatimFetch(q, biasLatLng){
     url += `&viewbox=${lng-delta},${lat-delta},${lng+delta},${lat+delta}`;
   }
   const data = await nominatimJson(url);
-  return (Array.isArray(data) ? data : []).map(d => {
+  return nominatimSettlementMatches(Array.isArray(data) ? data : []);
+}
+// Разбор ответа поиска. Название — у самого найденного объекта (d.name), а не у
+// первого подходящего поля адреса: иначе для посёлка «Мир» бралась строка
+// адреса уровнем выше — «Мирский сельский Совет», а для урочища Алтын-Арашан —
+// «Ак-Суйский район». Сами районы и сельсоветы уходят в конец списка: ищем
+// населённые пункты, район нужен редко.
+const NOMI_SETTLEMENT = new Set(['city', 'town', 'village', 'hamlet', 'isolated_dwelling', 'locality', 'suburb', 'quarter', 'neighbourhood', 'farm', 'croft', 'borough']);
+const NOMI_OWN_NAME = new Set(['place', 'boundary', 'natural', 'tourism', 'leisure', 'mountain_pass', 'waterway', 'historic']);
+function nominatimSettlementMatches(list){
+  const rank = d => NOMI_SETTLEMENT.has(d.addresstype) || NOMI_SETTLEMENT.has(d.type) && d.class === 'place' ? 0
+    : d.class === 'boundary' || d.addresstype === 'county' || d.addresstype === 'municipality' || d.addresstype === 'state_district' || d.addresstype === 'state' ? 2 : 1;
+  return list.map((d, i) => ({ d, i, r: rank(d) })).sort((a, b) => a.r - b.r || a.i - b.i).map(({ d }) => {
     const addr = d.address || {};
-    const short = cleanPlaceName(addr.city || addr.town || addr.village || addr.municipality || addr.hamlet || addr.suburb || addr.county || d.display_name.split(',')[0]);
+    const own = d.name && (NOMI_OWN_NAME.has(d.class) || NOMI_SETTLEMENT.has(d.addresstype)) ? d.name : '';
+    const short = cleanPlaceName(own || addr.city || addr.town || addr.village || addr.hamlet || addr.municipality || addr.suburb || addr.county || String(d.display_name || '').split(',')[0]);
     const region = [addr.state, addr.country].filter(Boolean).join(', ');
     return { name: short, full: region ? `${short} — ${region}` : short, lat: parseFloat(d.lat), lng: parseFloat(d.lon), country: addr.country || null, countryCode: addr.country_code ? addr.country_code.toUpperCase() : null };
   });
