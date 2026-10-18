@@ -109,7 +109,8 @@ function nearestLocalCity(lat, lng, maxKm){
   return best;
 }
 async function reverseGeocode(lat, lng){
-  const key = 'r:' + lat.toFixed(2) + ',' + lng.toFixed(2);
+  // r2: — ответы с подробностью до посёлка (раньше zoom=10 давал сельсоветы и районы)
+  const key = 'r2:' + lat.toFixed(2) + ',' + lng.toFixed(2);
   const cached = geoCacheGet(key);
   if(cached !== undefined) return cached;
   const offline = () => { const c = nearestLocalCity(lat, lng, 40); return c ? { name: c.name, countryKey: c.countryKey } : null; };
@@ -121,10 +122,12 @@ async function reverseGeocode(lat, lng){
   return r;
 }
 async function reverseGeocodeOnline(lat, lng){
-  const url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&accept-language=ru&zoom=10&lat=${lat}&lon=${lng}`;
+  // zoom=14 — до посёлка и деревни: на 10 в сельской местности приходил
+  // сельсовет или район («Мирский сельский Совет» вместо «Мир»)
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&accept-language=ru&zoom=14&lat=${lat}&lon=${lng}`;
   const d = await nominatimJson(url) || {};
   const a = d.address || {};
-  const name = cleanPlaceName(a.city || a.town || a.village || a.municipality || a.county || a.state || '') || null;
+  const name = cleanPlaceName(a.city || a.town || a.village || a.hamlet || a.isolated_dwelling || a.municipality || a.county || a.state || '') || null;
   if(!name) return null;
   return { name, countryKey: findAnyCountryKeyByRuName(a.country, a.country_code ? a.country_code.toUpperCase() : null) };
 }

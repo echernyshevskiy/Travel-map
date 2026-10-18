@@ -132,3 +132,19 @@ describe('точные даты', () => {
     expect(localDateAt(NaN, 0)).toBeNull();
   });
 });
+
+import { placeStemGuess } from '../src/lib/format.js';
+describe('placeStemGuess', () => {
+  it('из сельсовета и района — название посёлка', () => {
+    expect(placeStemGuess('Мирский сельский Совет')).toBe('Мир');
+    expect(placeStemGuess('Нарочский сельский Совет')).toBe('Нароч');
+    expect(placeStemGuess('Кочкорский район')).toBe('Кочкор');
+    expect(placeStemGuess('Чохский сельсовет')).toBe('Чох');
+    expect(placeStemGuess('Ак-Суйский район')).toBe('Ак-Суй');
+  });
+  it('иноязычные и обычные названия не портит', () => {
+    expect(placeStemGuess('Kouga Local Municipality')).toBe('Kouga');
+    expect(placeStemGuess('Ростов')).toBe('Ростов');
+    expect(placeStemGuess('Городской округ Сочи')).toBe('Сочи');
+  });
+});

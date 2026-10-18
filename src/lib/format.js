@@ -103,6 +103,18 @@ export function cleanPlaceName(name){
 export function looksLikeAdminArea(name){
   return /(municipality|district|county|район|сельск(ий|ое)\s+(совет|поселение)|сельсовет|поселение|городской округ|муниципальн)/i.test(String(name || ''));
 }
+// Догадка, какой посёлок имелся в виду под названием района или сельсовета:
+// «Мирский сельский Совет» → «Мир», «Кочкорский район» → «Кочкор». Только
+// подсказка для поиска — пользователь видит и правит её перед поиском.
+const ADMIN_WORD = /^(сельск|район|муницип|сельсовет|совет|округ|поселени|городск|local|municipality|district|county|rural)/i;
+export function placeStemGuess(name){
+  const words = cleanPlaceName(name).split(/\s+/).filter(Boolean);
+  const head = [];
+  for(const w of words){ if(ADMIN_WORD.test(w)) break; head.push(w); }
+  if(!head.length) return words.filter(w => !ADMIN_WORD.test(w)).join(' ') || cleanPlaceName(name);
+  if(head.length === 1) return head[0].replace(/(?<=[а-яё]{2})(ский|цкий|ской|ская|ское)$/i, '') || head[0];
+  return head.join(' ');
+}
 
 // ---------- точные даты (необязательные) ----------
 // У записи по-прежнему главные год и месяц; точные даты — дополнение:
