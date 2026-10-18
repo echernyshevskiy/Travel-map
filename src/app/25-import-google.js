@@ -279,7 +279,13 @@ let editWaypointTimer = null;
 // по дорогам, а если сервис недоступен — прямыми отрезками. Раньше менялись
 // только названия и координаты точек, а линия и километраж оставались старыми.
 const WAYPOINT_GEOMETRY_FIELDS = ['waypointNames','waypointCoords','waypointCountryKeys','coordsEncoded','segBreaks','distanceKm','isEstimated','name'];
+// записанный трек (GPX: профиль высот, дни в пути, время) — не «маршрут по
+// городам»: его линию по остановкам не перестраиваем, остановки — лишь подписи
+function hasRecordedTrack(e){
+  return !e.isEstimated && !!e.coordsEncoded && (e.trackDays != null || Array.isArray(e.profile) && e.profile.length > 0 || e.durationMin > 0 || e.elevationGain > 0);
+}
 async function rebuildRouteGeometry(entry, oldNames){
+  if(hasRecordedTrack(entry)) return { rebuilt: false, track: true };
   const pts = (entry.waypointCoords || [])
     .map((c,i) => (c && c[0] != null && c[1] != null) ? { lat: c[0], lng: c[1], name: entry.waypointNames[i] } : null)
     .filter(Boolean);
