@@ -40,3 +40,23 @@ test('битые записи откладываются, остальное р�
   await expect.poll(() => page.evaluate(() => tripMeta['__collection:c'].items.map(i => i.name || i.key))).toEqual(['Georgia']);
   await expectNoErrors(errors);
 });
+
+test('переполненное хранилище: кэш геокодера освобождает место, данные сохраняются', async ({ page }) => {
+  const { errors } = await openApp(page);
+  const r = await page.evaluate(async () => {
+    localStorage.setItem('travel-map-geocache', JSON.stringify({ k: { t: Date.now(), v: 'x'.repeat(100) } }));
+    const orig = Storage.prototype.setItem;
+    let first = true;
+    // первая запись данных — «нет места», пока кэш не убран
+    Storage.prototype.setItem = function(k, v){
+      if(k === 'travel-map-data' && first && this.getItem('travel-map-geocache')){ first = false; throw new DOMException('full', 'QuotaExceededError'); }
+      return orig.call(this, k, v);
+    };
+    allEntries[0].notes = 'после переполнения';
+    const ok = await saveData();
+    Storage.prototype.setItem = orig;
+    return { ok, cache: localStorage.getItem('travel-map-geocache'), saved: JSON.parse(localStorage.getItem('travel-map-data')).entries[0].notes };
+  });
+  expect(r).toEqual({ ok: true, cache: null, saved: 'после переполнения' });
+  await expectNoErrors(errors);
+});

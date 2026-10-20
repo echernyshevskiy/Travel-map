@@ -272,7 +272,14 @@ async function saveData(){
     }
   }
   try{
-    localStorage.setItem(LOCAL_STORAGE_KEY, payload);
+    try{ localStorage.setItem(LOCAL_STORAGE_KEY, payload); }
+    catch(full){
+      // хранилище переполнено: освобождаем место за счёт кэшей (геокодер,
+      // отложенные записи) — данные важнее — и пробуем ещё раз
+      try{ localStorage.removeItem(GEO_CACHE_KEY); geoCacheMem = null; localStorage.removeItem(QUARANTINE_KEY); }catch(x){ /* нечего чистить */ }
+      localStorage.setItem(LOCAL_STORAGE_KEY, payload);
+      console.warn('Хранилище было переполнено — кэш геокодера очищен');
+    }
     noteDataChanged();
     renderBackupReminder();
     recordChangelog();
