@@ -63,6 +63,11 @@ function sanitizeEntryFields(entry){
   // точные даты — только в виде ГГГГ-ММ-ДД; конец не раньше начала
   if(entry.dateFrom != null && !parseIsoDate(entry.dateFrom)){ delete entry.dateFrom; changed = true; }
   if(entry.dateTo != null && (!entry.dateFrom || !parseIsoDate(entry.dateTo) || entry.dateTo <= entry.dateFrom)){ delete entry.dateTo; changed = true; }
+  // Строки там, где ждут строки, числа там, где ждут числа: повреждённый файл
+  // или старая версия могли записать что угодно, а один такой элемент ронял
+  // список, карточки или глобус целиком.
+  const fixed = normalizeEntryShape(entry);
+  if(fixed) changed = true;
   if(changed) migrationChanged = true;
 }
 function sanitizeRace(r){
@@ -164,6 +169,12 @@ function syncLayers(){
   allEntries.forEach(entry=>{
     const isWishlist = entry.status === 'wishlist';
     let layer = layers[entry.id];
+    // город без координат (повреждённый файл, старая версия) на карту не ставим —
+    // маркер в NaN ронял кластеры; запись остаётся в списке и «Проверке данных»
+    if(entry.type === 'city' && (entry.lat == null || entry.lng == null)){
+      if(layer){ if(layer instanceof L.Marker) cityCluster.removeLayer(layer); else map.removeLayer(layer); delete layers[entry.id]; }
+      return;
+    }
 
     // Слой переиспользуется по идентификатору. При импорте запись с тем же id
     // может прийти с другой геометрией или вообще другого типа — тогда на карте
@@ -282,7 +293,29 @@ function pruneStaleFilters(){
   if(prunedTrip) updateTripUrlHash();
 }
 
+// Записи, которые нельзя показать вовсе (не объект, неизвестный тип), не
+// выбрасываются молча: они откладываются в отдельный ключ хранилища, чтобы их
+// можно было достать из резервной копии браузера. Повторяющиеся id получают
+// новые: иначе удаление одной записи удаляло бы обе.
+const QUARANTINE_KEY = 'travel-map-quarantine';
+function dropUnusableEntries(){
+  const bad = [], seen = new Set();
+  allEntries = (Array.isArray(allEntries) ? allEntries : []).filter(e => {
+    if(!isUsableEntry(e)){ bad.push(e); return false; }
+    if(typeof e.id === 'string' && seen.has(e.id)){ e.id = genId(); migrationChanged = true; }
+    seen.add(e.id);
+    return true;
+  });
+  if(!bad.length) return;
+  migrationChanged = true;
+  try{
+    const prev = JSON.parse(localStorage.getItem(QUARANTINE_KEY) || '[]');
+    localStorage.setItem(QUARANTINE_KEY, JSON.stringify(prev.concat(bad.map(x => ({ at: Date.now(), item: x }))).slice(-200)));
+  }catch(e){ /* хранилище недоступно — запись всё равно непригодна */ }
+  console.warn('Отложены повреждённые записи:', bad.length);
+}
 function rebuildAll(){
+  dropUnusableEntries();
   allEntries.forEach(migrateEntry);
   races = (Array.isArray(races) ? races : []).map(sanitizeRace).filter(Boolean);
   pruneStaleFilters();
