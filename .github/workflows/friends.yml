@@ -14,6 +14,9 @@ on:
     - cron: '23 */6 * * *'
   workflow_dispatch:
   push:
+    # только main: в ветках pull request сборка коммитила свою пересборку прямо
+    # в ветку, и проверку этого коммита приходилось подтверждать вручную
+    branches: [main]
     paths:
       - src/**
       - package.json

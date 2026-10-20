@@ -21,7 +21,7 @@ import UNESCO_TXT from '../data/unesco.json?raw';
 
 // Независимая логика — настоящие ES-модули с модульными тестами (src/lib/)
 import { haversine, pointInGeometry, trackDistanceKm, encodePolyline, getEntryCoords, downsample, downsampleNumeric, downsampleSegments, gpxDistanceKm, geomAreaKm2, polyLabelPoint, mainRing, decodedCoordsCache, snapToTrack, simplifyLine } from '../lib/geo.js';
-import { escapeHtml, escapeAttr, safeUrl, normSearch, formatPace, parseRaceTime, formatRaceTime, fmtDelta, daysWord, pluralVisits, monthsWord, cleanPlaceName, looksLikeAdminArea, placeStemGuess, parseIsoDate, formatDateRange, dateSpan, localDateAt } from '../lib/format.js';
+import { escapeHtml, escapeAttr, safeUrl, normSearch, formatPace, parseRaceTime, formatRaceTime, fmtDelta, daysWord, pluralVisits, monthsWord, cleanPlaceName, looksLikeAdminArea, placeStemGuess, parseIsoDate, formatDateRange, dateSpan, localDateAt, isUsableEntry, normalizeEntryShape } from '../lib/format.js';
 import { getAllCityVisits, uniqueCityVisits, distinctCityKeys } from '../lib/visits.js';
 import { SYNC_META, itemJson, mergeKind, parseTokenExpiry } from '../lib/sync-merge.js';
 import { gtlExtract } from '../lib/timeline-parse.js';

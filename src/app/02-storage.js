@@ -95,7 +95,7 @@ async function loadData(){
   if(READ_ONLY){
     // сборка для друзей и так приходит без скрытых записей и заметок —
     // здесь страховка на случай, если файл собран из полного бэкапа
-    allEntries = JSON.parse(JSON.stringify(BAKED_ENTRIES)).filter(e => !e.hidden).map(e => { delete e.notes; return e; });
+    allEntries = JSON.parse(JSON.stringify(BAKED_ENTRIES)).filter(e => isUsableEntry(e) && !e.hidden).map(e => { delete e.notes; return e; });
     tripMeta = JSON.parse(JSON.stringify(BAKED_TRIP_META));
     return;
   }

@@ -194,6 +194,7 @@ const COLLAPSE_KEY = 'travel-map-collapsed';
   }
   try{
     await loadData();
+    dropUnusableEntries(); // до журнала, синхронизации и первой отрисовки
   }catch(err){
     console.error('loadData failed', err);
     allEntries = [];

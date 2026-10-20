@@ -164,3 +164,56 @@ export function localDateAt(ms, lng){
   const off = isFinite(lng) ? Math.round(lng / 15) : 0;
   return new Date(ms + off * 3600000).toISOString().slice(0, 10);
 }
+
+// ---------- форма записи ----------
+// Пригодна ли запись к показу вообще: объект одного из трёх типов.
+export const ENTRY_TYPES = ['country', 'city', 'route'];
+export function isUsableEntry(e){
+  return !!e && typeof e === 'object' && !Array.isArray(e) && ENTRY_TYPES.includes(e.type);
+}
+const finiteNum = v => { const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v; return typeof n === 'number' && Number.isFinite(n) ? n : null; };
+const validLat = v => { const n = finiteNum(v); return n != null && n >= -90 && n <= 90 ? n : null; };
+const validLng = v => { const n = finiteNum(v); return n != null && n >= -180 && n <= 180 ? n : null; };
+// Приводит поля записи к ожидаемым типам на месте; возвращает true, если что-то
+// поменялось. Значения, которые нельзя понять, убираются, а не угадываются.
+export function normalizeEntryShape(e){
+  let ch = false;
+  const set = (k, v) => { if(e[k] !== v){ if(v === undefined) delete e[k]; else e[k] = v; ch = true; } };
+  if(typeof e.name !== 'string') set('name', e.name == null ? '' : String(e.name));
+  ['trip', 'countryKey', 'notes', 'company', 'purpose', 'season', 'activity', 'community', 'instagramUrl', 'mapLinkUrl', 'docLinkUrl', 'terrain'].forEach(k => {
+    if(e[k] != null && typeof e[k] !== 'string') set(k, typeof e[k] === 'number' ? String(e[k]) : undefined);
+  });
+  if(e.photos != null && !Array.isArray(e.photos)) set('photos', typeof e.photos === 'string' && e.photos ? [e.photos] : []);
+  if(Array.isArray(e.photos) && e.photos.some(p => typeof p !== 'string')) set('photos', e.photos.filter(p => typeof p === 'string'));
+  if(e.favorite != null && typeof e.favorite !== 'boolean') set('favorite', e.favorite === true || e.favorite === 'true' || e.favorite === 1);
+  if(e.hidden != null && typeof e.hidden !== 'boolean') set('hidden', !!e.hidden);
+  if(e.tripOrder != null && finiteNum(e.tripOrder) == null) set('tripOrder', undefined);
+  else if(e.tripOrder != null && typeof e.tripOrder !== 'number') set('tripOrder', finiteNum(e.tripOrder));
+  if(e.type === 'city' || e.lat != null || e.lng != null){
+    const la = validLat(e.lat), lo = validLng(e.lng);
+    if(la == null || lo == null){ if(e.lat != null || e.lng != null){ set('lat', null); set('lng', null); } }
+    else { if(e.lat !== la) set('lat', la); if(e.lng !== lo) set('lng', lo); }
+  }
+  if(e.type === 'route'){
+    if(e.coordsEncoded != null && typeof e.coordsEncoded !== 'string') set('coordsEncoded', undefined);
+    if(e.waypointNames != null || e.waypointCoords != null || e.waypointCountryKeys != null){
+      const names = Array.isArray(e.waypointNames) ? e.waypointNames : [];
+      const n = names.length;
+      const nn = names.map(x => typeof x === 'string' ? x : x == null ? '' : String(x));
+      const cs = Array.isArray(e.waypointCoords) ? e.waypointCoords : [];
+      const nc = nn.map((_, i) => { const c = cs[i]; if(!Array.isArray(c)) return null; const la = validLat(c[0]), lo = validLng(c[1]); return la == null || lo == null ? null : [la, lo]; });
+      const ks = Array.isArray(e.waypointCountryKeys) ? e.waypointCountryKeys : [];
+      const nk = nn.map((_, i) => typeof ks[i] === 'string' && ks[i] ? ks[i] : null);
+      if(!n){ set('waypointNames', undefined); set('waypointCoords', undefined); set('waypointCountryKeys', undefined); }
+      else {
+        if(JSON.stringify(nn) !== JSON.stringify(e.waypointNames)) set('waypointNames', nn);
+        if(JSON.stringify(nc) !== JSON.stringify(e.waypointCoords)) set('waypointCoords', nc);
+        if(JSON.stringify(nk) !== JSON.stringify(e.waypointCountryKeys)) set('waypointCountryKeys', nk);
+      }
+    }
+    if(e.profile != null && !(Array.isArray(e.profile) && e.profile.every(p => Array.isArray(p) && p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1])))) set('profile', undefined);
+    if(e.durationMin != null && !(e.durationMin > 0)) set('durationMin', null);
+    if(e.elevationGain != null && typeof e.elevationGain === 'string') set('elevationGain', finiteNum(e.elevationGain));
+  }
+  return ch;
+}
