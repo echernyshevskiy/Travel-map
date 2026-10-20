@@ -161,7 +161,8 @@ document.getElementById('calendarModal').addEventListener('click', (e)=>{
 document.getElementById('passportSearchInput').addEventListener('input', debounce((e)=>{
   passportSearchQuery = e.target.value.trim().toLowerCase();
   // при новом запросе открываем сразу страницы с печатями, а не обложку
-  passportSpread = passportSearchQuery ? 1 : 0;
+  // разворот 0 — обложка, 1 — сводка «особые отметки», печати начинаются со 2-го
+  passportSpread = passportSearchQuery ? 2 : 0;
   renderPassport();
 }, 150));
 document.getElementById('closePassportModal').addEventListener('click', closePassportModal);

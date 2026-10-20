@@ -60,3 +60,107 @@ test('переполненное хранилище: кэш геокодера �
   expect(r).toEqual({ ok: true, cache: null, saved: 'после переполнения' });
   await expectNoErrors(errors);
 });
+
+// ---- сценарии, которые раньше не проверялись автотестами (по замеру покрытия) ----
+const fs = require('fs');
+const readDownload = async d => fs.readFileSync(await d.path(), 'utf8');
+
+test('резервная копия JSON и CSV: в файлах все записи, повторный импорт совпадает', async ({ page }) => {
+  const { errors } = await openApp(page);
+  const n = await page.evaluate(() => allEntries.length);
+  const [json] = await Promise.all([page.waitForEvent('download'), page.evaluate(() => document.getElementById('exportBtn').click())]);
+  const data = JSON.parse(await readDownload(json));
+  expect(data.entries.length).toBe(n);
+  expect(data.entries.map(e => e.id).sort()).toEqual(await page.evaluate(() => allEntries.map(e => e.id).sort()));
+  const [csv] = await Promise.all([page.waitForEvent('download'), page.evaluate(() => document.getElementById('exportCsvBtn').click())]);
+  const lines = (await readDownload(csv)).replace(/^﻿/, '').trim().split(/\r?\n/);
+  expect(lines.length).toBe(n + 1);
+  expect(lines[0]).toContain('Дата_с');
+  await expectNoErrors(errors);
+});
+
+test('снимок карты в PNG скачивается', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
+  const { errors } = await openApp(page);
+  const [png] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), page.evaluate(() => document.getElementById('exportSnapshotBtn').click())]);
+  const buf = fs.readFileSync(await png.path());
+  expect(buf.slice(1, 4).toString()).toBe('PNG');
+  expect(buf.length).toBeGreaterThan(20000);
+  await expectNoErrors(errors);
+});
+
+test('добавление через форму без сети: город и страна из подсказок, маршрут по городам', async ({ page }) => {
+  const { errors } = await openApp(page);
+  const before = await page.evaluate(() => allEntries.length);
+  await page.evaluate(() => { mnavShow && mnavShow('add'); });
+  // город
+  await page.evaluate(() => document.querySelector('.type-btn[data-type="city"]').click());
+  await page.fill('#citySearch', 'Самар');
+  await page.locator('#citySuggest .suggest-item', { hasText: 'Самара' }).first().click();
+  await page.evaluate(() => document.getElementById('saveBtn').click());
+  await expect.poll(() => page.evaluate(() => { const e = allEntries.find(x => x.name === 'Самара'); return e && [e.type, e.countryKey, Math.round(e.lat)]; })).toEqual(['city', 'Russia', 53]);
+  // страна
+  await page.evaluate(() => document.querySelector('.type-btn[data-type="country"]').click());
+  await page.fill('#countrySearch', 'Финл');
+  await page.locator('#countrySuggest .suggest-item', { hasText: 'Финляндия' }).first().click();
+  await page.evaluate(() => document.getElementById('saveBtn').click());
+  await expect.poll(() => page.evaluate(() => allEntries.some(e => e.type === 'country' && e.countryKey === 'Finland'))).toBe(true);
+  // маршрут по городам: без сервиса дорог — прямыми отрезками
+  await page.evaluate(() => document.querySelector('.type-btn[data-type="route"]').click());
+  await page.evaluate(() => document.querySelector('[data-source="cities"]').click());
+  for(const [q, name] of [['Самар', 'Самара'], ['Тольят', 'Тольятти'], ['Сызра', 'Сызрань']]){
+    await page.fill('#routeCitySearch', q);
+    await page.locator('#routeCitySuggest .suggest-item', { hasText: name }).first().click();
+  }
+  await page.evaluate(() => document.getElementById('saveBtn').click());
+  await expect.poll(() => page.evaluate(() => { const e = allEntries.find(x => x.type === 'route' && x.waypointNames && x.waypointNames[0] === 'Самара'); return e && [e.waypointNames.length, e.isEstimated, e.distanceKm > 50]; }), { timeout: 15000 })
+    .toEqual([3, true, true]);
+  expect(await page.evaluate(() => allEntries.length)).toBe(before + 3);
+  await expectNoErrors(errors);
+});
+
+test('история поездки, паспорт и порядок точек в поездке', async ({ page }) => {
+  const { sampleEntries: se } = require('./helpers');
+  const entries = [...se(), { id: 'ci_mt', type: 'city', name: 'Мцхета', year: 2023, month: 5, lat: 41.84, lng: 44.72, countryKey: 'Georgia', color: '#3F5240', trip: 'Кавказ 2023', tripOrder: 2, status: 'visited', photos: [], purpose: 'tourism' }];
+  const { errors } = await openApp(page, { entries });
+  await page.evaluate(() => { const t = allEntries.find(e => e.id === 'ci_tb'); t.tripOrder = 1; });
+  await page.evaluate(() => openTripStory('Кавказ 2023'));
+  await expect(page.locator('#storyModal')).toBeVisible();
+  await expect(page.locator('#storyFeed')).toContainText('Мцхета');
+  await page.click('#closeStoryModal');
+  await expect(page.locator('#storyModal')).toBeHidden();
+  await page.evaluate(() => moveTripEntry('Кавказ 2023', 'ci_mt', -1));
+  await expect.poll(() => page.evaluate(() => ['ci_tb', 'ci_mt'].map(id => allEntries.find(e => e.id === id).tripOrder))).toEqual([2, 1]);
+  await page.evaluate(() => document.getElementById('openPassportBtn').click());
+  await expect(page.locator('#passportModal')).toBeVisible();
+  await expect(page.locator('#passportCount')).toContainText('Собрано печатей: 2');
+  // поиск по стране оставляет одну печать и открывает страницы с печатями
+  await page.fill('#passportSearchInput', 'Груз');
+  await expect(page.locator('#passportCount')).toContainText('показано: 1');
+  await expect(page.locator('#passportBook .stamp-name').first()).toContainText(/Грузия/i);
+  await expectNoErrors(errors);
+});
+
+test('старт: добавление с проверкой ввода, процент обогнанных', async ({ page }) => {
+  const { errors } = await openApp(page);
+  const n0 = await page.evaluate(() => races.length);
+  await page.evaluate(() => { document.getElementById('openRunningBtn').click(); editingRaceId = 'new'; renderRaces(); });
+  await page.fill('#raceName', 'Тестовый полумарафон');
+  await page.fill('#raceDate', '2025-05-18');
+  await page.fill('#raceDist', '21.1');
+  // неверное время и место больше участников — не сохраняется
+  await page.fill('#raceTime', 'быстро');
+  await page.evaluate(() => document.getElementById('raceSaveBtn').click());
+  await expect(page.locator('#toast')).toContainText('Время не распознано');
+  await page.fill('#raceTime', '1:45:30');
+  await page.fill('#racePlace', '500'); await page.fill('#raceTotal', '400');
+  await page.evaluate(() => document.getElementById('raceSaveBtn').click());
+  await expect(page.locator('#toast')).toContainText('Место не может быть больше');
+  await page.fill('#raceTotal', '2000');
+  await page.evaluate(() => document.getElementById('raceSaveBtn').click());
+  await expect.poll(() => page.evaluate(() => races.length)).toBe(n0 + 1);
+  const r = await page.evaluate(() => races.find(x => x.name === 'Тестовый полумарафон'));
+  expect([r.status, r.distanceKm, r.place, r.participants]).toEqual(['done', 21.1, 500, 2000]);
+  await expect(page.locator('#racesBlock')).toContainText('Тестовый полумарафон');
+  await expectNoErrors(errors);
+});
