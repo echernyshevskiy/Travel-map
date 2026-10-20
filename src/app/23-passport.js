@@ -558,8 +558,11 @@ function renderDiagnostics(){
         queryNominatimSettlements(q, here).then(list => {
           if(my !== seq) return;
           found = list.slice(0, 8);
-          sug.innerHTML = found.length ? found.map((m, j) => `<div class="suggest-item" data-place-pick="${j}">${escapeHtml(m.full)}${here ? ` <small style="color:var(--text-dim);">· ${Math.round(haversine(here, [m.lat, m.lng]))} км</small>` : ''}</div>`).join('')
-            : '<div class="suggest-empty">Ничего не найдено — попробуйте другое написание</div>';
+          // без сети поиск идёт по встроенному справочнику — там только города
+          const local = found.length ? found.every(m => m.offline) : (navigator.onLine === false || nominatimDown());
+          const note = local ? '<div class="suggest-empty">Без сети ищу только по встроенному справочнику городов. Сёла и посёлки найдутся, когда появится интернет.</div>' : '';
+          sug.innerHTML = found.length ? found.map((m, j) => `<div class="suggest-item" data-place-pick="${j}">${escapeHtml(m.full)}${here ? ` <small style="color:var(--text-dim);">· ${Math.round(haversine(here, [m.lat, m.lng]))} км</small>` : ''}</div>`).join('') + note
+            : (note || '<div class="suggest-empty">Ничего не найдено — попробуйте другое написание</div>');
         }).catch(() => { if(my === seq) sug.innerHTML = '<div class="suggest-empty">Поиск недоступен — нужна сеть</div>'; });
       };
       inp.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 450); });
