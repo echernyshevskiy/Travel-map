@@ -194,7 +194,8 @@ function countryBounds(key){
 
 function focusEntry(entry){
   const layer = layers[entry.id];
-  if(!layer) return;
+  const empty = !layer || (entry.type === 'route' && !(layer.getBounds && layer.getBounds().isValid()));
+  if(empty){ toast('У этой записи нет места на карте — откройте правку и укажите его'); return; }
   mnavShow('map'); // на телефоне из списка — сразу к карте
   if(entry.type === 'country' && entry.countryKey){
     // у стран свой попап (поездки, действия), а не привязанный к слою —
@@ -202,11 +203,17 @@ function focusEntry(entry){
     map.fitBounds(layer.getBounds(), {padding:[40,40]});
     openCountryPopup(entry.countryKey, countryAnchor(entry.countryKey, layer.getBounds()));
   } else if(entry.type === 'route' || entry.type === 'country'){
-    map.fitBounds(layer.getBounds(), {padding:[40,40]});
+    // трек из одной точки: у рамки нулевой размер, и fitBounds уходил в NaN
+    const bb = layer.getBounds();
+    if(bb.getNorthEast().equals(bb.getSouthWest())) map.setView(bb.getCenter(), 10);
+    else map.fitBounds(bb, {padding:[40,40]});
     layer.openPopup();
     if(entry.type === 'route') animateRouteDraw(entry);
   } else if(typeof cityCluster.zoomToShowLayer === 'function'){
-    cityCluster.zoomToShowLayer(layer, () => layer.openPopup());
+    // быстрые нажатия подряд: кластер ещё в анимации предыдущего приближения
+    // и бросает ошибку — тогда просто подлетаем к точке
+    try{ cityCluster.zoomToShowLayer(layer, () => { if(layer._map) layer.openPopup(); }); }
+    catch(e){ map.setView(layer.getLatLng(), 10); setTimeout(() => { try{ cityCluster.zoomToShowLayer(layer, () => { if(layer._map) layer.openPopup(); }); }catch(x){ /* отрисуется со следующим нажатием */ } }, 400); }
   } else {
     map.setView(layer.getLatLng(), 8);
     layer.openPopup();

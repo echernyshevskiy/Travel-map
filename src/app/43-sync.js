@@ -193,7 +193,7 @@ function syncFingerprint(d){
 function mergeSyncData(local, remoteRaw){
   // данные с GitHub проходят ту же проверку и нормализацию, что импорт файла
   const remoteEntries = (remoteRaw.entries || [])
-    .filter(x => x && typeof x.id === 'string' && x.type && x.name)
+    .filter(x => isUsableEntry(x) && typeof x.id === 'string' && x.name)
     .map(x => migrateEntry(JSON.parse(JSON.stringify(x))));
   const remoteRaces = (Array.isArray(remoteRaw.races) ? remoteRaw.races : []).map(sanitizeRace).filter(Boolean);
   const remoteMeta = (remoteRaw.tripMeta && typeof remoteRaw.tripMeta === 'object') ? remoteRaw.tripMeta : {};

@@ -34,9 +34,14 @@ function capitalOf(k){
   const want = normSearch(quizCapital(k));
   return list.find(c => normSearch(c.name) === want) || list.slice().sort((a, b) => b.pop - a.pop)[0];
 }
+// повреждённые пункты своей коллекции (не объект, город без координат) не показываем
+const collItemOk = it => !!it && typeof it === 'object' && (it.kind === 'country' ? typeof it.key === 'string'
+  : it.lat !== null && it.lng !== null && Number.isFinite(+it.lat) && Number.isFinite(+it.lng));
 function customCollections(){
-  return Object.keys(tripMeta).filter(k => k.startsWith(COLLECTION_PREFIX)).map(k => ({ ...tripMeta[k], id: k, custom: true }))
-    .filter(c => c && Array.isArray(c.items)).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  return Object.keys(tripMeta).filter(k => k.startsWith(COLLECTION_PREFIX) && tripMeta[k] && typeof tripMeta[k] === 'object')
+    .map(k => ({ ...tripMeta[k], id: k, custom: true }))
+    .filter(c => Array.isArray(c.items)).map(c => ({ ...c, name: typeof c.name === 'string' ? c.name : '', items: c.items.filter(collItemOk) }))
+    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 }
 // Всемирное наследие ЮНЕСКО: src/data/unesco.json собирается scripts/build-unesco.mjs
 // из данных whc.unesco.org — [id, название, lat, lng, категория c/n/m, страна, год включения, транснациональный].
@@ -248,6 +253,8 @@ function renderCollectionDetail(col, idx){
   };
   if(col.custom && !READ_ONLY){
     const meta = tripMeta[col.id];
+    // индексы кнопок «✕» — по очищенному списку, поэтому и в данных чистим так же
+    if(meta.items.some(it => !collItemOk(it))) meta.items = meta.items.filter(collItemOk);
     const persist = async () => { meta.updatedAt = Date.now(); await saveData(); renderCollections(); };
     body.querySelectorAll('[data-ci-del]').forEach(b => b.addEventListener('click', () => { meta.items.splice(+b.dataset.ciDel, 1); persist(); }));
     document.getElementById('collRename').addEventListener('click', () => {
