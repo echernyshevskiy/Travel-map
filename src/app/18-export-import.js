@@ -86,17 +86,32 @@ document.getElementById('exportCsvBtn').addEventListener('click', ()=>{
 // Раньше она грузилась при каждом первом открытии, даже если кнопкой ни разу
 // не пользовались. Теперь подгружаем её только по нажатию.
 let xlsxLoading = null;
+// SheetJS 0.18.5 из npm (xlsx/dist/xlsx.full.min.js); тот же файл лежит на cdnjs
+const XLSX_FILE = 'xlsx-0.18.5.full.min.js';
+const XLSX_SRI = 'sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==';
 function loadXlsxLib(){
   if(typeof XLSX !== 'undefined') return Promise.resolve(true);
   if(xlsxLoading) return xlsxLoading;
-  xlsxLoading = new Promise((resolve)=>{
+  // Сначала — своя копия рядом с сайтом, затем запасной CDN. В обоих случаях
+  // браузер сверяет хэш файла (integrity): подменённый файл не выполнится,
+  // а значит не доберётся ни до данных, ни до токена синхронизации.
+  const sources = [];
+  if(SERVED_OVER_HTTP) sources.push((READ_ONLY ? '../' : '') + 'vendor/' + XLSX_FILE);
+  sources.push('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+  const tryLoad = src => new Promise(resolve => {
     const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.src = src;
+    s.integrity = XLSX_SRI;
     s.crossOrigin = 'anonymous';
-    s.onload = ()=> resolve(typeof XLSX !== 'undefined');
-    s.onerror = ()=>{ xlsxLoading = null; resolve(false); };
+    s.onload = () => resolve(typeof XLSX !== 'undefined');
+    s.onerror = () => { s.remove(); resolve(false); };
     document.head.appendChild(s);
   });
+  xlsxLoading = (async () => {
+    for(const src of sources){ if(await tryLoad(src)) return true; }
+    xlsxLoading = null;
+    return false;
+  })();
   return xlsxLoading;
 }
 

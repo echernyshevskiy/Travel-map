@@ -10,6 +10,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# тестам достаточно читать код: даже если зависимость окажется вредоносной,
+# у неё не будет права что-либо записать в репозиторий
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest

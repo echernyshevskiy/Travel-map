@@ -10,6 +10,7 @@
 // Из ссылок остаются только обложки (первое фото-картинка записи и выбранные
 // обложки поездок), Instagram и ссылки на карты; альбомы и документы убираются.
 // Скрипт не содержит секретов и выводит только итоговые числа.
+import { applyCsp } from './csp.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -118,6 +119,8 @@ if(fs.existsSync(SW_SRC)){
   }
 }
 
+// данные поменялись — пересчитываем политику безопасности (хэши скриптов)
+html = applyCsp(html);
 const before = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : null;
 if(before === html){ console.log(`Без изменений: записей ${entries.length}`); process.exit(0); }
 fs.writeFileSync(OUT, html);
