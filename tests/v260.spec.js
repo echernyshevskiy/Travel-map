@@ -103,8 +103,7 @@ test('на ПК: название под курсором и клавиатур�
   expect(await page.evaluate(() => globe.proj.rotate()[0])).toBeGreaterThan(r0);
   const s0 = await page.evaluate(() => globe.proj.scale());
   await page.keyboard.press('-');
-  await page.waitForTimeout(300);
-  expect(await page.evaluate(() => globe.proj.scale())).toBeLessThan(s0);
+  await expect.poll(() => page.evaluate(() => globe.proj.scale())).toBeLessThan(s0);
   await expectNoErrors(errors);
 });
 
