@@ -1,6 +1,7 @@
 // Сборка «Карты путешествий»: исходники в src/, на выходе — один самодостаточный
 // index.html (стили, Leaflet, данные и код внутри файла), как и раньше.
 // После сборки файл копируется в корень репозитория: GitHub Pages отдаёт его оттуда.
+import { applyCsp } from './scripts/csp.mjs';
 import { defineConfig } from 'vite';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import fs from 'node:fs';
@@ -90,7 +91,10 @@ function copyToRoot(){
   return {
     name: 'copy-to-root',
     closeBundle(){
-      fs.copyFileSync(path.join(ROOT, 'dist/index.html'), path.join(ROOT, 'index.html'));
+      // политика безопасности считается по уже собранному файлу: хэши встроенных скриптов
+      const out = path.join(ROOT, 'dist/index.html');
+      fs.writeFileSync(out, applyCsp(fs.readFileSync(out, 'utf8')));
+      fs.copyFileSync(out, path.join(ROOT, 'index.html'));
     }
   };
 }

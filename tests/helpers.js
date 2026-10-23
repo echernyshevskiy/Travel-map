@@ -59,6 +59,9 @@ async function openApp(page, opts = {}){
   const { build = 'edit', entries = sampleEntries(), races = sampleRaces(), tripMeta = {}, theme = null, mocks = {} } = opts;
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
+  // нарушение политики безопасности (CSP) — тоже ошибка: значит, что-то из
+  // нужного приложению заблокировано или в страницу попал чужой код
+  page.on('console', m => { if(/Content Security Policy/i.test(m.text()) && !(opts.allowCsp)) errors.push('CSP: ' + m.text().slice(0, 300)); });
   await page.route('**/*', route => {
     const url = route.request().url();
     if(url.startsWith(BASE)){
