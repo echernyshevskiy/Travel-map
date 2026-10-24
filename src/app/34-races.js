@@ -6,6 +6,14 @@ function raceShare(r){
 
 let editingRaceId = null;
 let finishingRace = false; // открыли предстоящий старт, чтобы вписать результат
+// форма правки рисуется под таблицей состоявшихся стартов — при длинном списке
+// она оказывалась ниже края экрана, и казалось, что ✓ и ✎ не работают.
+// После открытия формы прокручиваем к ней и ставим курсор в нужное поле.
+let raceFormReveal = false;
+function openRaceForm(id, finishing){
+  editingRaceId = id; finishingRace = !!finishing; raceFormReveal = true;
+  renderRaces();
+}
 
 // Предстоящий старт — тот же старт, только без результата. Отдельный список
 // потребовал бы переносить запись между массивами при «переезде»; статус
@@ -60,7 +68,7 @@ function renderUpcoming(){
   }
   box.innerHTML = html;
   const add = document.getElementById('upcomingAddBtn');
-  if(add) add.addEventListener('click', ()=>{ editingRaceId = 'newUpcoming'; renderRaces(); renderUpcoming(); });
+  if(add) add.addEventListener('click', ()=>{ openRaceForm('newUpcoming'); renderUpcoming(); });
   bindRaceRowActions(box);
 }
 
@@ -135,7 +143,7 @@ function renderRaces(){
   box.innerHTML = html;
 
   const addBtn = document.getElementById('raceAddBtn');
-  if(addBtn) addBtn.addEventListener('click', ()=>{ editingRaceId = 'new'; renderRaces(); });
+  if(addBtn) addBtn.addEventListener('click', ()=> openRaceForm('new'));
   const cancelBtn = document.getElementById('raceCancelBtn');
   if(cancelBtn) cancelBtn.addEventListener('click', ()=>{ editingRaceId = null; finishingRace = false; renderRaces(); });
   // рекорды, медали и графики зависят от стартов — обновляем вместе с таблицей
@@ -143,17 +151,25 @@ function renderRaces(){
   const saveBtn = document.getElementById('raceSaveBtn');
   if(saveBtn) saveBtn.addEventListener('click', saveRaceForm);
   bindRaceRowActions(box);
+  const form = box.querySelector('.race-form');
+  if(form && raceFormReveal){
+    raceFormReveal = false;
+    form.classList.add('race-form-new');
+    form.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const field = document.getElementById(finishingRace ? 'raceTime' : 'raceName');
+    if(field) setTimeout(() => { try{ field.focus({ preventScroll: true }); }catch(e){ field.focus(); } }, 350);
+  }
 }
 
 // Одни и те же действия нужны в обеих таблицах — предстоящих и состоявшихся.
 function bindRaceRowActions(box){
   box.querySelectorAll('[data-race-edit]').forEach(b=>{
-    b.addEventListener('click', ()=>{ editingRaceId = b.dataset.raceEdit; renderRaces(); });
+    b.addEventListener('click', ()=> openRaceForm(b.dataset.raceEdit));
   });
   box.querySelectorAll('[data-race-finish]').forEach(b=>{
     // «переезд» в состоявшиеся — это открыть ту же запись на правку,
     // где уже видны поля результата
-    b.addEventListener('click', ()=>{ editingRaceId = b.dataset.raceFinish; finishingRace = true; renderRaces(); });
+    b.addEventListener('click', ()=> openRaceForm(b.dataset.raceFinish, true));
   });
   box.querySelectorAll('[data-race-del]').forEach(b=>{
     b.addEventListener('click', async ()=>{

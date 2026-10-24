@@ -1243,6 +1243,9 @@
   }
   .race-form input{margin:0;width:100%;}
   .race-form-actions{display:flex;gap:6px;margin-top:10px;}
+  /* только что открытая форма коротко подсвечивается — видно, куда смотреть */
+  .race-form-new{animation:raceFormFlash 1.6s ease-out 1;}
+  @keyframes raceFormFlash{0%,30%{border-color:var(--amber);box-shadow:0 0 0 3px rgba(166,89,46,0.25);}100%{border-color:var(--line);box-shadow:none;}}
   /* Сводка над панелью: то немногое, что видно всегда и считается по всем
      данным, а не по текущим фильтрам — в отличие от блока статистики ниже. */
   #glanceBar{

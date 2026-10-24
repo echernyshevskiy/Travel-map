@@ -164,3 +164,25 @@ test('старт: добавление с проверкой ввода, про�
   await expect(page.locator('#racesBlock')).toContainText('Тестовый полумарафон');
   await expectNoErrors(errors);
 });
+
+test('старты: ✓ и ✎ открывают форму на виду, курсор — в нужном поле', async ({ page }) => {
+  const { sampleRaces } = require('./helpers');
+  // длинный список состоявшихся — форма рисуется под ним
+  const races = [...sampleRaces(), ...Array.from({ length: 12 }, (_, i) => ({ id: 'd' + i, name: 'Старт ' + i, date: `20${10 + i}-05-01`, distanceKm: 10, time: '50:00', status: 'done' })),
+    { id: 'up1', name: 'Будущий', date: '2027-04-20', distanceKm: 21.1, status: 'upcoming' }];
+  const { errors } = await openApp(page, { races });
+  await page.evaluate(() => document.getElementById('openRunningBtn').click());
+  const inView = () => page.evaluate(() => { const f = document.querySelector('.race-form'); if(!f) return false; const b = f.getBoundingClientRect(); return b.top >= 0 && b.top < innerHeight - 40; });
+  await page.locator('[data-race-finish="up1"]').click();
+  await expect.poll(inView).toBe(true);
+  await expect(page.locator('#raceTime')).toBeFocused();
+  await page.fill('#raceTime', '1:50:00');
+  await page.evaluate(() => document.getElementById('raceSaveBtn').click());
+  await expect.poll(() => page.evaluate(() => races.find(r => r.id === 'up1').status)).toBe('done');
+  // правка состоявшегося старта из начала таблицы
+  await page.locator('[data-race-edit="d11"]').click();
+  await expect.poll(inView).toBe(true);
+  await expect(page.locator('#raceName')).toBeFocused();
+  await expect(page.locator('#raceName')).toHaveValue('Старт 11');
+  await expectNoErrors(errors);
+});
