@@ -169,7 +169,7 @@ function renderTable(){
         ].filter(Boolean).join(' · ')
       : '—';
     rows.push(`<tr data-row-id="${escapeAttr(entry.id)}">
-      <td>${READ_ONLY ? '' : `<input type="checkbox" class="row-checkbox" ${selectedIds.has(entry.id) ? 'checked' : ''}>`}</td>
+      <td>${READ_ONLY ? '' : `<input type="checkbox" class="row-checkbox" aria-label="Выбрать: ${escapeAttr(entry.name || '')}" ${selectedIds.has(entry.id) ? 'checked' : ''}>`}</td>
       <td><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${entry.color};margin-right:6px;"></span>${typeLabel}</td>
       <td class="name-cell">${((entry.type === 'country' || entry.type === 'city') && countryFlag(entry.countryKey)) ? countryFlag(entry.countryKey) + ' ' : ''}${(entry.type === 'city' && entry.favorite) ? '❤ ' : ''}${escapeHtml(entry.name)}</td>
       <td>${escapeHtml(whenLabel(entry))}</td>

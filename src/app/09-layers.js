@@ -199,7 +199,8 @@ function syncLayers(){
         layer = L.polyline(entryDrawCoords(entry), {color: entry.color, weight:3, opacity:0.85, dashArray: entry.isEstimated ? '8,5' : null, pane: 'routePane', renderer: routeRenderer});
         layer.__geomKey = entryGeomKey(entry);
       } else if(entry.type === 'city'){
-        layer = L.marker([entry.lat, entry.lng], {icon: cityIcon(entry.color, entry.favorite, isWishlist)});
+        // title — имя точки для экранного диктора и подсказка при наведении
+        layer = L.marker([entry.lat, entry.lng], {icon: cityIcon(entry.color, entry.favorite, isWishlist), title: entry.name || '', alt: entry.name || ''});
       } else { // country
         const geom = getCountryGeometry(entry.countryKey);
         if(!geom) return;
@@ -224,6 +225,7 @@ function syncLayers(){
         layer.setStyle({ color: entry.color, weight:3, opacity:0.85, dashArray: entry.isEstimated ? '8,5' : null });
       } else if(entry.type === 'city'){
         layer.setLatLng([entry.lat, entry.lng]);
+        layer.options.title = layer.options.alt = entry.name || '';
         layer.setIcon(cityIcon(entry.color, entry.favorite, isWishlist));
       } else {
         // у записи могла смениться страна — тогда и контур нужен другой

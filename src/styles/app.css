@@ -4,9 +4,11 @@
     --panel-raised: #D2C6A0;
     --line: #C4B78F;
     --text: #2B3B2E;
-    --text-dim: #6E6547;
-    --amber: #A6592E;
-    --amber-dim: #8A4A26;
+    /* чуть темнее прежних (#6E6547, #A6592E, #8A4A26): мелкий текст должен читаться
+       с контрастом не ниже 4,5:1 (WCAG AA) — раньше было 3,9–4,4 */
+    --text-dim: #59513A;
+    --amber: #924E28;
+    --amber-dim: #7C4222;
     --sage: #3F5240;
     --sage-dim: #2E3D30;
     --danger: #9C3B2E;
@@ -1188,7 +1190,7 @@
   .medal.upcoming svg{filter:none;opacity:.8;}
   .run-toggle{display:inline-flex;border:1px solid var(--line);border-radius:14px;overflow:hidden;order:2;}
   .run-toggle button{border:none;background:none;padding:3px 10px;font-family:'EB Garamond',serif;font-style:normal;font-weight:400;font-size:13px;color:var(--text-dim);cursor:pointer;}
-  .run-toggle button[aria-selected="true"]{background:var(--sage);color:var(--on-accent);}
+  .run-toggle button[aria-pressed="true"]{background:var(--sage);color:var(--on-accent);}
   .run-prog svg{width:100%;display:block;overflow:visible;}
   .run-prog .axis{font-family:'Courier Prime',monospace;font-size:10px;fill:var(--text-dim);}
   .run-prog-legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--text-dim);margin-top:6px;}
@@ -1245,6 +1247,8 @@
   .race-form-actions{display:flex;gap:6px;margin-top:10px;}
   /* только что открытая форма коротко подсвечивается — видно, куда смотреть */
   .race-form-new{animation:raceFormFlash 1.6s ease-out 1;}
+  /* текст только для экранного диктора */
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
   @keyframes raceFormFlash{0%,30%{border-color:var(--amber);box-shadow:0 0 0 3px rgba(166,89,46,0.25);}100%{border-color:var(--line);box-shadow:none;}}
   /* Сводка над панелью: то немногое, что видно всегда и считается по всем
      данным, а не по текущим фильтрам — в отличие от блока статистики ниже. */
@@ -1314,7 +1318,9 @@
     font-family:'Twemoji Country Flags','Courier Prime',monospace;font-size:10px;
     color:var(--text-dim);margin-top:2px;
   }
-  .milestone.pending{opacity:0.5;}
+  /* ещё не взятые вехи — приглушённым цветом, а не прозрачностью: при opacity
+     текст становился нечитаемым (контраст падал ниже 4,5:1) */
+  .milestone.pending .milestone-title{color:var(--text-dim);font-style:italic;}
   .milestone.pending .milestone-num{color:var(--text-dim);}
   .diary-entry{
     padding:12px 0;border-bottom:1px solid var(--line);
