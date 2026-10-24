@@ -479,11 +479,15 @@ function globeStartInertia(vx, vy){
   };
   it.raf = requestAnimationFrame(step);
 }
+// Плавное приближение. Новое приближение, жест или перелёт отменяют прежнее:
+// раньше два одновременных (быстрые «+»/«−», приближение сразу после включения
+// шара) по очереди задавали масштаб в каждом кадре, и шар дёргался.
 function globeAnimateScale(to, ms){
   globeStopInertia();
+  const id = globe.scaleAnim = (globe.scaleAnim || 0) + 1;
   const from = globe.proj.scale(), t0 = performance.now();
   const step = now => {
-    if(!globe.active) return;
+    if(!globe.active || globe.scaleAnim !== id) return;
     const t = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - t, 3);
     globeSetScale(from + (to - from) * e);
     if(t < 1 && globe.active) requestAnimationFrame(step);
@@ -747,7 +751,7 @@ function globeFlyTo(ll, scale, ms, done){
   };
   fl.raf = requestAnimationFrame(step);
 }
-function globeStopFlight(){ if(globe.flight){ cancelAnimationFrame(globe.flight.raf); globe.flight = null; } }
+function globeStopFlight(){ clearTimeout(globe.flyOutTimer); globe.scaleAnim = (globe.scaleAnim || 0) + 1; if(globe.flight){ cancelAnimationFrame(globe.flight.raf); globe.flight = null; } }
 
 // «На карте →» — перелёт к месту и та же карточка, что на плоской карте
 function globeOpenOnMap(){
@@ -779,7 +783,10 @@ function globeEnter(opts){
   // видно, откуда пришли. С обзора мира — сразу шар целиком.
   const fromMap = Math.min(globeMaxScale() * 0.95, Math.max(globeFitScale(), globeScaleForZoom(z)));
   globe.proj.scale(fromMap);
-  if(fromMap > globeFitScale() * 1.3 && !opts.noFlyOut) setTimeout(() => globeFlyTo([c.lng, Math.max(-70, Math.min(70, c.lat))], globeFitScale() * 1.15, 700), 30);
+  // «отлёт» с приближенной карты — если пользователь не успел сам взяться за шар
+  // (жест, колесо, клавиша отменяют его так же, как идущий перелёт)
+  clearTimeout(globe.flyOutTimer);
+  if(fromMap > globeFitScale() * 1.3 && !opts.noFlyOut) globe.flyOutTimer = setTimeout(() => globeFlyTo([c.lng, Math.max(-70, Math.min(70, c.lat))], globeFitScale() * 1.15, 700), 30);
   globe.dataDirty = true; globe.colors = null;
   globeUpdateButton();
   try{ localStorage.setItem('travel-map-view', 'globe'); }catch(e){}
