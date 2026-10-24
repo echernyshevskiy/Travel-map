@@ -39,7 +39,7 @@ function renderUpcoming(){
     html = `<div class="hint">Здесь можно держать старты, на которые уже зарегистрированы. Когда пробежите — впишете результат, и старт переедет в официальные.</div>`;
   } else {
     html = `<div style="overflow-x:auto;"><table class="race-table">
-      <thead><tr><th>Старт</th><th>Дистанция</th><th>Когда</th>${READ_ONLY ? '' : '<th></th>'}</tr></thead><tbody>` +
+      <thead><tr><th>Старт</th><th>Дистанция</th><th>Когда</th>${READ_ONLY ? '' : '<th><span class="sr-only">Действия</span></th>'}</tr></thead><tbody>` +
       list.map(r=>{
         const left = daysUntil(r.date);
         const when = r.date ? new Date(r.date + 'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short',year:'numeric'}) : '—';
@@ -86,7 +86,7 @@ function renderRaces(){
     html += `<div style="overflow-x:auto;"><table class="race-table">
       <thead><tr>
         <th>Старт</th><th>Дистанция</th><th>Время</th><th>Темп</th><th>Место</th><th>Доля</th>
-        ${READ_ONLY ? '' : '<th></th>'}
+        ${READ_ONLY ? '' : '<th><span class="sr-only">Действия</span></th>'}
       </tr></thead><tbody>` +
       sorted.map(r=>{
         const min = parseRaceTime(r.time);

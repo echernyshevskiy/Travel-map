@@ -248,7 +248,7 @@ function renderRunCalendar(){
       tot += c.km;
       const a = 0.18 + 0.82 * Math.min(1, c.km / maxKm);
       const tip = `${monthLabel(m) || m} ${y}: ${c.n} ${c.n === 1 ? 'пробежка' : c.n < 5 ? 'пробежки' : 'пробежек'}, ${c.km.toFixed(1)} км${c.race.length ? ' · старты: ' + c.race.join(', ') : ''}`;
-      html += `<span class="rc-c${c.race.length ? ' medal-m' : ''}" style="background:rgba(63,82,64,${a.toFixed(2)});border-color:rgba(63,82,64,${Math.min(1, a + .1).toFixed(2)});" title="${escapeAttr(tip)}">${Math.round(c.km)}</span>`;
+      html += `<span class="rc-c${c.race.length ? ' medal-m' : ''}" style="background:rgba(63,82,64,${a.toFixed(2)});border-color:rgba(63,82,64,${Math.min(1, a + .1).toFixed(2)});color:${a >= 0.45 ? '#F3ECD8' : 'var(--text)'};" title="${escapeAttr(tip)}">${Math.round(c.km)}</span>`;
     }
     html += `<span class="rc-t">${Math.round(tot)}</span>`;
   });
@@ -268,7 +268,7 @@ document.getElementById('runProgToggle').addEventListener('click', e => {
   const b = e.target.closest('[data-prog]');
   if(!b) return;
   runProgMode = b.dataset.prog;
-  document.querySelectorAll('#runProgToggle [data-prog]').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+  document.querySelectorAll('#runProgToggle [data-prog]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
   renderRunProgress(runPerformances());
 });
 document.getElementById('runMedals').addEventListener('click', e => {
