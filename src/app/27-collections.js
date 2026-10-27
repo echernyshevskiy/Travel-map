@@ -59,6 +59,12 @@ function allCollections(){
   const out = COLLECTIONS_RU.map(c => ({ id: c.id, group: c.group, title: c.title,
     items: c.items.map(([name, lat, lng, r]) => ({ kind: c.place ? 'place' : 'city', name, lat, lng, r: r || (c.place ? 30 : 20) })) }));
   out.push(unescoCollection());
+  // моря: точка — середина подписи на карте; засчитываются по городам на берегу
+  const seaItem = name => { const r = SEAS.find(x => x[0] === name); return { kind: 'sea', name, lat: r[3], lng: r[4] }; };
+  out.splice(2, 0, { id: 'seas-ru', group: 'Россия', title: 'Моря России', items: SEAS_RU.map(seaItem) });
+  const worldSeas = [...new Set(SEAS.filter(r => r[1] !== 'gulf').map(r => r[0]))];
+  out.push({ id: 'seas-world', group: 'Мир', title: 'Моря и океаны', items: worldSeas.map(seaItem)
+    .sort((a, b) => (seaKindOf(b.name) === 'ocean') - (seaKindOf(a.name) === 'ocean') || a.name.replace(/^море /, '').localeCompare(b.name.replace(/^море /, ''), 'ru')) });
   out.splice(2, 0, { id: 'ru-regions', group: 'Россия', title: 'Регионы России', items: RU_REGIONS.map(r => ({ kind: 'region', name: r.name })) });
   const countries = quizCountries();
   COLLECTION_CONTINENTS.forEach(cont => {
@@ -114,11 +120,12 @@ function collectionVisitIndex(){
     for(let i = 0; i < c.length; i += step) collGridAdd(tracks, { lat: c[i][0], lng: c[i][1], year: e.year });
   });
   const regions = ruRegionsState && ruRegionsState.visited ? ruRegionsState.visited : new Map();
-  return { pts, countries, tracks, regions };
+  return { pts, countries, tracks, regions, seas: computeSeaStats(visited).units };
 }
 function collectionItemStatus(it, idx){
   if(it.kind === 'country'){ return idx.countries.has(it.key) ? { got: true, year: idx.countries.get(it.key) } : { got: false }; }
   if(it.kind === 'region'){ return idx.regions.has(it.name) ? { got: true, year: null } : { got: false }; }
+  if(it.kind === 'sea'){ const u = idx.seas.get(it.name); return u ? { got: true, year: u.first ? u.first.year : null } : { got: false }; }
   const byPoint = collGridNear(idx.pts, it.lat, it.lng, it.r || 20);
   if(byPoint) return byPoint;
   if(it.kind === 'place'){
@@ -205,13 +212,14 @@ function renderCollectionDetail(col, idx){
   if(!col.items.length) html += `<div class="hint">Пока пусто — найдите город или страну в поле выше.</div>`;
   const row = ({ it, s, i }, inGroup) => {
     const sub = it.uid ? [inGroup ? '' : (COUNTRY_RU[it.key] || it.key || ''), UNESCO_CAT[it.cat], it.multi ? 'в нескольких странах' : ''].filter(Boolean).join(', ')
-      : it.kind === 'country' ? 'страна' : it.kind === 'region' ? 'регион' : it.kind === 'place' ? 'место' : (it.key ? (COUNTRY_RU[it.key] || '') : '');
+      : it.kind === 'country' ? 'страна' : it.kind === 'region' ? 'регион' : it.kind === 'place' ? 'место'
+      : it.kind === 'sea' ? (seaKindOf(it.name) === 'ocean' ? 'океан' : (seaBasin(SEAS, SEAS.findIndex(r => r[0] === it.name)) || 'внутреннее море')) : (it.key ? (COUNTRY_RU[it.key] || '') : '');
     const flag = it.kind === 'country' ? countryFlag(it.key) + ' ' : (it.key && !col.big ? countryFlag(it.key) + ' ' : '');
     return `<div class="coll-item${s.got ? ' got' : ''}"><span class="ci-mark">${s.got ? '✓' : ''}</span>
       <span class="ci-name">${flag}${escapeHtml(it.name)}<small>${escapeHtml([sub, s.got && s.year ? (s.year + '') : (s.got ? 'есть' : '')].filter(Boolean).join(' · '))}</small></span>
       <span class="ci-act">${it.uid ? `<a class="cancel-edit" href="https://whc.unesco.org/ru/list/${+it.uid}/" target="_blank" rel="noopener" title="Описание на сайте ЮНЕСКО">ⓘ</a>` : ''}
         ${it.lat != null ? `<button class="cancel-edit" data-ci-map="${i}" title="Показать на карте">на карте</button>` : ''}
-        ${!s.got && !READ_ONLY && it.kind !== 'region' ? `<button class="cancel-edit" data-ci-plan="${i}" title="Добавить в планы">в планы</button>` : ''}
+        ${!s.got && !READ_ONLY && it.kind !== 'region' && it.kind !== 'sea' ? `<button class="cancel-edit" data-ci-plan="${i}" title="Добавить в планы">в планы</button>` : ''}
         ${col.custom && !READ_ONLY ? `<button class="cancel-edit" data-ci-del="${i}" title="Убрать из коллекции">✕</button>` : ''}</span></div>`;
   };
   // большой список (ЮНЕСКО) — поиск и группы по странам, строки группы рисуются при раскрытии
@@ -291,6 +299,8 @@ function renderCollectionDetail(col, idx){
 function showCollItemOnMap(it){
   document.getElementById('collectionsModal').style.display = 'none';
   mnavShow('map');
+  // море — просто показываем (карточка «добавить как город» тут ни к чему)
+  if(it.kind === 'sea'){ map.setView([it.lat, it.lng], 5); return; }
   map.setView([it.lat, it.lng], it.uid && it.cat !== 'c' ? 8 : 9);
   showSearchPin({ name: it.name, lat: it.lat, lng: it.lng, countryKey: it.key || (findCountryFeature({ lat: it.lat, lng: it.lng }) || { properties: {} }).properties.name || null });
 }

@@ -60,7 +60,8 @@ const SKIP_CLASS = new Set(['river', 'reef', 'generic']);
 const GENERIC = /^(Море|Залив|Пролив|Бассейн|Канал|Озеро|Губа|Бухта|Лагуна)\s/;
 
 // вид — для оформления: океан, море (и крупные заливы), прочее
-const kindOf = p => p.featurecla === 'ocean' ? 'ocean' : p.featurecla === 'sea' || p.min_label <= 2 ? 'sea' : 'gulf';
+const KIND = { 'Kattegat': 'gulf' };
+const kindOf = p => KIND[p.name] || (p.featurecla === 'ocean' ? 'ocean' : p.featurecla === 'sea' || p.min_label <= 2 ? 'sea' : 'gulf');
 // с какого масштаба карты показывать — по min_label из Natural Earth
 // несколько близких нам морей и заливов в Natural Earth появляются позже, чем в атласах
 const MINZ = { 'Sea of Azov': 4, 'White Sea': 4, 'East Siberian Sea': 4, 'Aegean Sea': 5, 'Ionian Sea': 5, 'Gulf of Finland': 5,
@@ -163,11 +164,100 @@ for(const f of feats){
   const B1 = [mx + (cm - cc.len / 2) * nx, my + (cm - cc.len / 2) * ny], B2 = [mx + (cm + cc.len / 2) * nx, my + (cm + cc.len / 2) * ny];
   const ll = ([x, y]) => [+unmerc(y).toFixed(2), +((x > 180 ? x - 360 : x).toFixed(2))];
   const [lat, lng] = ll([mx, my]);
-  out.push({ ru, kind: kindOf(p), minZoom: minZoomOf(p), lat, lng, a1: ll(A1), a2: ll(A2), b1: ll(B1), b2: ll(B2), rank: p.min_label, deg: a / R });
+  out.push({ ru, kind: kindOf(p), minZoom: minZoomOf(p), lat, lng, a1: ll(A1), a2: ll(A2), b1: ll(B1), b2: ll(B2), rank: p.min_label, deg: a / R, f });
 }
 out.sort((x, y) => x.rank - y.rank || x.ru.localeCompare(y.ru, 'ru'));
-const rows = out.map(o => [o.ru, o.kind, o.minZoom, o.lat, o.lng, ...o.a1, ...o.a2, ...o.b1, ...o.b2]);
+
+// ---- «Моря» в статистике: к какому морю и океану относится водоём ----
+// Соседство — по общим вершинам контуров (в Natural Earth смежные водоёмы
+// разделены общей линией). Залив/пролив/бухта засчитывается своему морю
+// (Финский залив → Балтийское море): берём соседа-море с самой длинной общей
+// границей. Части Средиземного моря — моря сами по себе, но и Средиземное тоже.
+const MED = ['Tyrrhenian Sea', 'Adriatic Sea', 'Ionian Sea', 'Aegean Sea', 'Ligurian Sea', 'Balearic Sea', 'Alboran Sea'];
+// океан по российской традиции (Норвежское, Гренландское, Баффина — Северный Ледовитый)
+const BASIN = { 'Norwegian Sea': 'Arctic Ocean', 'Greenland Sea': 'Arctic Ocean', 'Baffin Bay': 'Arctic Ocean', 'Labrador Sea': 'North Atlantic Ocean',
+  'Bering Sea': 'North Pacific Ocean', 'Chukchi Sea': 'Arctic Ocean', 'Beaufort Sea': 'Arctic Ocean', 'Lincoln Sea': 'Arctic Ocean',
+  'Hudson Bay': 'Arctic Ocean', 'Java Sea': 'South Pacific Ocean', 'Bali Sea': 'South Pacific Ocean', 'Flores Sea': 'South Pacific Ocean',
+  'Banda Sea': 'South Pacific Ocean', 'Savu Sea': 'South Pacific Ocean', 'Arafura Sea': 'South Pacific Ocean',
+  'Scotia Sea': 'SOUTHERN OCEAN', 'Tasman Sea': 'South Pacific Ocean', 'Coral Sea': 'South Pacific Ocean', 'Caspian Sea': null, 'Garabogaz Bay': null };
+// Каттегат по российской традиции — часть Балтийского моря; Критское — южная часть Эгейского
+const PARENT = { 'Kattegat': 'Baltic Sea', 'Øresund': 'Baltic Sea', 'Sea of Crete': 'Aegean Sea' };
+const byName = new Map(out.map((o, i) => [o.f.properties.name, i]));
+const vert = new Map();
+out.forEach((o, i) => rings(o.f.geometry).forEach(poly => poly.forEach(r => r.forEach(([x, y]) => {
+  const k = Math.round(x * 1000) + ',' + Math.round(y * 1000);
+  if(!vert.has(k)) vert.set(k, new Set());
+  vert.get(k).add(i);
+}))));
+const adj = out.map(() => new Map());
+vert.forEach(set => set.forEach(a => set.forEach(b => { if(a !== b) adj[a].set(b, (adj[a].get(b) || 0) + 1); })));
+const isUnit = i => out[i].kind !== 'gulf';
+const parentOf = out.map((o, i) => {
+  if(PARENT[o.f.properties.name]) return byName.get(PARENT[o.f.properties.name]);
+  if(MED.includes(o.f.properties.name)) return byName.get('Mediterranean Sea');
+  if(isUnit(i)) return -1;
+  const nb = [...adj[i]].sort((a, b) => (isUnit(b[0]) - isUnit(a[0])) || b[1] - a[1]);
+  return nb.length ? nb[0][0] : -1;
+});
+// море, к которому в итоге относится водоём (по цепочке родителей)
+const unitOf = i => { for(let k = 0; k < 8 && !isUnit(i) && parentOf[i] >= 0; k++) i = parentOf[i]; return isUnit(i) ? i : -1; };
+// океан: ближайший по графу соседства (с поправками BASIN)
+const oceanIdx = out.map((o, i) => o.kind === 'ocean' ? i : -1).filter(i => i >= 0);
+const basinOf = out.map((o, i) => {
+  const nm = o.f.properties.name;
+  if(o.kind === 'ocean') return i;
+  if(nm in BASIN) return BASIN[nm] ? byName.get(BASIN[nm]) : -1;
+  const seen = new Set([i]); let front = [i];
+  for(let d = 0; d < 12 && front.length; d++){
+    const next = [];
+    for(const a of front) for(const b of adj[a].keys()){
+      if(seen.has(b)) continue;
+      seen.add(b);
+      if(oceanIdx.includes(b)) return BASIN[out[a].f.properties.name] !== undefined && out[a].kind !== 'ocean' ? basinOfLater(a) : b;
+      next.push(b);
+    }
+    front = next;
+  }
+  return -1;
+});
+function basinOfLater(a){ const nm = out[a].f.properties.name; return BASIN[nm] ? byName.get(BASIN[nm]) : -1; }
+// у залива — океан его моря
+const basin = out.map((o, i) => { const u = unitOf(i); return u >= 0 && basinOf[u] >= 0 ? basinOf[u] : basinOf[i]; });
+
+const rows = out.map((o, i) => [o.ru, o.kind, o.minZoom, o.lat, o.lng, ...o.a1, ...o.a2, ...o.b1, ...o.b2, parentOf[i], basin[i]]);
 const file = path.join(root, 'src/data/seas.json');
 fs.writeFileSync(file, '[\n' + rows.map(r => JSON.stringify(r)).join(',\n') + '\n]\n');
 console.log(`${rows.length} подписей → ${path.relative(root, file)} (${fs.statSync(file).size} байт)`);
-if(process.env.SEAS_DEBUG) out.forEach(o => console.log(o.minZoom, o.kind, o.ru, o.lat, o.lng, 'угол', o.deg));
+
+// Контуры водоёмов для «на каком море город»: упрощение Дугласа — Пекера 0,02°
+// (точность исходника примерно такая же), координаты в сотых градуса, дальше —
+// разности соседних точек. Строка: «номер;кольцо;кольцо…», первое кольцо —
+// внешний контур, остальные — острова.
+function simplify(pts, eps){
+  if(pts.length < 4) return pts;
+  const keep = new Uint8Array(pts.length); keep[0] = keep[pts.length - 1] = 1;
+  const st = [[0, pts.length - 1]];
+  while(st.length){
+    const [a, b] = st.pop(), [ax, ay] = pts[a], [bx, by] = pts[b], dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy);
+    let md = 0, mi = -1;
+    for(let i = a + 1; i < b; i++){
+      const [px, py] = pts[i];
+      const d = L ? Math.abs(dy * px - dx * py + bx * ay - by * ax) / L : Math.hypot(px - ax, py - ay);
+      if(d > md){ md = d; mi = i; }
+    }
+    if(md > eps){ keep[mi] = 1; st.push([a, mi], [mi, b]); }
+  }
+  return pts.filter((p, i) => keep[i]);
+}
+const lines = [];
+out.forEach((o, i) => rings(o.f.geometry).forEach(poly => {
+  const enc = poly.map(r => simplify(r, 0.02)).filter(r => r.length >= 4).map(r => {
+    const q = r.map(([x, y]) => [Math.round(x * 100), Math.round(y * 100)]);
+    return q.map((p, k) => k ? [p[0] - q[k - 1][0], p[1] - q[k - 1][1]] : p).flat().join(',');
+  });
+  if(enc.length) lines.push(i + ';' + enc.join(';'));
+}));
+const shapes = path.join(root, 'src/data/sea_shapes.txt');
+fs.writeFileSync(shapes, lines.join('\n') + '\n');
+console.log(`${lines.length} контуров → ${path.relative(root, shapes)} (${fs.statSync(shapes).size} байт)`);
+if(process.env.SEAS_DEBUG) out.forEach((o, i) => console.log(o.minZoom, o.kind, o.ru, '→', parentOf[i] >= 0 ? out[parentOf[i]].ru : '—', '/', unitOf(i) >= 0 ? out[unitOf(i)].ru : '—', '/', basin[i] >= 0 ? out[basin[i]].ru : 'внутреннее', 'угол', o.deg));

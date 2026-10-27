@@ -95,6 +95,14 @@ function computeBadges(){
     badges.push({ mark:'◉', title:`Открыто ${pct}% мира`, note:`${countries.size} стран из ${COUNTRY_LIST.length}` });
   }
 
+  // моря и океаны: от пяти морей — значок, все океаны с берега — отдельно
+  const sea = seaSummary(computeSeaStats(visited));
+  const seaNote = `${sea.seas.length} ${seasWord(sea.seas.length)}` + (sea.oceans.length ? ` и ${sea.oceans.length} ${oceansWord(sea.oceans.length)}` : '');
+  if(sea.seas.length >= 15) badges.push({ mark:'≈', title:'Морской волк', note: seaNote });
+  else if(sea.seas.length >= 7) badges.push({ mark:'≈', title:'Семь морей', note: seaNote });
+  else if(sea.seas.length >= 5) badges.push({ mark:'≈', title:'Мореход', note: seaNote });
+  if(sea.oceans.length >= 4) badges.push({ mark:'◍', title: sea.oceans.length >= 5 ? 'Все океаны' : 'Четыре океана', note: sea.oceans.map(o => o.name.replace(' океан', '')).join(', ') });
+
   // частая активность маршрутов
   const acts = {};
   visited.filter(e => e.type === 'route' && e.activity).forEach(e => { acts[e.activity] = (acts[e.activity]||0)+1; });

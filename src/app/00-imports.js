@@ -20,6 +20,8 @@ import COUNTRY_INFO from '../data/country_info.json';
 import UNESCO_TXT from '../data/unesco.json?raw';
 // подписи океанов, морей, заливов и проливов (Natural Earth): точка, ось, вид
 import SEAS from '../data/seas.json';
+// контуры водоёмов (упрощённые) — «на каком море город»; текстом, разбираются при первом обращении
+import SEA_SHAPES_TXT from '../data/sea_shapes.txt?raw';
 
 // Независимая логика — настоящие ES-модули с модульными тестами (src/lib/)
 import { haversine, pointInGeometry, trackDistanceKm, encodePolyline, getEntryCoords, downsample, downsampleNumeric, downsampleSegments, gpxDistanceKm, geomAreaKm2, polyLabelPoint, mainRing, decodedCoordsCache, snapToTrack, simplifyLine } from '../lib/geo.js';
@@ -28,5 +30,6 @@ import { getAllCityVisits, uniqueCityVisits, distinctCityKeys } from '../lib/vis
 import { SYNC_META, itemJson, mergeKind, parseTokenExpiry } from '../lib/sync-merge.js';
 import { gtlExtract } from '../lib/timeline-parse.js';
 import { travelerProfile } from '../lib/traveler.js';
+import { parseSeaShapes, seaNear, seaUnits, seaBasin } from '../lib/seas.js';
 // проекция для режима «Глобус» (только нужные части d3-geo, ~30 КБ)
 import { geoOrthographic, geoPath, geoGraticule10, geoArea, geoCentroid, geoInterpolate } from 'd3-geo';
