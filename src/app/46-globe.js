@@ -144,8 +144,8 @@ function globeIncluded(e){
 function globeColors(){
   const dark = document.documentElement.getAttribute('data-theme') === 'dark';
   return dark
-    ? { sea: '#18201E', land: '#2A2B20', border: '#4A4936', grat: 'rgba(232,224,200,0.07)', rim: '#3A3B2C', text: '#E8E0C8', halo: 'rgba(20,21,15,0.85)', dot: 'rgba(232,224,200,0.7)', shade: 0.55, glow: 'rgba(217,148,79,0.10)' }
-    : { sea: '#CFE0DC', land: '#EFE7D2', border: '#B8A98A', grat: 'rgba(43,59,46,0.08)', rim: '#9C8F6C', text: '#2B3B2E', halo: 'rgba(243,236,216,0.9)', dot: '#2B3B2E', shade: 0.28, glow: 'rgba(166,89,46,0.08)' };
+    ? { sea: '#18201E', land: '#2A2B20', border: '#4A4936', grat: 'rgba(232,224,200,0.07)', rim: '#3A3B2C', text: '#E8E0C8', seaText: '#86A6B8', halo: 'rgba(20,21,15,0.85)', dot: 'rgba(232,224,200,0.7)', shade: 0.55, glow: 'rgba(217,148,79,0.10)' }
+    : { sea: '#CFE0DC', land: '#EFE7D2', border: '#B8A98A', grat: 'rgba(43,59,46,0.08)', rim: '#9C8F6C', text: '#2B3B2E', seaText: '#3F6378', halo: 'rgba(243,236,216,0.9)', dot: '#2B3B2E', shade: 0.28, glow: 'rgba(166,89,46,0.08)' };
 }
 function globeBuildData(){
   const countries = new Map();   // ключ → { geom, color, alpha, wishlist, label }
@@ -359,7 +359,7 @@ function globeDraw(){
       if(px < size * 1.6) return;
       const tw = ctx.measureText(l.text).width;
       const b = [p[0] - tw / 2 - 3, p[1] - size / 2 - 2, p[0] + tw / 2 + 3, p[1] + size / 2 + 2];
-      if(boxes.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1])) return;
+    if(boxes.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1])) return;
       boxes.push(b);
       ctx.lineWidth = 3; ctx.strokeStyle = C.halo; ctx.strokeText(l.text, p[0], p[1]);
       ctx.fillStyle = C.text; ctx.fillText(l.text, p[0], p[1]);
@@ -381,13 +381,14 @@ function globeDraw(){
         if(p[0] < -40 || p[0] > w + 40 || p[1] < 0 || p[1] > h) return;
         const tw = ctx.measureText(c.text).width, x = p[0] + 6;
         const b = [x - 1, p[1] - cs / 2 - 1, x + tw + 1, p[1] + cs / 2 + 1];
-        if(boxes.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1])) return;
+    if(boxes.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1])) return;
         boxes.push(b); cityLabels++;
         ctx.lineWidth = 2.6; ctx.strokeStyle = C.halo; ctx.strokeText(c.text, x, p[1]);
         ctx.fillStyle = C.text; ctx.fillText(c.text, x, p[1]);
       });
     }
     globe.stats.cityLabels = cityLabels;
+    globe.stats.seaLabels = globeDrawSeaLabels(ctx, proj, center, s, C, boxes);
   }
   globe.stats.stops = stopCount;
   globeTourDraw(ctx, proj, center, view, k, C);
@@ -399,6 +400,62 @@ function globeDraw(){
 // центра шара в (1+h) раз. Видна, если на лицевой стороне или уже вышла за край
 // диска (поднялась над горизонтом) — так дуга красиво «перелетает» через край.
 let globeArcsOn = (function(){ try{ return localStorage.getItem('travel-map-globe-arcs') !== '0'; }catch(e){ return true; } })();
+// Океаны и моря на глобусе — как на контурной карте: курсив, разрядка, наклон
+// вдоль оси водоёма; помещается ли — по длине оси в проекции. Последними, в
+// свободные места: подписи стран и городов важнее. Возвращает число подписей.
+function globeDrawSeaLabels(ctx, proj, center, s, C, boxes){
+  const zEq = 2 + Math.log2(s / globeFitScale()); // примерно «масштаб карты»
+  const small = globe.w < 600, edge = Math.PI / 2 - 0.12;
+  const spacing = 'letterSpacing' in ctx;
+  let count = 0;
+  // плашки поверх глобуса меняются редко — пересчитываем не чаще двух раз в секунду
+  const now = performance.now();
+  if(!globe.uiBoxes || now - globe.uiBoxesAt > 500){ globe.uiBoxes = floatingUiBoxes(globe.canvas.getBoundingClientRect()); globe.uiBoxesAt = now; }
+  const ui = globe.uiBoxes;
+  for(const c of seaLabelCands()){
+    if(c.minZoom > zEq + 1 || count >= 40) continue;
+    const ll = q => [q[1], q[0]];
+    if(globeAngle([c.lng, c.lat], center) > edge) continue;
+    // у океана концы оси бывают за горизонтом — берём видимую часть оси вокруг центра
+    const at = t => [c.a1[1] + (c.a2[1] - c.a1[1]) * t, c.a1[0] + (c.a2[0] - c.a1[0]) * t];
+    let t0 = 0.5, t1 = 0.5;
+    while(t0 > 0 && globeAngle(at(t0 - 0.05), center) < edge) t0 -= 0.05;
+    while(t1 < 1 && globeAngle(at(t1 + 0.05), center) < edge) t1 += 0.05;
+    const e1 = proj(at(Math.max(0, t0))), e2 = proj(at(Math.min(1, t1)));
+    const vis = seaClip({ x: e1[0], y: e1[1] }, { x: e2[0], y: e2[1] }, 10, 10, globe.w - 10, globe.h - 10);
+    const q1 = globeAngle(ll(c.b1), center) < edge ? proj(ll(c.b1)) : null, q2 = globeAngle(ll(c.b2), center) < edge ? proj(ll(c.b2)) : null;
+    if(!vis || !q1 || !q2) continue;
+    const [A1, A2] = vis, La = A1.distanceTo(A2), W = Math.hypot(q2[0] - q1[0], q2[1] - q1[1]);
+    if(La < 30 || W < 8) continue;
+    const lay = seaLabelLayout(c, La, W, small);
+    if(!lay) continue;
+    let deg = seaLabelAngle(A1, A2), cx = (A1.x + A2.x) / 2, cy = (A1.y + A2.y) / 2;
+    if(c.sea === 'ocean'){
+      // океан — вдоль параллели в своей точке, как в атласе
+      const m = proj([c.lng, c.lat]), e = proj([c.lng + 2, c.lat]);
+      if(m[0] < 0 || m[1] < 0 || m[0] > globe.w || m[1] > globe.h) continue;
+      deg = seaLabelAngle({ x: m[0], y: m[1] }, { x: e[0], y: e[1] }); cx = m[0]; cy = m[1];
+    }
+    const poly = rotRect(cx, cy, lay.w + 4, lay.h + 2, deg);
+    const b = [Math.min(...poly.map(v => v[0])), Math.min(...poly.map(v => v[1])), Math.max(...poly.map(v => v[0])), Math.max(...poly.map(v => v[1]))];
+    if(b[0] < 4 || b[1] < 4 || b[2] > globe.w - 4 || b[3] > globe.h - 4 || ui.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1])) continue;
+    if(boxes.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1] && polysHit(poly, boxPoly(o)))) continue;
+    b.poly = poly; boxes.push(b); count++;
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(deg * Math.PI / 180);
+    ctx.font = `italic ${lay.weight} ${lay.size}px 'EB Garamond', Georgia, serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    if(spacing) ctx.letterSpacing = lay.sp.toFixed(1) + 'px';
+    const lh = Math.round(lay.size * 1.1), y0 = -(lay.lines.length - 1) * lh / 2;
+    lay.lines.forEach((line, i) => {
+      const t = lay.upper ? line.toUpperCase() : line, x = spacing ? lay.sp / 2 : 0;
+      ctx.lineWidth = 3; ctx.strokeStyle = C.sea; ctx.strokeText(t, x, y0 + i * lh);
+      ctx.fillStyle = C.seaText; ctx.fillText(t, x, y0 + i * lh);
+    });
+    ctx.restore();
+  }
+  return count;
+}
 function globeLabelPoint(key, geom){
   if(!globeLabelAt.has(key)){ const p = polyLabelPoint(mainRing(geom)); globeLabelAt.set(key, { at: [p[1], p[0]], area: geomAreaKm2(geom) }); }
   return globeLabelAt.get(key).at;

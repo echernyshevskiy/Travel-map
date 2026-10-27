@@ -18,6 +18,8 @@ import COUNTRY_ISO from '../data/country_iso.json';
 import COUNTRY_INFO from '../data/country_info.json';
 // объекты ЮНЕСКО — текстом, разбираются при первом открытии коллекций (старт не замедляют)
 import UNESCO_TXT from '../data/unesco.json?raw';
+// подписи океанов, морей, заливов и проливов (Natural Earth): точка, ось, вид
+import SEAS from '../data/seas.json';
 
 // Независимая логика — настоящие ES-модули с модульными тестами (src/lib/)
 import { haversine, pointInGeometry, trackDistanceKm, encodePolyline, getEntryCoords, downsample, downsampleNumeric, downsampleSegments, gpxDistanceKm, geomAreaKm2, polyLabelPoint, mainRing, decodedCoordsCache, snapToTrack, simplifyLine } from '../lib/geo.js';

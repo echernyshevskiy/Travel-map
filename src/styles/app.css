@@ -438,6 +438,13 @@
   .map-label.ml-city.ml-cap{font-weight:700;}
   #map.labels-small .map-label.ml-country{font-size:10px;} #map.labels-small .map-label.ml-country.ml-big{font-size:11px;}
   #map.labels-small .map-label.ml-region{font-size:9.5px;} #map.labels-small .map-label.ml-city{font-size:10.5px;}
+  /* моря и океаны — курсивом, сине-серым, с ореолом цвета воды */
+  #map{--sea-text:#3F6378;--sea-halo:#CFE0DC;}
+  [data-theme="dark"] #map{--sea-text:#86A6B8;--sea-halo:#18201E;}
+  .map-label.ml-sea{color:var(--sea-text);font-style:italic;text-align:center;line-height:1.1;
+    text-shadow:0 0 2px var(--sea-halo),0 0 3px var(--sea-halo),0 0 4px var(--sea-halo);}
+  .map-label.ml-sea .ml-sea-in{width:100%;height:100%;box-sizing:border-box;transform-origin:50% 50%;}
+  .map-label.ml-sea.ml-ocean{text-transform:uppercase;}
   .map-label .ml-dot{width:4px;height:4px;border-radius:50%;border:1px solid var(--text-dim);background:var(--panel);flex:none;}
   .legend .dot{margin:0;}
   .toast{
