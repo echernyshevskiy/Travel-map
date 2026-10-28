@@ -286,7 +286,12 @@ function computeRecap(year){
   const runs = routes.filter(r => r.activity === 'running' && r.durationMin && r.distanceKm);
   const bestRun = runs.slice().sort((a,b)=>(a.durationMin/a.distanceKm)-(b.durationMin/b.distanceKm))[0];
 
-  return { year, countries, newCountries, cities, km, gain, months, longest, trips, topCity, bestRun,
+  // моря года и впервые увиденные
+  const seasYear = [...computeSeaStats(inYear).units.keys()];
+  const seasBefore = computeSeaStats(before).units;
+  const newSeas = seasYear.filter(n => !seasBefore.has(n));
+
+  return { year, countries, newCountries, cities, km, gain, months, longest, trips, topCity, bestRun, seasYear, newSeas,
            entries: inYear.length };
 }
 
@@ -313,6 +318,7 @@ function renderRecap(){
   if(r.gain > 0) hi.push(['Набор высоты', `${Math.round(r.gain).toLocaleString('ru-RU')} м`]);
   if(r.topCity) hi.push(['Чаще всего', `${escapeHtml(r.topCity[0])} · ${r.topCity[1]} ${r.topCity[1]===1?'визит':'визита'}`]);
   if(r.bestRun) hi.push(['Лучший темп бега', `${formatPace(r.bestRun.durationMin / r.bestRun.distanceKm)}`]);
+  if(r.seasYear.length) hi.push(['Моря и океаны', r.seasYear.map(n => escapeHtml(n) + (r.newSeas.includes(n) ? ' <i>(впервые)</i>' : '')).join(', ')]);
   if(r.newCountries.length) hi.push(['Новые страны', r.newCountries.map(k => (countryFlag(k) ? countryFlag(k)+' ' : '') + escapeHtml(COUNTRY_RU[k] || k)).join(', ')]);
 
   body.innerHTML = `

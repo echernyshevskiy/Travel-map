@@ -117,8 +117,8 @@ function polysHit(P, Q){
   }
   return true;
 }
-function seaLabelHtml(lay, deg){
-  const st = `font-size:${lay.size}px;font-weight:${lay.weight};letter-spacing:${lay.sp.toFixed(1)}px;padding-left:${lay.sp.toFixed(1)}px` + (deg ? `;transform:rotate(${deg.toFixed(1)}deg)` : '');
+function seaLabelHtml(lay, deg, visited){
+  const st = `font-size:${lay.size}px;font-weight:${visited ? 700 : lay.weight};letter-spacing:${lay.sp.toFixed(1)}px;padding-left:${lay.sp.toFixed(1)}px` + (deg ? `;transform:rotate(${deg.toFixed(1)}deg)` : '');
   return `<div class="ml-sea-in" style="${st}">${lay.lines.map(escapeHtml).join('<br>')}</div>`;
 }
 // ширину меряем настоящим шрифтом, а не на глаз — иначе подписи на телефоне
@@ -171,6 +171,8 @@ function renderMapLabels(){
   // подпись моря целиком на экране и не под плашками поверх карты (легенда,
   // шкала времени, сводка): обрезанная «…ИЙ ОКЕАН» выглядит хуже, чем никакая
   const ui = floatingUiBoxes(mr);
+  // моря, где вы были, — жирнее
+  const visitedSeas = seaVisitedNames();
   const onScreen = b => b[0] >= 4 && b[1] >= 4 && b[2] <= size.x - 4 && b[3] <= size.y - 4 && !ui.some(o => hit(b, o));
   let n = 0;
   for(const c of mapLabelCands){
@@ -206,7 +208,7 @@ function renderMapLabels(){
         const box = [Math.min(...poly.map(v => v[0])), Math.min(...poly.map(v => v[1])), Math.max(...poly.map(v => v[0])), Math.max(...poly.map(v => v[1]))];
         if(deg) box.poly = poly;
         if(!onScreen(box) || !clear(box)) continue;
-        chosen = { box, html: seaLabelHtml(lay, deg), w: lay.w, h: lay.h, anchor: [lay.w / 2 - (cx - pt.x), lay.h / 2 - (cy - pt.y)] };
+        chosen = { box, html: seaLabelHtml(lay, deg, visitedSeas.has(c.text)), w: lay.w, h: lay.h, anchor: [lay.w / 2 - (cx - pt.x), lay.h / 2 - (cy - pt.y)] };
         break;
       }
       if(!chosen) continue;
@@ -242,7 +244,7 @@ function renderMapLabels(){
       if(!chosen) continue;
     }
     placed.push(chosen.box);
-    const cls = 'map-label ml-' + c.kind + (c.big ? ' ml-big' : '') + (c.cap ? ' ml-cap' : '') + (c.sea ? ' ml-' + c.sea : '');
+    const cls = 'map-label ml-' + c.kind + (c.big ? ' ml-big' : '') + (c.cap ? ' ml-cap' : '') + (c.sea ? ' ml-' + c.sea + (visitedSeas.has(c.text) ? ' ml-visited' : '') : '');
     L.marker([c.lat, c.lng], { pane: 'labelPane', interactive: false, keyboard: false,
       icon: L.divIcon({ className: cls, html: chosen.html, iconSize: [chosen.w, chosen.h], iconAnchor: chosen.anchor }) }).addTo(mapLabelLayer);
     if(++n >= 220) break;

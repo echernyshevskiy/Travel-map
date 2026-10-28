@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.67
+  Версия: v2.68
   Дата сборки: 2026-10-12
   История версий смотрите в переписке с Claude.
 -->
@@ -480,6 +480,8 @@ window.addEventListener('unhandledrejection', function(e){
         <div class="stat-row"><span>Открыто карты мира</span><b id="statWorldPct">0%</b></div>
         <div class="stat-row"><span>Посещено городов</span><b id="statCitiesF">0</b></div>
         <div class="stat-row"><span>Регионов России</span><b id="statRuRegionsF">0</b></div>
+        <div class="stat-row" title="Город засчитывается морю, если до берега не больше 20 км; залив — своему морю"><span>Морей</span><b id="statSeasF">0</b></div>
+        <div class="stat-row" title="На берегу какого океана вы были (не через его моря)"><span>Океанов на берегу</span><b id="statOceansF">0</b></div>
         <div class="stat-row" title="Квадраты сетки ~1,5 км (тайлы масштаба 14), через которые прошли треки"><span>Исследовано квадратов</span><b id="statSquaresF">0</b></div>
         <div class="stat-row" title="Наибольший сплошной квадрат из исследованных клеток"><span>Наибольший квадрат</span><b id="statMaxSquareF">—</b></div>
         <div class="stat-row"><span>Пробегано маршрутов</span><b id="statRunningF">0</b></div>
@@ -512,6 +514,9 @@ window.addEventListener('unhandledrejection', function(e){
       <div class="top-list" id="topCitiesList"></div>
       <p class="section-title" style="margin-top:16px;" id="ruRegionsTitle">Топ-5 регионов России по визитам</p>
       <div id="ruRegionsList" class="top-list"></div>
+
+      <p class="section-title" style="margin-top:16px;">Моря и океаны</p>
+      <div id="seaStats"></div>
     </div>
 
     <div class="section" id="mnavSearchSection" data-mtab="list" style="flex:0;padding-bottom:10px;">
@@ -558,7 +563,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
         <div class="legend-credits">флаги: <a href="https://github.com/twitter/twemoji" target="_blank" rel="noopener" style="color:inherit;">Twemoji</a>, CC BY 4.0 · города: Natural Earth, <a href="https://github.com/hflabs/city" target="_blank" rel="noopener" style="color:inherit;">hflabs/city</a>, CC BY-SA 4.0 · границы: Natural Earth, регионы: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:inherit;">OpenStreetMap</a> (ODbL)</div>
-        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.67</div>
+        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.68</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>

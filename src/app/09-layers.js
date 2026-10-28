@@ -318,6 +318,7 @@ function dropUnusableEntries(){
 }
 function rebuildAll(){
   dropUnusableEntries();
+  invalidateSeaVisited();
   allEntries.forEach(migrateEntry);
   races = (Array.isArray(races) ? races : []).map(sanitizeRace).filter(Boolean);
   pruneStaleFilters();

@@ -411,7 +411,7 @@ function globeDrawSeaLabels(ctx, proj, center, s, C, boxes){
   // плашки поверх глобуса меняются редко — пересчитываем не чаще двух раз в секунду
   const now = performance.now();
   if(!globe.uiBoxes || now - globe.uiBoxesAt > 500){ globe.uiBoxes = floatingUiBoxes(globe.canvas.getBoundingClientRect()); globe.uiBoxesAt = now; }
-  const ui = globe.uiBoxes;
+  const ui = globe.uiBoxes, seen = seaVisitedNames();
   for(const c of seaLabelCands()){
     if(c.minZoom > zEq + 1 || count >= 40) continue;
     const ll = q => [q[1], q[0]];
@@ -443,7 +443,7 @@ function globeDrawSeaLabels(ctx, proj, center, s, C, boxes){
     b.poly = poly; boxes.push(b); count++;
     ctx.save();
     ctx.translate(cx, cy); ctx.rotate(deg * Math.PI / 180);
-    ctx.font = `italic ${lay.weight} ${lay.size}px 'EB Garamond', Georgia, serif`;
+    ctx.font = `italic ${seen.has(c.text) ? 700 : lay.weight} ${lay.size}px 'EB Garamond', Georgia, serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     if(spacing) ctx.letterSpacing = lay.sp.toFixed(1) + 'px';
     const lh = Math.round(lay.size * 1.1), y0 = -(lay.lines.length - 1) * lh / 2;

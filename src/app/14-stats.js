@@ -87,6 +87,7 @@ function updateFilteredStats(precomputedVisible){
   renderTopList('topCountriesList', topCountries);
   renderTopList('topCitiesList', topCities);
   updateRuRegions(visited);
+  renderSeaStats(visited);
   updateHeat(visited);
 }
 

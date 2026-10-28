@@ -4,6 +4,8 @@
 // но не «когда» — а именно это и делает её вехой, а не ещё одной цифрой.
 const MILESTONE_COUNTRIES = [1, 5, 10, 20, 30, 40, 50, 75, 100];
 const MILESTONE_CITIES = [1, 10, 25, 50, 100, 150, 200, 300, 500];
+const MILESTONE_SEAS = [1, 3, 5, 7, 10, 15, 20, 30, 40];
+const ordinalSea = n => `${n}-е море`, ordinalOcean = n => `${n}-й океан`;
 
 function computeMilestones(){
   const visited = allEntries.filter(e => e.status !== 'wishlist' && e.year);
@@ -14,7 +16,8 @@ function computeMilestones(){
   const reached = [];
   const seenCountries = new Set();
   const seenCities = new Set();
-  let ci = 0, ti = 0;
+  const seenSeas = new Set(), seenOceans = new Set();
+  let ci = 0, ti = 0, si = 0;
 
   chrono.forEach(e=>{
     if(e.type === 'country' && e.countryKey && !seenCountries.has(e.countryKey)){
@@ -25,6 +28,22 @@ function computeMilestones(){
       }
     }
     getAllCityVisits([e]).forEach(v=>{
+      // моря и океаны: первое знакомство с каждым — по городам на берегу
+      const row = seaRowAt(v.lat, v.lng);
+      if(row >= 0) seaUnits(SEAS, row).forEach(name => {
+        if(seaKindOf(name) === 'ocean'){
+          if(seenOceans.has(name)) return;
+          seenOceans.add(name);
+          reached.push({ n: seenOceans.size, kind: 'океан', title: `${ordinalOcean(seenOceans.size)} — ${name}${v.name ? ' (' + v.name + ')' : ''}`, when: when(e), entry: e, at: e.year * 12 + (e.month || 0) });
+          return;
+        }
+        if(seenSeas.has(name)) return;
+        seenSeas.add(name);
+        while(si < MILESTONE_SEAS.length && seenSeas.size >= MILESTONE_SEAS[si]){
+          reached.push({ n: MILESTONE_SEAS[si], kind: 'море', title: `${ordinalSea(MILESTONE_SEAS[si])} — ${name}${v.name ? ' (' + v.name + ')' : ''}`, when: when(e), entry: e, at: e.year * 12 + (e.month || 0) });
+          si++;
+        }
+      });
       const key = (v.name || '').trim().toLowerCase();
       if(!key || seenCities.has(key)) return;
       seenCities.add(key);
@@ -47,15 +66,16 @@ function computeMilestones(){
   // ближайшая недостигнутая — как ориентир
   const pending = [];
   if(ci < MILESTONE_COUNTRIES.length) pending.push({ n: MILESTONE_COUNTRIES[ci], title: `${MILESTONE_COUNTRIES[ci]}-я страна`, left: MILESTONE_COUNTRIES[ci] - seenCountries.size });
+  if(si < MILESTONE_SEAS.length && seenSeas.size) pending.push({ n: MILESTONE_SEAS[si], title: ordinalSea(MILESTONE_SEAS[si]), left: MILESTONE_SEAS[si] - seenSeas.size });
   if(ti < MILESTONE_CITIES.length) pending.push({ n: MILESTONE_CITIES[ti], title: `${MILESTONE_CITIES[ti]}-й город`, left: MILESTONE_CITIES[ti] - seenCities.size });
 
-  return { reached, pending, countries: seenCountries.size, cities: seenCities.size };
+  return { reached, pending, countries: seenCountries.size, cities: seenCities.size, seas: seenSeas.size, oceans: seenOceans.size };
 }
 
 function renderMilestones(){
-  const { reached, pending, countries, cities } = computeMilestones();
+  const { reached, pending, countries, cities, seas } = computeMilestones();
   document.getElementById('milestonesSummary').textContent =
-    reached.length ? `Пройдено вех: ${reached.length} · стран: ${countries}, городов: ${cities}` : 'Вех пока нет';
+    reached.length ? `Пройдено вех: ${reached.length} · стран: ${countries}, городов: ${cities}${seas ? ', морей: ' + seas : ''}` : 'Вех пока нет';
   const body = document.getElementById('milestonesBody');
   if(reached.length === 0){
     body.innerHTML = `<div class="hint">Добавьте первые отметки — вехи появятся здесь по мере того, как карта наполняется.</div>`;
