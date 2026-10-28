@@ -445,6 +445,13 @@
     text-shadow:0 0 2px var(--sea-halo),0 0 3px var(--sea-halo),0 0 4px var(--sea-halo);}
   .map-label.ml-sea .ml-sea-in{width:100%;height:100%;box-sizing:border-box;transform-origin:50% 50%;}
   .map-label.ml-sea.ml-ocean{text-transform:uppercase;}
+  /* навигация по статистике — липкая строка разделов */
+  .stats-nav{position:sticky;top:0;z-index:3;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:8px 0 8px;margin:-4px 0 6px;background:var(--panel);border-bottom:1px solid var(--line);}
+  .stats-nav::-webkit-scrollbar{display:none;}
+  .stats-nav button{flex:none;font:inherit;font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer;white-space:nowrap;}
+  .stats-nav button.on{background:var(--sage-dim);border-color:var(--sage-dim);color:var(--on-accent);}
+  .stats-nav button.sn-all{color:var(--text-dim);font-style:italic;}
+  .stats-nav button:focus-visible{outline:2px solid var(--amber);outline-offset:1px;}
   /* моря и океаны в статистике */
   .sea-summary{font-size:13px;margin:2px 0 8px;color:var(--text);}
   .sea-summary b{font-family:'EB Garamond',Georgia,serif;font-size:18px;font-style:italic;}

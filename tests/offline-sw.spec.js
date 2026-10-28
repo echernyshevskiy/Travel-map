@@ -63,3 +63,25 @@ test('без сети: приложение открывается из кэша
   await context.setOffline(false);
   expect(errors).toEqual([]);
 });
+
+test('без сети: шрифт флагов (отдельный файл) берётся из кэша', async ({ context, page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
+  await context.route(url => !String(url).startsWith(base), r => r.abort());
+  // как в Chrome на Windows: флаг-эмодзи системой не рисуется
+  await context.addInitScript(() => {
+    const g = HTMLCanvasElement.prototype.getContext; let first = true;
+    HTMLCanvasElement.prototype.getContext = function(){ if(first){ first = false; return null; } return g.apply(this, arguments); };
+    if(!localStorage.getItem('travel-map-data')) localStorage.setItem('travel-map-basemap', 'plain');
+  });
+  const flagOk = () => page.evaluate(async () => { await document.fonts.load('16px "Twemoji Country Flags"', '🇬🇪'); return document.fonts.check('16px "Twemoji Country Flags"', '🇬🇪'); });
+  await page.goto(base);
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await page.reload();
+  await expect.poll(flagOk).toBe(true);
+  const cached = await page.evaluate(async () => { for(const k of await caches.keys()) if(/assets/.test(k)) return (await (await caches.open(k)).keys()).map(r => r.url); return []; });
+  expect(cached.some(u => /fonts\/flags\.woff2\?v=/.test(u)), JSON.stringify(cached)).toBe(true);
+  await context.setOffline(true);
+  await page.reload();
+  await expect.poll(flagOk).toBe(true);
+  await context.setOffline(false);
+});

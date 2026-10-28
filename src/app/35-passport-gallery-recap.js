@@ -400,22 +400,39 @@ document.getElementById('recapDownload').addEventListener('click', ()=>{
   if(r.gain > 0) hi.push(['набор высоты', `${Math.round(r.gain).toLocaleString('ru-RU')} м`]);
   if(r.topCity) hi.push(['чаще всего', `${r.topCity[0]} · ${r.topCity[1]}`]);
   if(r.bestRun) hi.push(['лучший темп бега', formatPace(r.bestRun.durationMin / r.bestRun.distanceKm)]);
+  // моря года: впервые увиденные — первыми; «море» в названиях опускаем, чтобы влезло больше
+  if(r.seasYear.length){
+    const short = n => n.replace(/^море /, '').replace(/ море$/, '');
+    const list = [...r.newSeas, ...r.seasYear.filter(n => !r.newSeas.includes(n))].map(short);
+    hi.push([`моря и океаны · ${r.seasYear.length}` + (r.newSeas.length ? `, впервые ${r.newSeas.length}` : ''), list.join(', ')]);
+  }
 
   y += 10;
   ctx.strokeStyle = 'rgba(160,140,95,0.45)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(W*0.18, y); ctx.lineTo(W*0.82, y); ctx.stroke();
   y += 62;
-  hi.slice(0,4).forEach(([label, value])=>{
+  // до пяти строк: шаг ужимается, чтобы не наехать на подпись внизу
+  const rows = hi.slice(0, 5);
+  // строка морей может занять две строки — учитываем это в шаге
+  const extra = rows.length && rows[rows.length - 1][0].startsWith('моря') ? 46 : 0;
+  const step = Math.min(128, Math.floor((H - 150 - y - extra) / Math.max(1, rows.length)));
+  rows.forEach(([label, value])=>{
     ctx.fillStyle = '#6E6547';
     ctx.font = "24px 'Twemoji Country Flags','Courier Prime'";
     ctx.fillText(label.toUpperCase(), W/2, y);
     ctx.fillStyle = '#2B3B2E';
     ctx.font = "italic 700 38px 'Twemoji Country Flags','Playfair Display'";
-    // длинные названия ужимаем, чтобы не выходили за поля
-    let v = value, m = ctx.measureText(v);
-    while(m.width > W - 180 && v.length > 8){ v = v.slice(0, -4) + '…'; m = ctx.measureText(v); }
-    ctx.fillText(v, W/2, y + 48);
-    y += 128;
+    // длинное значение — в две строки по словам, дальше ужимаем с «…»
+    const fit = t => { let v = t, m = ctx.measureText(v); while(m.width > W - 180 && v.length > 8){ v = v.slice(0, -4) + '…'; m = ctx.measureText(v); } return v; };
+    let lines = [value];
+    if(ctx.measureText(value).width > W - 180){
+      const words = value.split(' ');
+      let a = '';
+      while(words.length && ctx.measureText((a ? a + ' ' : '') + words[0]).width <= W - 180) a = (a ? a + ' ' : '') + words.shift();
+      lines = a ? [a, words.join(' ')] : [value];
+    }
+    lines.slice(0, 2).forEach((l, k) => ctx.fillText(fit(l), W/2, y + 48 + k * 46));
+    y += step + (lines.length > 1 ? 46 : 0);
   });
 
   ctx.fillStyle = '#6E6547';

@@ -28,6 +28,8 @@ test('скрипт собирает версию для друзей без ли
   expect(baked.filter(e => 'notes' in e || e.hidden)).toEqual([]);
   expect(data.readOnly).toBe(true);
   expect(html).toContain('<title>Travel Map</title>');
+  // шрифт флагов — общий файл основной версии, на уровень выше
+  expect(html).toContain("var FLAG_FONT_URL = '../fonts/flags.woff2?v=");
   expect(html).not.toContain('Скрытая поездка');
   expect(html).toContain('Горы');
   // из ссылок — только обложка и Instagram

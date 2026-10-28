@@ -1,9 +1,9 @@
 // Код приложения разложен по файлам src/app/NN-раздел.js; сборка склеивает их по порядку
 // в один модуль (плагин appParts в vite.config.mjs). Справочные данные — JSON-модули.
-import COUNTRIES_GEOJSON from '../data/countries.min.json';
+import COUNTRIES_GEOJSON from '../data/countries.min.json?geopack';
 // Границы регионов России (упрощённые, ~100 КБ) — для отметок внутри
 // домашнего региона. Крым — одним контуром из тех же границ стран.
-import RU_REGIONS_GEOJSON from '../data/ru_regions.json';
+import RU_REGIONS_GEOJSON from '../data/ru_regions.json?geopack';
 // Справочник городов для поиска без сети: столицы и крупные города мира (от
 // 100 тыс., Natural Earth) и все 1117 городов России с регионом (hflabs/city,
 // CC BY-SA 4.0). Строка «название|широта|долгота|страна|население, тыс.|столица|регион»;
@@ -23,6 +23,7 @@ import SEAS from '../data/seas.json';
 // контуры водоёмов (упрощённые) — «на каком море город»; текстом, разбираются при первом обращении
 import SEA_SHAPES_TXT from '../data/sea_shapes.txt?raw';
 
+// (контуры стран и регионов встраиваются компактной строкой без потерь — плагин geo-pack в vite.config.mjs)
 // Независимая логика — настоящие ES-модули с модульными тестами (src/lib/)
 import { haversine, pointInGeometry, trackDistanceKm, encodePolyline, getEntryCoords, downsample, downsampleNumeric, downsampleSegments, gpxDistanceKm, geomAreaKm2, polyLabelPoint, mainRing, decodedCoordsCache, snapToTrack, simplifyLine } from '../lib/geo.js';
 import { escapeHtml, escapeAttr, safeUrl, normSearch, formatPace, parseRaceTime, formatRaceTime, fmtDelta, daysWord, pluralVisits, monthsWord, cleanPlaceName, looksLikeAdminArea, placeStemGuess, parseIsoDate, formatDateRange, dateSpan, localDateAt, isUsableEntry, normalizeEntryShape } from '../lib/format.js';
