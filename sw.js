@@ -12,6 +12,8 @@ const SHELL_CACHE_NAME = `travel-map-shell-${APP_VARIANT}-v4`;
 const TILE_CACHE_NAME = `travel-map-tiles-${APP_VARIANT}-v1`;
 // подробные границы стран и регионов (папка borders/) — общие для обеих версий
 const BORDER_CACHE_NAME = `travel-map-borders-${APP_VARIANT}-v1`;
+// шрифт флагов (fonts/, с ?v=хэш) — нужен там, где система не рисует флаги
+const ASSET_CACHE_NAME = `travel-map-assets-${APP_VARIANT}-v1`;
 const MAX_CACHED_TILES = 600; // ~ 600 тайлов ≈ 8-10 МБ, разумный запас без риска съесть всё хранилище
 
 function isTileRequest(url){
@@ -53,7 +55,7 @@ self.addEventListener('activate', (event) => {
         // удаляем только свои устаревшие хранилища: у версии для друзей — свои,
         // и раньше обновление одной версии стирало кеш другой
         .filter((n) => n.startsWith('travel-map-') && n.includes(`-${APP_VARIANT}-`)
-          && n !== SHELL_CACHE_NAME && n !== TILE_CACHE_NAME && n !== BORDER_CACHE_NAME)
+          && n !== SHELL_CACHE_NAME && n !== TILE_CACHE_NAME && n !== BORDER_CACHE_NAME && n !== ASSET_CACHE_NAME)
         .map((n) => caches.delete(n)))
     )
   );
@@ -94,6 +96,25 @@ self.addEventListener('fetch', (event) => {
         if (cached) return cached;
         const response = await fetch(event.request);
         if (response && response.ok) cache.put(event.request, response.clone());
+        return response;
+      })
+    );
+    return;
+  }
+
+  // Шрифт флагов: версия в адресе (?v=), поэтому кэш в приоритете; старые
+  // версии убираются, чтобы не копились
+  if (/\/fonts\/[^?#]+\.woff2(\?|$)/.test(url)) {
+    event.respondWith(
+      caches.open(ASSET_CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(event.request);
+        if (cached) return cached;
+        const response = await fetch(event.request);
+        if (response && response.ok){
+          const path = url.split('?')[0];
+          (await cache.keys()).filter((r) => r.url.split('?')[0] === path).forEach((r) => cache.delete(r));
+          cache.put(event.request, response.clone());
+        }
         return response;
       })
     );

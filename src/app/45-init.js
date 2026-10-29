@@ -77,6 +77,79 @@ const COLLAPSE_KEY = 'travel-map-collapsed';
   });
 })();
 
+// Навигация по статистике: на телефоне вкладка длинная, поэтому сверху —
+// липкая строка с разделами. Нажатие раскрывает раздел (если свёрнут) и
+// прокручивает к нему; подсвечивается раздел, который сейчас на экране.
+// «Свернуть всё / Развернуть всё» — состояние запоминается как и раньше.
+const STATS_NAV = [['Статистика', 'Сводка'], ['По годам', 'По годам'], ['Новых стран', 'Новые страны'], ['Сезонность', 'Сезоны'],
+  ['По частям света', 'Части света'], ['Топ-5 стран', 'Страны'], ['Топ-5 городов', 'Города'], ['Топ-5 регионов', 'Регионы'], ['Моря и океаны', 'Моря']];
+(function statsNav(){
+  const sec = document.getElementById('mnavStatsSection');
+  if(!sec) return;
+  const titles = [...sec.querySelectorAll(':scope > .section-title')];
+  const items = STATS_NAV.map(([start, label]) => ({ label, title: titles.find(t => t.textContent.trim().startsWith(start)) })).filter(x => x.title);
+  if(items.length < 3) return;
+  const nav = document.createElement('nav');
+  nav.className = 'stats-nav';
+  nav.setAttribute('aria-label', 'Разделы статистики');
+  nav.innerHTML = items.map((x, i) => `<button type="button" data-sn="${i}">${escapeHtml(x.label)}</button>`).join('') +
+    '<button type="button" class="sn-all" data-sn-all>Свернуть всё</button>';
+  sec.prepend(nav);
+  const scroller = () => { const sb = document.getElementById('sidebar'); return sb && sb.scrollHeight > sb.clientHeight ? sb : document.scrollingElement; };
+  // на телефоне над строкой липнут шапка листа и переключатель «Записи / Статистика»
+  const stickTop = () => {
+    const sw = document.getElementById('listSwitch'), cs = sw && getComputedStyle(sw);
+    const top = cs && cs.position === 'sticky' && cs.display !== 'none' ? (parseFloat(cs.top) || 0) + sw.offsetHeight : 0;
+    nav.style.top = top + 'px';
+    return top;
+  };
+  const isCollapsed = t => t.classList.contains('collapsed');
+  const syncAll = () => { nav.querySelector('[data-sn-all]').textContent = items.every(x => isCollapsed(x.title)) ? 'Развернуть всё' : 'Свернуть всё'; };
+  nav.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if(!b) return;
+    if(b.hasAttribute('data-sn-all')){
+      const collapse = !items.every(x => isCollapsed(x.title));
+      items.forEach(x => { if(isCollapsed(x.title) !== collapse) x.title.click(); });
+      syncAll();
+      return;
+    }
+    wanted = +b.dataset.sn;
+    const t = items[wanted].title;
+    if(isCollapsed(t)) t.click();
+    const sc = scroller(), base = sc === document.scrollingElement ? 0 : sc.getBoundingClientRect().top;
+    const top = t.getBoundingClientRect().top - base + sc.scrollTop - stickTop() - nav.offsetHeight - 6;
+    sc.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    syncAll();
+  });
+  sec.addEventListener('click', e => { if(e.target.closest('.section-title')) syncAll(); });
+  // подсветка текущего раздела при прокрутке
+  let raf = 0;
+  let wanted = null;
+  const mark = () => {
+    raf = 0;
+    const edge = nav.getBoundingClientRect().bottom + 8;
+    let cur = 0;
+    items.forEach((x, i) => { if(x.title.getBoundingClientRect().top <= edge) cur = i; });
+    // в самом низу последние разделы до верха не доезжают — тогда тот, что выбрали
+    const sc = scroller(), atEnd = sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 4;
+    if(atEnd && wanted !== null && items[wanted].title.getBoundingClientRect().top < innerHeight) cur = wanted;
+    nav.querySelectorAll('[data-sn]').forEach(b => {
+      const on = +b.dataset.sn === cur;
+      b.classList.toggle('on', on);
+      // выбранная кнопка — в видимой части строки
+      if(on && (b.offsetLeft < nav.scrollLeft || b.offsetLeft + b.offsetWidth > nav.scrollLeft + nav.clientWidth)) nav.scrollLeft = b.offsetLeft - 8;
+    });
+  };
+  const onScroll = () => { if(!raf) raf = requestAnimationFrame(mark); };
+  const sb = document.getElementById('sidebar');
+  if(sb) sb.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', () => { stickTop(); onScroll(); });
+  document.querySelectorAll('#listSwitch [data-lsw]').forEach(b => b.addEventListener('click', () => setTimeout(() => { stickTop(); mark(); }, 0)));
+  stickTop(); syncAll(); mark();
+})();
+
 // Свайп вниз закрывает модалку — на телефоне они почти во весь экран, и
 // дотягиваться до крестика вверху неудобно. Работает только когда содержимое
 // прокручено в самый верх, иначе жест конфликтовал бы с обычной прокруткой.

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.68
+  Версия: v2.69
   Дата сборки: 2026-10-12
   История версий смотрите в переписке с Claude.
 -->
@@ -58,8 +58,8 @@ window.addEventListener('unhandledrejection', function(e){
 </script>
 <script>
 // Флаги стран. Chrome и Edge на Windows не рисуют флаги-эмодзи и показывают
-// вместо них две буквы («GE»). Если браузер не умеет — подключаем встроенный
-// шрифт только с флагами (Twemoji, CC-BY 4.0; проверка — по образцу
+// вместо них две буквы («GE»). Если браузер не умеет — подключаем отдельный
+// файл шрифта только с флагами (Twemoji, CC-BY 4.0; проверка — по образцу
 // country-flag-emoji-polyfill, MIT, TalkJS). Шрифт задан диапазоном символов
 // флагов, поэтому на остальной текст он не влияет.
 (function(){
@@ -74,9 +74,11 @@ window.addEventListener('unhandledrejection', function(e){
     window.FLAG_FONT_NEEDED = !isEmoji('\uD83C\uDDE8\uD83C\uDDED');
   }catch(e){ window.FLAG_FONT_NEEDED = true; }
   if(!window.FLAG_FONT_NEEDED) return;
+  // отдельный файл рядом с приложением; у версии для друзей — на уровень выше
+  var FLAG_FONT_URL = '__FLAG_FONT_URL__';
   var st = document.createElement('style');
   st.textContent = '@font-face{font-family:"Twemoji Country Flags";unicode-range:U+1F1E6-1F1FF,U+1F3F4,U+E0062-E0063,U+E0065,U+E0067,U+E006C,U+E006E,U+E0073-E0074,U+E0077,U+E007F;' +
-    'src:url(data:font/woff2;base64,__FLAG_FONT_B64__) format("woff2");font-display:swap;}';
+    'src:url(' + FLAG_FONT_URL + ') format("woff2");font-display:swap;}';
   document.head.appendChild(st);
   // для рисунков на canvas (снимок, «Год в путешествиях») шрифт нужен заранее
   try{ document.fonts.load('16px "Twemoji Country Flags"', '\uD83C\uDDEC\uD83C\uDDEA'); }catch(e){}
@@ -563,7 +565,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
         <div class="legend-credits">флаги: <a href="https://github.com/twitter/twemoji" target="_blank" rel="noopener" style="color:inherit;">Twemoji</a>, CC BY 4.0 · города: Natural Earth, <a href="https://github.com/hflabs/city" target="_blank" rel="noopener" style="color:inherit;">hflabs/city</a>, CC BY-SA 4.0 · границы: Natural Earth, регионы: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:inherit;">OpenStreetMap</a> (ODbL)</div>
-        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.68</div>
+        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.69</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>

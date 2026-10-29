@@ -94,6 +94,8 @@ let html = fs.readFileSync(SRC, 'utf8');
 // данные — в JSON-тег, который собранная index.html оставляет пустым
 html = replaceOnce(html, /<script type="application\/json" id="baked-data">[^<]*<\/script>/,
   `<script type="application/json" id="baked-data">${embed({ readOnly: true, entries, tripMeta, races, savedAt })}</script>`, 'baked-data');
+// шрифт флагов лежит в fonts/ основной версии — версия для друзей на уровень ниже
+html = replaceOnce(html, /var FLAG_FONT_URL = 'fonts\//, "var FLAG_FONT_URL = '../fonts/", 'шрифт флагов');
 html = replaceOnce(html, /<title>[^<]*<\/title>/, '<title>Travel Map</title>', 'title');
 html = replaceOnce(html, /<meta property="og:title" content="[^"]*">/, '<meta property="og:title" content="Travel Map">', 'og:title');
 html = replaceOnce(html, /<meta property="og:description" content="[^"]*">/,

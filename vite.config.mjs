@@ -6,16 +6,43 @@ import { defineConfig } from 'vite';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
+import { packGeoExact } from './src/lib/geo-pack.js';
 
 const ROOT = path.dirname(new URL(import.meta.url).pathname);
 
-// Шрифт флагов вшивается в маленький скрипт в <head>, который решает, нужен ли он
+// Шрифт флагов (78 КБ) — отдельным файлом fonts/flags.woff2: он нужен только
+// там, где система не рисует флаги-эмодзи (Chrome и Edge на Windows), и раньше,
+// вшитый в страницу, скачивался всеми. Маленький скрипт в <head> подключает его
+// по необходимости; сервис-воркер хранит файл для работы без сети. ?v= — хэш
+// содержимого: новая версия шрифта не застрянет в кэше.
+const FLAG_FONT_SRC = path.join(ROOT, 'src/assets/flags.woff2');
+const flagFontUrl = () => 'fonts/flags.woff2?v=' + crypto.createHash('sha256').update(fs.readFileSync(FLAG_FONT_SRC)).digest('hex').slice(0, 8);
 function flagFont(){
   return {
     name: 'flag-font',
-    transformIndexHtml(html){
-      const b64 = fs.readFileSync(path.join(ROOT, 'src/assets/flags.woff2')).toString('base64');
-      return html.replace('__FLAG_FONT_B64__', b64);
+    transformIndexHtml(html){ return html.replace('__FLAG_FONT_URL__', flagFontUrl()); }
+  };
+}
+
+// Контуры стран и регионов России встраиваются не GeoJSON-ом, а компактной
+// строкой без потерь (src/lib/geo-pack.js): вдвое меньше. Импорт с ?geopack.
+function geoPack(){
+  const PREFIX = '\0geopack:';
+  return {
+    name: 'geo-pack',
+    enforce: 'pre',
+    resolveId(source, importer){
+      if(!source.endsWith('.json?geopack')) return null;
+      return PREFIX + path.resolve(path.dirname(importer), source.replace(/\?geopack$/, '')).replace(/\.json$/, '');
+    },
+    load(id){
+      if(!id.startsWith(PREFIX)) return null;
+      const file = id.slice(PREFIX.length) + '.json';
+      const p = packGeoExact(JSON.parse(fs.readFileSync(file, 'utf8')));
+      if(!p) throw new Error('geo-pack: не удалось записать без потерь ' + file);
+      return `import { unpackGeo } from ${JSON.stringify(path.join(ROOT, 'src/lib/geo-pack.js'))};\n` +
+        `export default unpackGeo(${JSON.stringify(p.props)}, ${JSON.stringify(p.geom)});`;
     }
   };
 }
@@ -95,6 +122,8 @@ function copyToRoot(){
       const out = path.join(ROOT, 'dist/index.html');
       fs.writeFileSync(out, applyCsp(fs.readFileSync(out, 'utf8')));
       fs.copyFileSync(out, path.join(ROOT, 'index.html'));
+      fs.mkdirSync(path.join(ROOT, 'fonts'), { recursive: true });
+      fs.copyFileSync(FLAG_FONT_SRC, path.join(ROOT, 'fonts/flags.woff2'));
     }
   };
 }
@@ -103,7 +132,7 @@ export default defineConfig({
   root: 'src',
   base: './',
   json: { stringify: true },
-  plugins: [flagFont(), appParts(), debugHook(), viteSingleFile({ removeViteModuleLoader: true }), copyToRoot()],
+  plugins: [flagFont(), geoPack(), appParts(), debugHook(), viteSingleFile({ removeViteModuleLoader: true }), copyToRoot()],
   build: {
     outDir: '../dist',
     emptyOutDir: true,
