@@ -57,7 +57,7 @@ function unescoCollection(){
 // все коллекции в одном виде: { id, group, title, items: [{ kind, name, lat, lng, r, key }] }
 function allCollections(){
   const out = COLLECTIONS_RU.map(c => ({ id: c.id, group: c.group, title: c.title,
-    items: c.items.map(([name, lat, lng, r]) => ({ kind: c.place ? 'place' : 'city', name, lat, lng, r: r || (c.place ? 30 : 20) })) }));
+    items: c.items.map(([name, lat, lng, r]) => ({ kind: c.place ? 'place' : 'city', name, lat, lng, r: r || (c.place ? 30 : 20), nameKey: c.group === 'Россия' ? 'Russia' : null })) }));
   out.push(unescoCollection());
   // моря: точка — середина подписи на карте; засчитываются по городам на берегу
   const seaItem = name => { const r = SEAS.find(x => x[0] === name); return { kind: 'sea', name, lat: r[3], lng: r[4] }; };
@@ -120,7 +120,15 @@ function collectionVisitIndex(){
     for(let i = 0; i < c.length; i += step) collGridAdd(tracks, { lat: c[i][0], lng: c[i][1], year: e.year });
   });
   const regions = ruRegionsState && ruRegionsState.visited ? ruRegionsState.visited : new Map();
-  return { pts, countries, tracks, regions, seas: computeSeaStats(visited).units };
+  // запасной путь: город с тем же названием в той же стране, даже если точка
+  // записи сдвинута (геокодер вернул центр области) — «Мехико» засчитывается
+  const names = new Map();
+  getAllCityVisits(visited).forEach(v => {
+    if(!v.name || !v.countryKey) return;
+    const k = normSearch(cleanPlaceName(v.name)) + '|' + v.countryKey, y = names.get(k);
+    if(!names.has(k) || (v.year && (!y || v.year < y))) names.set(k, v.year || null);
+  });
+  return { pts, countries, tracks, regions, names, seas: computeSeaStats(visited).units };
 }
 function collectionItemStatus(it, idx){
   if(it.kind === 'country'){ return idx.countries.has(it.key) ? { got: true, year: idx.countries.get(it.key) } : { got: false }; }
@@ -128,6 +136,11 @@ function collectionItemStatus(it, idx){
   if(it.kind === 'sea'){ const u = idx.seas.get(it.name); return u ? { got: true, year: u.first ? u.first.year : null } : { got: false }; }
   const byPoint = collGridNear(idx.pts, it.lat, it.lng, it.r || 20);
   if(byPoint) return byPoint;
+  const key = it.key || it.nameKey;
+  if(it.kind === 'city' && key && idx.names){
+    const k = normSearch(it.name) + '|' + key;
+    if(idx.names.has(k)) return { got: true, year: idx.names.get(k) };
+  }
   if(it.kind === 'place'){
     const byTrack = collGridNear(idx.tracks, it.lat, it.lng, it.r || 30);
     if(byTrack) return byTrack;

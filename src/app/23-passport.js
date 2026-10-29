@@ -86,6 +86,15 @@ function restoreDismissedPairs(){
   try{ localStorage.removeItem(DISMISSED_PAIRS_KEY); }catch(e){}
 }
 
+// справочник городов по «название|страна» — строится один раз
+let diagCityRefCache = null;
+function diagCityRef(){
+  if(!diagCityRefCache){
+    diagCityRefCache = new Map();
+    getWorldCities().forEach(c => { const k = normSearch(c.name) + '|' + c.countryKey; if(!diagCityRefCache.has(k)) diagCityRefCache.set(k, []); diagCityRefCache.get(k).push(c); });
+  }
+  return diagCityRefCache;
+}
 function computeDiagnostics(){
   const noMonth = allEntries.filter(e => e.status !== 'wishlist' && e.year && !e.month);
 
@@ -315,7 +324,29 @@ function computeDiagnostics(){
       if(n && looksLikeAdminArea(n)) adminNames.push({ entry: e, i, name: n, clean: cleanPlaceName(n) });
     });
   });
-  return { farStops, adminNames, countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs, missingCoords, brokenLinks, nonImagePhotos, duplicateGroups, noCountry, missingCountryYears, routesNoWpCountry, tripSuggestions, typeLabel };
+  // Город стоит не там, где одноимённый город справочника той же страны: так
+  // бывает, когда геокодер вернул центр области или штата вместо города
+  // («Мехико» — центр штата Мехико в 58 км от столицы). На карте точка не на
+  // месте, а коллекции и моря город не засчитывают. Порог растёт с размером
+  // города: окраина мегаполиса — ещё не ошибка.
+  const offCenter = [];
+  const cityRef = diagCityRef();
+  const checkCenter = (e, i, name, lat, lng, key) => {
+    if(!name || lat == null || lng == null || !key || dismissed.has(pairKey('центр:' + e.id, String(i)))) return;
+    const refs = cityRef.get(normSearch(cleanPlaceName(name)) + '|' + key);
+    if(!refs) return;
+    const best = refs.map(c => ({ c, km: haversine([lat, lng], [c.lat, c.lng]) })).sort((a, b) => a.km - b.km)[0];
+    if(best.km > Math.min(40, 15 + best.c.pop / 200)) offCenter.push({ entry: e, i, name, ref: best.c, km: best.km });
+  };
+  allEntries.forEach(e => {
+    if(e.type === 'city') checkCenter(e, null, e.name, e.lat, e.lng, e.countryKey);
+    else if(e.type === 'route' && Array.isArray(e.waypointNames)) e.waypointNames.forEach((n, i) => {
+      const c = (e.waypointCoords || [])[i];
+      if(c) checkCenter(e, i, n, c[0], c[1], (e.waypointCountryKeys || [])[i]);
+    });
+  });
+  offCenter.sort((a, b) => b.km - a.km);
+  return { offCenter, farStops, adminNames, countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs, missingCoords, brokenLinks, nonImagePhotos, duplicateGroups, noCountry, missingCountryYears, routesNoWpCountry, tripSuggestions, typeLabel };
 }
 
 // суммарное число находок — для бейджа на кнопке, чтобы не приходилось
@@ -323,7 +354,7 @@ function computeDiagnostics(){
 function countDiagnosticsIssues(){
   try{
     const d = computeDiagnostics();
-    return d.farStops.length + d.adminNames.length + d.countryMismatches.length + d.outlierWaypoints.length + d.noMonth.length +
+    return d.offCenter.length + d.farStops.length + d.adminNames.length + d.countryMismatches.length + d.outlierWaypoints.length + d.noMonth.length +
            d.similarPairs.length + d.similarTripPairs.length + d.missingCoords.length +
            d.brokenLinks.length + d.nonImagePhotos.length + d.duplicateGroups.length + d.noCountry.length +
            d.missingCountryYears.length + d.routesNoWpCountry.length;
@@ -353,7 +384,7 @@ function computeDiagnosticsBadgeNow(){
 
 function renderDiagnostics(){
   const container = document.getElementById('diagnosticsBody');
-  const { farStops, adminNames, countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs,
+  const { offCenter, farStops, adminNames, countryMismatches, outlierWaypoints, noMonth, similarPairs, similarTripPairs,
           missingCoords, brokenLinks, nonImagePhotos, duplicateGroups, noCountry,
           missingCountryYears, routesNoWpCountry, tripSuggestions, typeLabel } = computeDiagnostics();
 
@@ -377,6 +408,14 @@ function renderDiagnostics(){
       <button class="cancel-edit" id="fixAllCountriesBtn" style="margin-top:0;">Исправить все ${countryMismatches.length} на фактическую страну</button>
     </div>`;
   }
+  html += buildDiagSection(
+    'Город не на своём месте',
+    'Одноимённый город из справочника той же страны — далеко от точки записи. Обычно геокодер вернул центр области или штата вместо самого города: на карте точка не на месте, а коллекции (например, столицы) и моря такой город не засчитывают.',
+    offCenter, 'Все города стоят там же, где одноимённые города справочника.',
+    (o, i) => `<div class="diag-row" style="cursor:default;"><span data-diag-id="${o.entry.id}" style="cursor:pointer;">${escapeHtml(cleanPlaceName(o.name))}</span>
+      <div class="diag-row-meta">${o.i == null ? 'город' : 'остановка маршрута «' + escapeHtml(o.entry.name) + '»'} · ${Math.round(o.km)} км от центра города ${escapeHtml(o.ref.name)}${o.ref.region ? ' (' + escapeHtml(o.ref.region) + ')' : ''}</div>
+      ${!READ_ONLY ? `<div class="diag-merge"><button data-fixcenter="${i}">Перенести в центр города</button><button data-findplace="center:${i}">Выбрать место заново…</button><button data-keepcenter="${i}" title="Точка стоит там, где нужно — больше не показывать">Так и задумано</button></div><div class="diag-find" hidden></div>` : ''}</div>`
+  );
   html += buildDiagSection(
     'Точки маршрута далеко от остальных',
     'Похоже на ошибку геокодирования — одноимённый город на другом континенте (например, «Дублин, Огайо» вместо «Дублин, Ирландия»). Откройте маршрут и пересоздайте именно эту точку через поиск, явно выбрав нужную страну из списка вариантов.',
@@ -481,7 +520,7 @@ function renderDiagnostics(){
   const dismissedCount = readDismissedPairs().size;
   if(dismissedCount && !READ_ONLY){
     html += `<div style="padding:0 20px 12px;">
-      <button class="cancel-edit" id="restorePairsBtn" style="margin-top:0;">Показать скрытые пары (${dismissedCount})</button>
+      <button class="cancel-edit" id="restorePairsBtn" style="margin-top:0;">Показать скрытое (${dismissedCount})</button>
     </div>`;
   }
   html += buildDiagSection(
@@ -540,7 +579,7 @@ function renderDiagnostics(){
   container.querySelectorAll('[data-findplace]').forEach(btn => {
     btn.addEventListener('click', () => {
       const [kind, idx] = btn.dataset.findplace.split(':');
-      const o = (kind === 'far' ? farStops : adminNames)[parseInt(idx, 10)];
+      const o = (kind === 'far' ? farStops : kind === 'center' ? offCenter : adminNames)[parseInt(idx, 10)];
       const box = btn.closest('.diag-row').querySelector('.diag-find');
       if(!o || !box) return;
       if(!box.hidden){ box.hidden = true; return; }
@@ -572,6 +611,26 @@ function renderDiagnostics(){
       });
       inp.focus();
       run();
+    });
+  });
+
+  // город — в точку одноимённого города справочника; название не меняется
+  container.querySelectorAll('[data-fixcenter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const o = offCenter[+btn.dataset.fixcenter];
+      if(!o) return;
+      btn.disabled = true;
+      diagReplacePlace(o, { name: o.i == null ? o.entry.name : o.entry.waypointNames[o.i], lat: o.ref.lat, lng: o.ref.lng, countryKey: o.ref.countryKey });
+    });
+  });
+  container.querySelectorAll('[data-keepcenter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const o = offCenter[+btn.dataset.keepcenter];
+      if(!o) return;
+      dismissPair('центр:' + o.entry.id, String(o.i));
+      renderDiagnostics();
+      updateDiagnosticsBadge();
+      toast('Больше не показываю — вернуть можно внизу раздела');
     });
   });
 
