@@ -124,12 +124,14 @@ test('фрагменты карты: давно не открытые вытес
     const name = (await caches.keys()).find(k => /tiles/.test(k)) || 'travel-map-tiles-edit-v1';
     const cache = await caches.open(name);
     const png = await (await fetch('icon-192.png')).blob();
-    const u = n => `https://tile.openstreetmap.org/3/${n}/1.png`;
+    // необычные номера, чтобы не спутать с фрагментами, которые успела загрузить
+    // сама карта (запросы сервис-воркера не перехватываются тестом и в CI идут в сеть)
+    const u = n => `https://tile.openstreetmap.org/19/${n}/7777.png`;
     for(const n of [1, 2, 3]) await cache.put(u(n), new Response(png, { headers: { 'Content-Type': 'image/png' } }));
     // карта снова показала первый — он из кэша, без сети
     await new Promise(res => { const i = new Image(); i.onload = i.onerror = res; i.src = u(1); });
     await new Promise(r => setTimeout(r, 300));
-    return (await cache.keys()).map(r => r.url.match(/3\/(\d)\/1/)[1]);
+    return (await cache.keys()).map(r => (r.url.match(/\/19\/(\d)\/7777\.png/) || [])[1]).filter(Boolean);
   });
   expect(order).toEqual(['2', '3', '1']);
 });
