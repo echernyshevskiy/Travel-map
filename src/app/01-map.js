@@ -321,15 +321,78 @@ function formatCapitalTime(tz){
   }
 }
 
+// Страны, где несколько часовых поясов: время и разница — для столицы
+const MULTI_TZ = new Set(['Russia', 'United States of America', 'Canada', 'Brazil', 'Australia', 'Mexico', 'Indonesia', 'Mongolia',
+  'Democratic Republic of the Congo', 'Chile', 'Kiribati', 'Micronesia', 'Papua New Guinea', 'Ecuador', 'Spain', 'Portugal', 'New Zealand', 'Greenland']);
+const HOME_TZ = (COUNTRY_INFO[HOME_COUNTRY_KEY] || {}).tz || 'Europe/Moscow';
+const fmtDayMonth = d => d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+
+// «на 2 ч позже, чем дома» (+ как меняется в течение года) — продолжение строки «Сейчас там»
+function countryTimeDiffHtml(key, tz){
+  if(!tz || key === HOME_COUNTRY_KEY) return '';
+  try{
+    const t = timeDiffInfo(tz, HOME_TZ);
+    const word = m => m > 0 ? `на ${formatDiff(m).slice(1)} позже, чем дома` : m < 0 ? `на ${formatDiff(m).slice(1)} раньше, чем дома` : 'как дома';
+    let html = word(t.now);
+    if(t.winter !== t.summer){
+      // разница меняется: летнее время там или дома
+      html += `<div class="ci-note">разница меняется: в январе ${formatDiff(t.winter)}, в июле ${formatDiff(t.summer)}` +
+        (t.next ? `; с ${escapeHtml(fmtDayMonth(t.next.date))} — ${formatDiff(t.next.diff)}` : '') + '</div>';
+    }
+    return html;
+  }catch(e){ return ''; }
+}
+
 function buildCountryInfoHtml(key){
   const info = COUNTRY_INFO[key];
   if(!info) return '';
-  const timeStr = formatCapitalTime(info.tz);
-  return `<div style="margin-top:7px;padding-top:7px;border-top:1px solid rgba(120,110,80,0.25);font-size:11.5px;color:var(--text-dim);text-align:left;line-height:1.7;">
-    <div>Столица: <b style="color:var(--text);">${escapeHtml(info.capital)}</b>${timeStr ? `<br>Сейчас там: ${timeStr}` : ''}</div>
-    <div>Язык: ${escapeHtml(info.lang)}</div>
-    <div>Валюта: ${escapeHtml(info.currency)}</div>
+  const timeStr = formatCapitalTime(info.tz), diff = countryTimeDiffHtml(key, info.tz);
+  return `<div class="ci">
+    <div class="ci-row"><span class="ci-k">Столица</span><b>${escapeHtml(info.capital)}</b></div>
+    ${timeStr ? `<div class="ci-row"><span class="ci-k">Сейчас там</span><span>${timeStr}${MULTI_TZ.has(key) ? ' (в столице)' : ''}${diff ? ' — ' + diff : ''}</span></div>` : ''}
+    <div class="ci-row"><span class="ci-k">Язык</span><span>${escapeHtml(info.lang)}</span></div>
+    <div class="ci-row"><span class="ci-k">Валюта</span><span>${escapeHtml(info.currency)}</span></div>
   </div>`;
+}
+
+// «В поездку»: розетки и напряжение, сторона движения, код страны, экстренные номера.
+// Работает без сети: данные встроены (src/data/country_travel.json).
+function buildCountryTravelHtml(key){
+  const t = COUNTRY_TRAVEL[key];
+  if(!t) return '';
+  const home = COUNTRY_TRAVEL[HOME_COUNTRY_KEY] || {}, isHome = key === HOME_COUNTRY_KEY;
+  const rows = [];
+  if(t.plugs){
+    const types = [...t.plugs].join(', ');
+    const c = isHome ? null : plugCompat(home.plugs, t.plugs);
+    const verdict = !c ? '' : c.level === 'same' ? ' — как дома, переходник не нужен'
+      : c.level === 'some' ? ` — подойдёт вилка ${c.fits.join(', ')}, для ${c.nofit.join(', ')} нужен переходник`
+      : ' — <b>нужен переходник</b>';
+    rows.push(['Розетки', `тип ${types}${verdict}`]);
+  }
+  if(t.v){
+    const low = t.v < 200, homeLow = (home.v || 230) < 200;
+    let v = low ? `${t.v} В${t.vMixed ? ' (местами 220 В)' : ''}` : '220–240 В';
+    if(!isHome && low !== homeLow) v += low ? ' — <b>не как дома</b>: подойдут зарядки и техника с пометкой «100–240 V»' : ' — не как дома';
+    else if(!isHome) v += ' — как дома';
+    rows.push(['Напряжение', v]);
+  }
+  if(t.drive){
+    const left = t.drive === 'L', diff = !isHome && home.drive && home.drive !== t.drive;
+    rows.push(['Движение', (left ? 'левостороннее' : 'правостороннее') + (diff ? ' — <b>не как дома</b>' : '')]);
+  }
+  if(t.tel) rows.push(['Код страны', '+' + escapeHtml(t.tel)]);
+  const em = emergencyLines(t.em);
+  if(em){
+    const num = list => list.map(n => `<b>${escapeHtml(n)}</b>`).join(' или ');
+    const parts = [];
+    if(em.single) parts.push(em.single.length && em.services.length ? `единый ${num(em.single)}` : num(em.single));
+    em.services.forEach(([who, n]) => parts.push(`${who} ${num(n)}`));
+    if(em.mobile112) parts.push('с мобильного — <b>112</b>');
+    if(parts.length) rows.push(['Экстренные', parts.join(' · ')]);
+  }
+  if(!rows.length) return '';
+  return `<div class="ci">${rows.map(([k, v]) => `<div class="ci-row"><span class="ci-k">${k}</span><span>${v}</span></div>`).join('')}</div>`;
 }
 
 function debounce(fn, delay){

@@ -17,6 +17,7 @@
 | `scripts/build-unesco.mjs` | пересборка `src/data/unesco.json` при обновлении списка ЮНЕСКО (точки объектов + файлы «id\|русское название») |
 | `src/assets/flags.woff2` | шрифт флагов для Windows; сборка кладёт копию в `fonts/flags.woff2` (адрес с `?v=хэш`), страница подключает его, только если система не рисует флаги |
 | `src/lib/geo-pack.js` | компактная запись контуров стран и регионов без потерь; плагин `geo-pack` в `vite.config.mjs` встраивает так файлы, импортированные с `?geopack` |
+| `scripts/build-country-travel.mjs` | пересборка `src/data/country_travel.json` (розетки, напряжение, движение, код, экстренные номера) из `scripts/data/` — без сети |
 | `scripts/build-seas.mjs` | пересборка `src/data/seas.json` и `sea_shapes.txt` (подписи и контуры морей) из Natural Earth |
 | `index.html`, `friends/index.html` | **готовые** файлы — их собирает GitHub Actions, руками не править |
 | `borders/` | подробные границы, подгружаются при приближении |

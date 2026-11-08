@@ -1,0 +1,210 @@
+# Экстренные номера: Wikipedia, «List of emergency telephone numbers» (ноябрь 2026).
+# Формат: страна|полиция|скорая|пожарные|112 (112main — единый номер, 112mobile — работает с мобильного)
+# «/» — равноправные варианты, «-» — нет данных. Правка руками допустима: файл — источник для
+# scripts/build-country-travel.mjs, который собирает src/data/country_travel.json.
+Afghanistan|119|112|119|-
+Albania|129|127|128|112mobile
+Algeria|1548|14|-|-
+Andorra|110|116|118|-
+Angola|113|112/116|115|-
+Antigua and Barbuda|911/999|-|-|-
+Argentina|911|107|100|112mobile
+Armenia|112/911|-|-|112main
+Australia|000|-|-|112mobile
+Austria|112/133|144|122|112main
+Azerbaijan|112/102|112/103|112/101|112main
+Bahrain|999|-|-|112mobile
+Bangladesh|999|-|-|-
+Barbados|211|511|311|-
+Belarus|102|103|101|-
+Belgium|101/112|112|-|112main
+Belize|911|-|-|-
+Benin|117|112|118|-
+Bermuda|911|-|-|-
+Bhutan|113|112|110|-
+Bolivia|911|-|-|-
+Bosnia and Herzegovina|122|124|123|-
+Botswana|999|997|998|112mobile
+Brazil|190|192|193|112mobile
+Brunei|993|991|995|-
+Bulgaria|112/166|112/150|112/160|112main
+Burkina Faso|17|112|18|-
+Burundi|117|112|118|-
+Cambodia|117|119|118|-
+Cameroon|112|-|-|112main
+Canada|911|-|-|112mobile
+Cape Verde|132|130|131|-
+Central African Republic|117|1220|118|-
+Chad|17|-|18|-
+Chile|133|131|132|112mobile
+China|110|120|119|-
+Colombia|112|125|119|112main
+Comoros|17|-|18|-
+Costa Rica|911|-|-|112mobile
+Croatia|112/192|112/194|112/193|112main
+Cuba|106|104|105|-
+Cyprus|112/199|-|-|112main
+Czech Republic|112/158|112/155|112/150|112main
+Democratic Republic of the Congo|112|-|118|-
+Denmark|112|-|-|112main
+Djibouti|17|19|18|-
+Dominica|999|-|-|-
+Dominican Republic|911|-|-|112mobile
+East Timor|112|-|-|112main
+Ecuador|911|-|-|-
+Egypt|112/122|123|180|112mobile
+El Salvador|911|132|913|-
+Equatorial Guinea|114|115|112|-
+Eritrea|113|114|116|-
+Estonia|112|-|-|112main
+Ethiopia|911|-|-|-
+Falkland Islands|112/999|-|-|-
+Fiji|911|-|-|-
+Finland|112|-|-|112main
+France|17|112/15|112/18|112main
+French Guiana|112|-|-|112main
+Gabon|1730|1300|18|-
+Gambia|117|116|118|-
+Georgia|112|-|-|112main
+Germany|110|112|112|112main
+Ghana|112|-|-|112main
+Greece|100/112|166/112|199/112|112main
+Greenland|112|-|-|112main
+Grenada|911|-|-|-
+Guatemala|110|122/123|-|-
+Guinea|117|18|-|-
+Guinea Bissau|112|-|-|112main
+Guyana|911|913|912|-
+Haiti|114|116|115|-
+Honduras|911|195|198|-
+Hungary|112/107|112/104|112/105|112main
+Iceland|112|-|-|112main
+India|112|108|101|112main
+Indonesia|112|118/119|113|112main
+Iran|110|115|125|112mobile
+Iraq|112/911|-|-|-
+Ireland|112/999|-|-|112main
+Israel|100|101|102|112mobile
+Italy|112|-|-|112main
+Ivory Coast|110/111/170|185|180|-
+Jamaica|119|110|-|-
+Japan|110|119|119|112mobile
+Jordan|911|-|-|112mobile
+Kazakhstan|112|-|-|112main
+Kenya|112/999/911|-|-|-
+Kiribati|100/999|-|-|-
+Kosovo|192|194|193|-
+Kuwait|112|-|-|112main
+Kyrgyzstan|112|-|-|112main
+Laos|191|195|190|-
+Latvia|112|-|-|112main
+Lebanon|999/112|140|175|-
+Lesotho|123|121|122|-
+Liberia|911|-|-|-
+Libya|1515|-|-|-
+Liechtenstein|117|144|118|112main
+Lithuania|112|-|-|112main
+Luxembourg|112|-|-|112main
+Macedonia|192/112|194/112|193/112|112main
+Madagascar|117|124|118|-
+Malawi|997|998|999|-
+Malaysia|999|-|-|112mobile
+Maldives|911|-|-|-
+Mali|17|15|18|-
+Malta|112|-|-|112main
+Marshall Islands|911|-|-|-
+Mauritania|117|101|118|-
+Mauritius|112|114|115|112main
+Mexico|911|-|-|-
+Micronesia|911|-|-|-
+Moldova|112|-|-|112main
+Monaco|17|112/18|112/18|112main
+Mongolia|105|103|101|-
+Montenegro|122/112|124/112|123/112|112main
+Morocco|19|15|-|112mobile
+Mozambique|119|117|198|-
+Myanmar|999|-|-|-
+Namibia|10111|-|-|-
+Nauru|110|111|112|-
+Nepal|100|102|101|112mobile
+Netherlands|112|-|-|112main
+New Caledonia|112|-|-|112main
+New Zealand|111|-|-|112mobile
+Nicaragua|118|128|115|-
+Niger|17|15|18|-
+Nigeria|112|-|-|112main
+North Korea|-|-|-|-
+Northern Cyprus|155|112|199|-
+Norway|112|113|110|112main
+Oman|9999|-|-|112mobile
+Pakistan|15|115/1122|16|112mobile
+Palau|911|-|-|-
+Panama|911|-|-|-
+Papua New Guinea|112|111|110|-
+Paraguay|911|-|-|-
+Peru|911|-|-|-
+Philippines|911|-|-|112mobile
+Poland|997/112|999/112|998/112|112main
+Portugal|112|-|-|112main
+Puerto Rico|911|-|-|-
+Qatar|999|-|-|112mobile
+Republic of Serbia|192/112|194|193|112mobile
+Republic of the Congo|117|-|118|-
+Romania|112|-|-|112main
+Russia|102/112|103/112|101/112|112main
+Rwanda|112|912|112|112main
+Saint Kitts and Nevis|911|-|-|-
+Saint Lucia|911/999|-|-|-
+Saint Vincent and the Grenadines|999/911/112|-|-|-
+Samoa|999|-|-|-
+San Marino|112/113|118|115|112main
+Sao Tome and Principe|112|-|-|112main
+Saudi Arabia|911|997|998|-
+Senegal|17|18|1515|-
+Seychelles|112/999|-|-|-
+Sierra Leone|019|999|-|-
+Singapore|999|995|995|112mobile
+Slovakia|112/158|112/155|112/150|112main
+Slovenia|113|112|112|112main
+Solomon Islands|911/999|-|-|-
+Somalia|888|999|555|-
+Somaliland|-|-|-|-
+South Africa|10111|10177|-|112mobile
+South Korea|112|119|119|-
+South Sudan|999|-|-|-
+Spain|112|-|-|112main
+Sri Lanka|119|110|-|-
+Sudan|999|-|-|-
+Suriname|115|113|110|-
+Swaziland|999|977|933|-
+Sweden|112|-|-|112main
+Switzerland|117|144|118|112main
+Syria|112|110|113|-
+Taiwan|110|119|119|112mobile
+Tajikistan|112|-|-|112main
+Thailand|191|1669|199|112mobile
+The Bahamas|911/919|-|-|112mobile
+Togo|117|8200|118|-
+Tonga|911|-|-|-
+Trinidad and Tobago|999/911|811|990|-
+Tunisia|197|190|198|-
+Turkey|112|-|-|112main
+Turkmenistan|02|03|01|-
+Tuvalu|911|-|-|-
+Uganda|112|911|112|-
+Ukraine|102|103|101|112main
+United Arab Emirates|999|998|997|-
+United Kingdom|999/112|-|-|-
+United Republic of Tanzania|112|114|115|-
+United States of America|911|-|-|112mobile
+Uruguay|911|-|-|-
+Uzbekistan|102|103|101|112main
+Vanuatu|111|112|113|-
+Vatican|112|-|-|112main
+Venezuela|911/171|-|-|-
+Vietnam|113|115|114|-
+West Bank|100|101|102|-
+Western Sahara|150|-|-|-
+Yemen|194|191|-|-
+Zambia|999|-|-|112mobile
+Zimbabwe|999|-|-|112mobile

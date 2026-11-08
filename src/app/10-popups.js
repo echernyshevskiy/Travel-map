@@ -59,7 +59,7 @@ function buildPopup(entry){
   let html = `<div style="font-family:'Twemoji Country Flags','EB Garamond',serif;min-width:170px;">
     <b>${flagPrefix}${heart}${escapeHtml(entry.name)}</b>${wishTag}<br><span style="color:var(--text-dim);">${escapeHtml(whenLabel(entry))} · ${purposeLabel(entry.purpose)}</span>`;
   if(entry.type === 'city' && entry.countryKey && flag) html += `<br><span style="color:var(--text-dim);">${flag} ${escapeHtml(COUNTRY_RU[entry.countryKey] || entry.countryKey)}</span>`;
-  if(entry.type === 'country') html += buildCountryInfoHtml(entry.countryKey);
+  if(entry.type === 'country') html += buildCountryInfoHtml(entry.countryKey) + buildCountryTravelHtml(entry.countryKey);
   if(entry.trip) html += `<br><span style="color:var(--amber);font-style:italic;">${escapeHtml(entry.trip)}</span>`;
   const extras = [seasonLabel(entry.season), companyLabel(entry.company), communityLabel(entry.community), entry.type === 'route' ? activityLabel(entry.activity) : null].filter(Boolean);
   if(extras.length) html += `<br><span style="color:var(--text-dim);">${extras.join(' · ')}</span>`;

@@ -535,6 +535,8 @@ function openCountryPopup(key, latlng){
 
   const info = buildCountryInfoHtml(key);
   if(info) parts.push(cpopSection('info', 'О стране', info));
+  const travel = buildCountryTravelHtml(key);
+  if(travel) parts.push(cpopSection('travel', 'В поездку', travel));
 
   if(trips.length){
     const SHOW = 6;
