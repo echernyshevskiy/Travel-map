@@ -16,6 +16,8 @@ import COUNTRY_RU from '../data/country_ru.json';
 import COUNTRY_CONTINENT from '../data/country_continent.json';
 import COUNTRY_ISO from '../data/country_iso.json';
 import COUNTRY_INFO from '../data/country_info.json';
+// справка для поездки: розетки, напряжение, сторона движения, код, экстренные номера (scripts/build-country-travel.mjs)
+import COUNTRY_TRAVEL from '../data/country_travel.json';
 // объекты ЮНЕСКО — текстом, разбираются при первом открытии коллекций (старт не замедляют)
 import UNESCO_TXT from '../data/unesco.json?raw';
 // подписи океанов, морей, заливов и проливов (Natural Earth): точка, ось, вид
@@ -32,5 +34,6 @@ import { SYNC_META, itemJson, mergeKind, parseTokenExpiry } from '../lib/sync-me
 import { gtlExtract } from '../lib/timeline-parse.js';
 import { travelerProfile } from '../lib/traveler.js';
 import { parseSeaShapes, seaNear, seaUnits, seaBasin } from '../lib/seas.js';
+import { plugCompat, emergencyLines, timeDiffInfo, formatDiff } from '../lib/country-travel.js';
 // проекция для режима «Глобус» (только нужные части d3-geo, ~30 КБ)
 import { geoOrthographic, geoPath, geoGraticule10, geoArea, geoCentroid, geoInterpolate } from 'd3-geo';

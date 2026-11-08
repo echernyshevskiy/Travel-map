@@ -1,0 +1,32 @@
+# Страны, где в розетке 100–127 В (по умолчанию — 220–240 В).
+# Wikipedia, «Mains electricity by country» (ноябрь 2026). Формат: страна|вольт|примечание
+# «mixed» — встречается и 220–240 В (зависит от района или здания).
+Japan|100|
+United States of America|120|
+Canada|120|
+Mexico|127|mixed
+Brazil|127|mixed
+Taiwan|110|
+Colombia|120|mixed
+Costa Rica|120|
+Panama|120|
+Venezuela|120|
+Ecuador|120|
+Cuba|110|
+Dominican Republic|120|
+Guatemala|120|
+Honduras|120|
+Nicaragua|120|
+El Salvador|115|
+Haiti|110|
+Jamaica|110|
+Liberia|120|
+The Bahamas|120|
+Barbados|115|
+Bermuda|120|
+Belize|110|mixed
+Trinidad and Tobago|115|mixed
+Suriname|127|mixed
+Palau|120|
+Micronesia|120|
+Puerto Rico|120|

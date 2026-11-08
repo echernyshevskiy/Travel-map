@@ -1047,6 +1047,12 @@
   .cpop-place-wait{
     font-family:'Twemoji Country Flags','Courier Prime',monospace;font-size:9.5px;color:var(--text-dim);
   }
+  /* справка о стране: «ключ — значение» в две колонки */
+  .ci{margin-top:4px;font-size:11.5px;color:var(--text-dim);text-align:left;line-height:1.45;}
+  .ci-row{display:grid;grid-template-columns:76px 1fr;gap:6px;padding:2px 0;}
+  .ci-row b{color:var(--text);font-weight:600;}
+  .ci-k{color:var(--text-dim);font-style:italic;}
+  .ci-note{margin-top:1px;font-size:10.5px;font-style:italic;}
   .cpop-sec{
     font-family:'Twemoji Country Flags','Courier Prime',monospace;font-size:8.5px;
     letter-spacing:1.4px;text-transform:uppercase;color:var(--text-dim);
