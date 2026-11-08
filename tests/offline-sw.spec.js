@@ -85,3 +85,51 @@ test('без сети: шрифт флагов (отдельный файл) б�
   await expect.poll(flagOk).toBe(true);
   await context.setOffline(false);
 });
+
+test('без сети: шрифты интерфейса свои и из кэша, Excel работает, на Google не ходим', async ({ context, page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
+  const foreign = [];
+  await context.route(url => !String(url).startsWith(base), r => { foreign.push(r.request().url()); return r.abort(); });
+  await context.addInitScript(() => { if(!localStorage.getItem('travel-map-basemap')) localStorage.setItem('travel-map-basemap', 'plain'); });
+  const fontsOk = () => page.evaluate(async () => {
+    await Promise.all(['16px "EB Garamond"', 'italic 600 16px "Playfair Display"', '16px "Courier Prime"'].map(f => document.fonts.load(f, 'Жж Ab')));
+    return ['16px "EB Garamond"', 'italic 600 16px "Playfair Display"', '16px "Courier Prime"'].every(f => document.fonts.check(f, 'Ab'))
+      && document.fonts.check('16px "EB Garamond"', 'Жж');
+  });
+  await page.goto(base);
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await page.reload();
+  await expect.poll(fontsOk).toBe(true);
+  // модуль Excel сохраняется заранее, при установке
+  await expect.poll(() => page.evaluate(async () => { for(const k of await caches.keys()) if(/assets/.test(k)) for(const r of await (await caches.open(k)).keys()) if(/vendor\/xlsx/.test(r.url)) return true; return false; }), { timeout: 15000 }).toBe(true);
+  await context.setOffline(true);
+  await page.reload();
+  await page.waitForFunction(() => window.__travelMap && __travelMap.allEntries);
+  await expect.poll(fontsOk).toBe(true);
+  expect(await page.evaluate(() => loadXlsxLib().then(ok => ok && typeof XLSX !== 'undefined'))).toBe(true);
+  await context.setOffline(false);
+  expect(foreign.filter(u => /fonts\.(googleapis|gstatic)\.com/.test(u))).toEqual([]);
+});
+
+test('фрагменты карты: давно не открытые вытесняются первыми — показанный из кэша уходит в конец очереди', async ({ context, page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
+  await context.route(url => !String(url).startsWith(base), r => r.abort());
+  await context.addInitScript(() => { localStorage.setItem('travel-map-basemap', 'plain'); });
+  await page.goto(base);
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await page.reload();
+  await page.waitForFunction(() => !!navigator.serviceWorker.controller);
+  const order = await page.evaluate(async () => {
+    // три фрагмента уже сохранены (сеть в тесте закрыта — кладём сами)
+    const name = (await caches.keys()).find(k => /tiles/.test(k)) || 'travel-map-tiles-edit-v1';
+    const cache = await caches.open(name);
+    const png = await (await fetch('icon-192.png')).blob();
+    const u = n => `https://tile.openstreetmap.org/3/${n}/1.png`;
+    for(const n of [1, 2, 3]) await cache.put(u(n), new Response(png, { headers: { 'Content-Type': 'image/png' } }));
+    // карта снова показала первый — он из кэша, без сети
+    await new Promise(res => { const i = new Image(); i.onload = i.onerror = res; i.src = u(1); });
+    await new Promise(r => setTimeout(r, 300));
+    return (await cache.keys()).map(r => r.url.match(/3\/(\d)\/1/)[1]);
+  });
+  expect(order).toEqual(['2', '3', '1']);
+});

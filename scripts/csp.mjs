@@ -34,8 +34,8 @@ export function buildPolicy(html){
   return [
     "default-src 'self'",
     `script-src 'self' ${inlineScriptHashes(html).join(' ')} ${XLSX_CDN}`,
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' data: https://fonts.gstatic.com",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self' data:",
     "img-src 'self' data: blob: https:",
     `connect-src 'self' ${CSP_CONNECT.join(' ')}`,
     "worker-src 'self'",

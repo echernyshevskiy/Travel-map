@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.70
+  Версия: v2.71
   Дата сборки: 2026-10-12
   История версий смотрите в переписке с Claude.
 -->
@@ -18,11 +18,15 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Карта путешествий">
 <meta property="og:description" content="Личный трекер посещённых стран, городов и маршрутов">
-<meta property="og:image" content="icon-512.png">
+<meta property="og:url" content="__SITE_URL__">
+<meta property="og:image" content="__SITE_URL__icon-512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
 <meta property="og:locale" content="ru_RU">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Карта путешествий">
 <meta name="twitter:description" content="Личный трекер посещённых стран, городов и маршрутов">
+<meta name="twitter:image" content="__SITE_URL__icon-512.png">
 <meta name="description" content="Личный трекер посещённых стран, городов и маршрутов">
 <meta name="theme-color" content="#A6592E">
 <meta name="mobile-web-app-capable" content="yes">
@@ -84,8 +88,9 @@ window.addEventListener('unhandledrejection', function(e){
   try{ document.fonts.load('16px "Twemoji Country Flags"', '\uD83C\uDDEC\uD83C\uDDEA'); }catch(e){}
 })();
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<!-- Шрифты лежат рядом с приложением (fonts/), а не на Google: без сети вид тот
+     же, и сторонний сервис не видит заходов. Правила @font-face подставляет сборка. -->
+<style id="appFonts"></style>
 </head>
 <body>
 <div id="bootOverlay">
@@ -565,7 +570,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
         <div class="legend-credits">флаги: <a href="https://github.com/twitter/twemoji" target="_blank" rel="noopener" style="color:inherit;">Twemoji</a>, CC BY 4.0 · города: Natural Earth, <a href="https://github.com/hflabs/city" target="_blank" rel="noopener" style="color:inherit;">hflabs/city</a>, CC BY-SA 4.0 · границы: Natural Earth, регионы: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:inherit;">OpenStreetMap</a> (ODbL)</div>
-        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.70</div>
+        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.71</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>

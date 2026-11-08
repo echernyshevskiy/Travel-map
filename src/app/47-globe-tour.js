@@ -85,7 +85,7 @@ function globeTourStart(target){
 }
 function globeTourStep(now){
   if(!globeTour.active || globeTour.paused || !globe.active) return;
-  const dt = Math.min(64, now - (globeTour.last || now)); globeTour.last = now;
+  const dt = Math.max(0, Math.min(64, now - (globeTour.last || now))); globeTour.last = Math.max(globeTour.last || 0, now);
   globeTour.t = Math.min(1, globeTour.t + dt / globeTour.dur);
   const head = globeTourHead();
   // камера догоняет «голову» линии плавно, без рывков на изломах

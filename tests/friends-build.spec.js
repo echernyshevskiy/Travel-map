@@ -30,6 +30,12 @@ test('скрипт собирает версию для друзей без ли
   expect(html).toContain('<title>Travel Map</title>');
   // шрифт флагов — общий файл основной версии, на уровень выше
   expect(html).toContain("var FLAG_FONT_URL = '../fonts/flags.woff2?v=");
+  // превью ссылки: полные адреса, ведут на версию для друзей; шрифты — на уровень выше
+  expect(html).toContain('<meta property="og:url" content="https://echernyshevskiy.github.io/Travel-map/friends/">');
+  expect(html).toContain('<meta property="og:image" content="https://echernyshevskiy.github.io/Travel-map/friends/icon-512.png">');
+  expect(html).toContain('<meta name="twitter:image" content="https://echernyshevskiy.github.io/Travel-map/friends/icon-512.png">');
+  expect(html).not.toMatch(/url\(fonts\//);
+  expect(html).toMatch(/url\(\.\.\/fonts\/eb-garamond-cyrillic-400-normal\.woff2\?v=/);
   expect(html).not.toContain('Скрытая поездка');
   expect(html).toContain('Горы');
   // из ссылок — только обложка и Instagram
