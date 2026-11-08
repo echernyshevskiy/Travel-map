@@ -25,6 +25,55 @@ function flagFont(){
   };
 }
 
+// Шрифты интерфейса (Playfair Display, EB Garamond, Courier Prime; лицензия OFL)
+// — из пакетов @fontsource, файлами в fonts/ рядом с приложением. Наборы знаков
+// разбиты как у Google (кириллица, латиница, расширенная латиница) с
+// unicode-range, так что браузер качает только нужные. ?v= — хэш файла.
+const APP_FONTS = [
+  ['Playfair Display', 'playfair-display', [[600, 'normal'], [700, 'normal'], [600, 'italic'], [700, 'italic']]],
+  ['EB Garamond', 'eb-garamond', [[400, 'normal'], [500, 'normal'], [600, 'normal'], [400, 'italic'], [500, 'italic']]],
+  ['Courier Prime', 'courier-prime', [[400, 'normal'], [700, 'normal']]],
+];
+const FONT_SUBSETS = ['cyrillic', 'latin-ext', 'latin'];
+function appFontFaces(){
+  const faces = [], files = [];
+  for(const [family, pkg, styles] of APP_FONTS){
+    const dir = path.join(ROOT, 'node_modules/@fontsource', pkg);
+    for(const [w, st] of styles) for(const sub of FONT_SUBSETS){
+      const name = `${pkg}-${sub}-${w}-${st}.woff2`, src = path.join(dir, 'files', name);
+      if(!fs.existsSync(src)) continue;                 // у Courier Prime нет кириллицы
+      // unicode-range — из общего файла начертания, из блока именно этого набора
+      const all = fs.readFileSync(path.join(dir, `${w}${st === 'italic' ? '-italic' : ''}.css`), 'utf8');
+      const block = all.split('@font-face').find(b => b.includes('/' + name + ')'));
+      const range = block && (block.match(/unicode-range:\s*([^;]+);/) || [])[1];
+      if(!range || !fs.existsSync(src)) throw new Error('шрифт не найден: ' + name);
+      const v = crypto.createHash('sha256').update(fs.readFileSync(src)).digest('hex').slice(0, 8);
+      files.push({ name, src });
+      faces.push(`@font-face{font-family:'${family}';font-style:${st};font-weight:${w};font-display:swap;src:url(fonts/${name}?v=${v}) format('woff2');unicode-range:${range.trim()};}`);
+    }
+  }
+  return { css: faces.join(''), files };
+}
+// Полный адрес сайта — для превью ссылки (og:image, og:url): мессенджеры
+// относительный адрес картинки не понимают. Берётся из package.json → homepage.
+const SITE_URL = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).homepage;
+if(!/^https:\/\/.+\/$/.test(SITE_URL || '')) throw new Error('package.json: homepage должен быть полным адресом сайта со слешем в конце');
+function siteUrl(){
+  return { name: 'site-url', transformIndexHtml: { order: 'post', handler: html => html.split('__SITE_URL__').join(SITE_URL) } };
+}
+function appFonts(){
+  return {
+    name: 'app-fonts',
+    // после сборки: иначе Vite пытается сам разрешить url(fonts/…) как свой ресурс
+    // (пустой <style id="appFonts"> — не комментарий-метка: Vite 8 вычищает комментарии)
+    transformIndexHtml: { order: 'post', handler: html => {
+      const re = /<style id="appFonts">[\s\S]*?<\/style>/;
+      if(!re.test(html)) throw new Error('app-fonts: в index.html нет <style id="appFonts">');
+      return html.replace(re, () => `<style id="appFonts">${appFontFaces().css}</style>`);
+    } }
+  };
+}
+
 // Контуры стран и регионов России встраиваются не GeoJSON-ом, а компактной
 // строкой без потерь (src/lib/geo-pack.js): вдвое меньше. Импорт с ?geopack.
 function geoPack(){
@@ -120,10 +169,16 @@ function copyToRoot(){
     closeBundle(){
       // политика безопасности считается по уже собранному файлу: хэши встроенных скриптов
       const out = path.join(ROOT, 'dist/index.html');
+      // сборка упала раньше — не заслоняем её ошибку своей
+      if(!fs.existsSync(out)) return;
       fs.writeFileSync(out, applyCsp(fs.readFileSync(out, 'utf8')));
       fs.copyFileSync(out, path.join(ROOT, 'index.html'));
       fs.mkdirSync(path.join(ROOT, 'fonts'), { recursive: true });
       fs.copyFileSync(FLAG_FONT_SRC, path.join(ROOT, 'fonts/flags.woff2'));
+      // шрифты интерфейса; лишние (от прошлых версий) — убираем
+      const keep = new Set(['flags.woff2']);
+      for(const f of appFontFaces().files){ fs.copyFileSync(f.src, path.join(ROOT, 'fonts', f.name)); keep.add(f.name); }
+      for(const f of fs.readdirSync(path.join(ROOT, 'fonts'))) if(!keep.has(f)) fs.rmSync(path.join(ROOT, 'fonts', f));
     }
   };
 }
@@ -132,7 +187,7 @@ export default defineConfig({
   root: 'src',
   base: './',
   json: { stringify: true },
-  plugins: [flagFont(), geoPack(), appParts(), debugHook(), viteSingleFile({ removeViteModuleLoader: true }), copyToRoot()],
+  plugins: [flagFont(), appFonts(), siteUrl(), geoPack(), appParts(), debugHook(), viteSingleFile({ removeViteModuleLoader: true }), copyToRoot()],
   build: {
     outDir: '../dist',
     emptyOutDir: true,

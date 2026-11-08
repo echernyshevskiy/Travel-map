@@ -521,13 +521,18 @@ function globeCenter(){
   const r = globe.proj.rotate();
   return { lat: -r[1], lng: ((-r[0] + 540) % 360) - 180 };
 }
+// Доля пройденного пути анимации. Отметка времени кадра (now) — начало кадра,
+// и бывает раньше, чем performance.now() в обработчике нажатия: без нижней
+// границы доля выходила отрицательной, кривая «выстреливала» в обратную
+// сторону, и «−» у самого предела приближения выкидывал на плоскую карту.
+function animProgress(now, t0, ms){ return Math.max(0, Math.min(1, (now - t0) / ms)); }
 function globeStopInertia(){ if(globe.inertia){ cancelAnimationFrame(globe.inertia.raf); globe.inertia = null; } }
 function globeStartInertia(vx, vy){
   globeStopInertia();
   if(Math.hypot(vx, vy) < 0.05) return;           // пикселей в мс
   const it = globe.inertia = { vx, vy, t: performance.now(), raf: 0 };
   const step = now => {
-    const dt = Math.min(48, now - it.t); it.t = now;
+    const dt = Math.max(0, Math.min(48, now - it.t)); it.t = Math.max(it.t, now);
     const decay = Math.pow(0.994, dt);            // ≈ остановка за секунду
     it.vx *= decay; it.vy *= decay;
     globeRotateBy(it.vx * dt, it.vy * dt);
@@ -545,7 +550,7 @@ function globeAnimateScale(to, ms){
   const from = globe.proj.scale(), t0 = performance.now();
   const step = now => {
     if(!globe.active || globe.scaleAnim !== id) return;
-    const t = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - t, 3);
+    const t = animProgress(now, t0, ms), e = 1 - Math.pow(1 - t, 3);
     globeSetScale(from + (to - from) * e);
     if(t < 1 && globe.active) requestAnimationFrame(step);
   };
@@ -798,7 +803,7 @@ function globeFlyTo(ll, scale, ms, done){
   const t0 = performance.now(), fl = globe.flight = { raf: 0 };
   const step = now => {
     if(globe.flight !== fl || !globe.active) return;
-    const t = Math.min(1, (now - t0) / ms), e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    const t = animProgress(now, t0, ms), e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     globe.proj.rotate([r0[0] + dl * e, r0[1] + (lat1 - r0[1]) * e, 0]);
     // масштаб — по логарифму: приближение воспринимается равномерным
     globe.proj.scale(s0 * Math.pow(scale / s0, e));

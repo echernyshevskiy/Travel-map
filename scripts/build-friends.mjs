@@ -96,7 +96,20 @@ html = replaceOnce(html, /<script type="application\/json" id="baked-data">[^<]*
   `<script type="application/json" id="baked-data">${embed({ readOnly: true, entries, tripMeta, races, savedAt })}</script>`, 'baked-data');
 // шрифт флагов лежит в fonts/ основной версии — версия для друзей на уровень ниже
 html = replaceOnce(html, /var FLAG_FONT_URL = 'fonts\//, "var FLAG_FONT_URL = '../fonts/", 'шрифт флагов');
+// и шрифты интерфейса
+{
+  const n = (html.match(/url\(fonts\//g) || []).length;
+  if(!n) throw new Error('build-friends: не найдены шрифты интерфейса (url(fonts/…))');
+  html = html.replace(/url\(fonts\//g, 'url(../fonts/');
+}
 html = replaceOnce(html, /<title>[^<]*<\/title>/, '<title>Travel Map</title>', 'title');
+// превью ссылки ведёт на версию для друзей и берёт её копию значка
+{
+  const m = html.match(/<meta property="og:url" content="(https:[^"]*\/)">/);
+  if(!m) fail('в index.html не найдено og:url — версия файла не та?');
+  html = replaceOnce(html, /<meta property="og:url" content="[^"]*">/, `<meta property="og:url" content="${m[1]}friends/">`, 'og:url');
+}
+html = html.replace(/(<meta (?:property="og:image"|name="twitter:image") content="[^"]*\/)icon-512\.png">/g, '$1friends/icon-512.png">');
 html = replaceOnce(html, /<meta property="og:title" content="[^"]*">/, '<meta property="og:title" content="Travel Map">', 'og:title');
 html = replaceOnce(html, /<meta property="og:description" content="[^"]*">/,
   '<meta property="og:description" content="Карта путешествий: страны, города и маршруты на интерактивной карте">', 'og:description');

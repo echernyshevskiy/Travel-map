@@ -1199,7 +1199,8 @@
   .pb-dist{font-family:'Courier Prime',monospace;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--text-dim);}
   .pb-time{font-family:'Playfair Display',serif;font-style:italic;font-weight:700;font-size:28px;line-height:1.1;color:var(--text);margin-top:4px;}
   .pb-card:not(.has-pb) .pb-time{color:var(--text-dim);font-size:22px;}
-  .pb-pace{font-family:'Courier Prime',monospace;font-size:11px;color:var(--amber);margin-top:2px;}
+  .pb-pace{font-family:'Courier Prime',monospace;font-size:11px;color:var(--amber-dim);margin-top:2px;}
+  [data-theme="dark"] .pb-pace{color:var(--amber);} /* мелкий текст: в светлой теме — темнее, для контраста ≥ 4,5 */
   .pb-meta{font-size:12px;color:var(--text-dim);margin-top:6px;line-height:1.35;}
   .pb-delta{display:inline-block;margin-top:6px;font-family:'Courier Prime',monospace;font-size:10px;padding:1px 6px;border-radius:10px;border:1px solid var(--sage);color:var(--sage);}
   .pb-pred{margin-top:6px;font-size:12px;color:var(--text-dim);font-style:italic;}
