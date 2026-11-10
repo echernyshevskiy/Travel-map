@@ -5,6 +5,7 @@
 const MNAV_MQ = window.matchMedia('(max-width:768px) and (min-height:601px)');
 const MNAV_TITLES = { list: 'Записи', filters: 'Фильтры', add: 'Новая отметка', more: 'Ещё' };
 let mnavTab = 'map';
+let mnavPushed = false; // панель добавила шаг в историю браузера
 function mnavOn(){ return document.body.classList.contains('mnav'); }
 function setListView(view){
   document.body.classList.toggle('list-stats', view === 'stats');
@@ -26,16 +27,20 @@ function mnavShow(tab){
   const title = document.getElementById('mnavSheetTitle');
   if(title) title.textContent = tab === 'add' && editingId ? 'Правка отметки' : (MNAV_TITLES[tab] || '');
   if(changed && tab !== 'map') document.getElementById('sidebar').scrollTop = 0;
-  // «Назад» на Android закрывает панель, а не уходит со страницы
+  // «Назад» на Android закрывает панель, а не уходит со страницы.
+  // Шаг истории общий с окнами (32a-dialogs.js): снимаем его тем же способом,
+  // чтобы открытое поверх окно не закрылось этим переходом.
   if(tab !== 'map' && !wasOpen){
-    try{ history.pushState({ mnavSheet: true }, ''); }catch(e){}
-  } else if(tab === 'map' && wasOpen && history.state && history.state.mnavSheet){
-    try{ history.back(); }catch(e){}
+    mnavPushed = historyPushStep();
+  } else if(tab === 'map' && wasOpen && mnavPushed){
+    mnavPushed = false;
+    historyBackSilently();
   }
 }
 window.addEventListener('popstate', ()=>{
   if(mnavOn() && mnavTab !== 'map'){
     mnavTab = 'map'; // уже ушли назад по истории — второй раз не возвращаемся
+    mnavPushed = false;
     ['list','filters','add','more'].forEach(t => document.body.classList.remove('mtab-' + t));
     document.body.classList.remove('mtab-open');
     document.querySelectorAll('[data-mtab-btn]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.mtabBtn === 'map')));
@@ -57,6 +62,7 @@ function mnavApplyMode(){
     ['list','filters','add','more'].forEach(t => document.body.classList.remove('mtab-' + t));
     document.body.classList.remove('mtab-open');
     mnavTab = 'map';
+    if(mnavPushed){ mnavPushed = false; historyBackSilently(); }
   }
   if(on !== was) setTimeout(()=> map.invalidateSize(), 60);
 }

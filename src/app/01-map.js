@@ -1,6 +1,34 @@
 let map = L.map('map', {worldCopyJump:true});
 const WORLD_VIEW_BOUNDS = [[-58, -170], [78, 170]];
-map.fitBounds(WORLD_VIEW_BOUNDS);
+// Карта открывается там, где её оставили: центр и масштаб запоминаются после
+// каждого сдвига (с задержкой). Нет сохранённого — весь мир, как раньше.
+const MAP_VIEW_KEY = 'travel-map-mapview';
+function readSavedMapView(){
+  try{
+    const v = JSON.parse(localStorage.getItem(MAP_VIEW_KEY) || 'null');
+    if(!v || !isFinite(v.lat) || !isFinite(v.lng) || !isFinite(v.z)) return null;
+    if(Math.abs(v.lat) > 85 || Math.abs(v.lng) > 540 || v.z < 0 || v.z > 19) return null;
+    return { lat: +v.lat, lng: +v.lng, z: Math.round(+v.z) };
+  }catch(e){ return null; }
+}
+const savedMapView = readSavedMapView();
+function applyStartView(){
+  if(savedMapView) map.setView([savedMapView.lat, savedMapView.lng], savedMapView.z, { animate: false });
+  else map.fitBounds(WORLD_VIEW_BOUNDS);
+}
+function mapViewKey(){ const c = map.getCenter(); return c.lat.toFixed(5) + ',' + c.lng.toFixed(5) + ',' + map.getZoom(); }
+applyStartView();
+const startViewKey = mapViewKey();
+let mapViewSaveTimer = null;
+function saveMapViewSoon(){
+  clearTimeout(mapViewSaveTimer);
+  mapViewSaveTimer = setTimeout(()=>{
+    // в квизе «Где это?» и на глобусе вид карты служебный — не запоминаем
+    if(document.body.classList.contains('quiz-map') || document.body.classList.contains('globe-mode')) return;
+    const c = map.getCenter();
+    try{ localStorage.setItem(MAP_VIEW_KEY, JSON.stringify({ lat: +c.lat.toFixed(5), lng: +c.lng.toFixed(5), z: map.getZoom() })); }catch(e){}
+  }, 600);
+}
 
 // OpenStreetMap обновил правила использования плиток и стал отдавать вместо
 // карты картинку «Access blocked». Причин у нас было три:
@@ -92,8 +120,12 @@ let tileFallbackDone = false;
 // make sure Leaflet recalculates size once the container has real dimensions,
 // then re-fit to the world view so the default scale is correct on any screen
 setTimeout(()=>{
+  // если карту за это время уже повели (ссылка на поездку, «показать на карте»),
+  // не возвращаем её на стартовый вид
+  const untouched = mapViewKey() === startViewKey;
   map.invalidateSize();
-  map.fitBounds(WORLD_VIEW_BOUNDS);
+  if(untouched) applyStartView();
+  map.on('moveend', saveMapViewSoon);
 }, 150);
 window.addEventListener('resize', ()=> map.invalidateSize());
 
