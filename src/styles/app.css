@@ -2344,3 +2344,32 @@
   .tt-facts div{border:1px solid var(--line);border-radius:4px;padding:8px 10px;background:var(--panel);}
   .tt-facts small{display:block;font-size:11px;color:var(--text-dim);}
   .tt-facts b{font-family:'Playfair Display',serif;font-style:italic;font-size:15px;}
+
+  /* ---------- кнопки поверх карты: удобная область нажатия ----------
+     Не меньше 40×40 на компьютере и 44×44 на телефоне — по меньшим кнопкам
+     трудно попасть пальцем. Значки остаются прежнего размера, растёт поле вокруг. */
+  #map .leaflet-control-zoom a{width:40px;height:40px;line-height:40px;font-size:20px;}
+  .topo-toggle-btn{min-width:40px;min-height:40px;box-sizing:border-box;}
+  .timeline-bar{padding-top:6px;padding-bottom:6px;}
+  .timeline-bar button{width:40px;height:40px;}
+  #timelineModeBtn{height:40px;}
+  .legend-toggle{min-height:40px;margin-top:-10px;margin-bottom:-2px;}
+  .legend.collapsed{padding-top:0;padding-bottom:0;}
+  .legend.collapsed .legend-toggle{margin:0;}
+  .map-glance.collapsed{min-height:40px;box-sizing:border-box;display:flex;align-items:center;}
+  .compass-rose{top:114px;}
+  @media (max-width:768px){
+    #map .leaflet-control-zoom a{width:44px;height:44px;line-height:44px;font-size:22px;}
+    .topo-toggle-btn{min-width:44px;min-height:44px;}
+    .timeline-bar{padding-top:5px;padding-bottom:5px;}
+    .timeline-bar button{width:44px;height:44px;}
+    #timelineModeBtn{height:44px;}
+    .legend, .map-glance{bottom:72px;}
+    .legend-toggle{min-height:44px;margin-top:-8px;}
+    .legend.collapsed .legend-toggle{margin:0;}
+    .map-glance.collapsed{min-height:44px;}
+    .compass-rose{top:124px;}
+    .quiz-map-panel{left:62px;}
+  }
+  /* заголовок окна получает фокус при открытии — рамка вокруг него не нужна */
+  .modal-overlay [tabindex="-1"]:focus, .story-overlay [tabindex="-1"]:focus{outline:none;}
