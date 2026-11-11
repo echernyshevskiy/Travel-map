@@ -176,7 +176,7 @@ document.getElementById('importInput').addEventListener('change', (e)=>{
             downloadBackup('-до-импорта', true);
             toast('Скачана копия текущих данных перед заменой');
           }catch(err){
-            console.error('pre-import backup failed', err);
+            logError('копия перед импортом', err);
           }
         }
         allEntries = valid;

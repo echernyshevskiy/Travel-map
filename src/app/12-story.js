@@ -34,7 +34,7 @@ function openTripStory(tripName){
     const typeLabel = e.type === 'country' ? 'Страна' : e.type === 'city' ? 'Город' : 'Маршрут';
     const flag = (e.type === 'country' || e.type === 'city') ? countryFlag(e.countryKey) : '';
     html += `
-      <div class="story-card" data-entry-id="${e.id}" ${point ? `data-lat="${point[0]}" data-lng="${point[1]}"` : ''}>
+      <div class="story-card" data-entry-id="${e.id}" ${point ? `data-lat="${point[0] /* html-ok: координаты — числа */}" data-lng="${point[1] /* html-ok: координаты — числа */}"` : ''}>
         ${photo ? `<img src="${escapeAttr(safeUrl(photo))}" class="story-card-img" loading="lazy" data-photo>` : `<div class="story-card-swatch" style="background:${e.color};"></div>`}
         <div class="story-card-body">
           <div class="story-card-step">Остановка ${i+1} из ${entries.length} · ${typeLabel}</div>
@@ -223,7 +223,8 @@ function removeEntryLayer(entry, layer){
 }
 
 function applyFilters(){
-  try{ scheduleMapLabels(); }catch(e){} // набор отметок меняется — пересчитать подписи
+  // набор отметок меняется — пересчитать подписи
+  try{ scheduleMapLabels(); }catch(e){ /* при первом запуске подписи ещё не объявлены — их нарисует свой запуск */ }
   const visible = [];
   allEntries.forEach(entry=>{
     const should = passesFilter(entry);

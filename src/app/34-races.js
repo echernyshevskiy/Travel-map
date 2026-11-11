@@ -147,7 +147,7 @@ function renderRaces(){
   const cancelBtn = document.getElementById('raceCancelBtn');
   if(cancelBtn) cancelBtn.addEventListener('click', ()=>{ editingRaceId = null; finishingRace = false; renderRaces(); });
   // рекорды, медали и графики зависят от стартов — обновляем вместе с таблицей
-  if(document.getElementById('runningModal').style.display === 'flex') try{ renderRunExtras(); }catch(e){ console.warn(e); }
+  if(document.getElementById('runningModal').style.display === 'flex') try{ renderRunExtras(); }catch(e){ logError('забеги: дополнительные блоки', e); }
   const saveBtn = document.getElementById('raceSaveBtn');
   if(saveBtn) saveBtn.addEventListener('click', saveRaceForm);
   bindRaceRowActions(box);

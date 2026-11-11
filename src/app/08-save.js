@@ -142,7 +142,7 @@ function buildActivityBreakdownHtml(byActivity){
   return blocks.map(b => `
     <div class="activity-breakdown">
       <div class="activity-breakdown-title">${b.icon} ${b.title}</div>
-      ${b.rows.map(([label,val]) => `<div class="trip-stat"><span>${label}</span><b>${val}</b></div>`).join('')}
+      ${b.rows.map(([label,val]) => `<div class="trip-stat"><span>${label /* html-ok: подписи — наши строки, значения — числа и время */}</span><b>${val /* html-ok: подписи — наши строки, значения — числа и время */}</b></div>`).join('')}
     </div>
   `).join('');
 }
@@ -154,7 +154,7 @@ document.getElementById('fieldActivity').addEventListener('change', updateHiking
 // баннер «отметить страну» теперь зависит от года — при его смене пересчитываем,
 // иначе на экране осталось бы предложение, относящееся к прежнему году
 document.getElementById('fieldYear').addEventListener('input', ()=>{
-  try{ renderCityCountrySuggest(); }catch(e){}
+  try{ renderCityCountrySuggest(); }catch(e){ logError('предложение отметить страну', e); }
 });
 document.getElementById('fieldCompany').addEventListener('change', updateCommunityVisibility);
 

@@ -98,7 +98,7 @@ function renderRunPBs(perfs){
         ${pred ? `<div class="pb-pred">прогноз ≈ ${formatRaceTime(pred.t)} · ${formatPace(pred.t / d.km)}</div>` : `<div class="pb-pred">ещё не бегали</div>`}</div>`;
     }
     const delta = prev ? best.t - prev.t : null;
-    return `<div class="pb-card has-pb"><div class="pb-dist">${d.label}${count > 1 ? ` · попыток ${count}` : ''}</div>
+    return `<div class="pb-card has-pb"><div class="pb-dist">${d.label}${count > 1 ? ` · попыток ${count /* html-ok: число попыток */}` : ''}</div>
       <div class="pb-time">${formatRaceTime(best.shown)}</div>
       <div class="pb-pace">${formatPace(best.pace)}</div>
       <div class="pb-meta">${escapeHtml(best.name)}<br>${best.approxDate ? best.date.getFullYear() : escapeHtml(fmtRunDate(best.date))}${best.src === 'track' ? ' · по треку' : ''}</div>

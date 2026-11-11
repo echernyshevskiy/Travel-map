@@ -145,7 +145,7 @@ function animateRouteDraw(entry){
     i += step;
     if(!routeAnimLayer){ stopRouteAnim(); return; }
     if(i >= coords.length){
-      try{ routeAnimLayer.setLatLngs(coords); }catch(e){}
+      try{ routeAnimLayer.setLatLngs(coords); }catch(e){ /* анимацию уже сняли с карты — дорисовывать нечего */ }
       // короткая пауза на полной линии, затем убираем — под ней настоящий маршрут
       clearInterval(routeAnimTimer); routeAnimTimer = null;
       setTimeout(stopRouteAnim, 260);
@@ -158,7 +158,7 @@ function animateRouteDraw(entry){
 function stopRouteAnim(){
   if(routeAnimTimer){ clearInterval(routeAnimTimer); routeAnimTimer = null; }
   if(routeAnimLayer){
-    try{ map.removeLayer(routeAnimLayer); }catch(e){}
+    try{ map.removeLayer(routeAnimLayer); }catch(e){ /* линия уже снята */ }
     routeAnimLayer = null;
   }
 }

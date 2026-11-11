@@ -116,7 +116,7 @@ function updateHeat(visibleVisited){
 map.on('moveend', ()=>{ if(heatOn) drawSquares(); });
 document.getElementById('heatChip').addEventListener('click', ()=>{
   heatOn = !heatOn;
-  try{ localStorage.setItem('travel-map-heat', heatOn ? '1' : '0'); }catch(e){}
+  prefSet('travel-map-heat', heatOn ? '1' : '0');
   updateHeat(allEntries.filter(passesFilter).filter(e => e.status !== 'wishlist'));
   if(heatOn) toast(map.getZoom() < 10 ? 'Тепловая карта включена. Приблизьте карту — появятся исследованные квадраты' : 'Тепловая карта включена');
 });

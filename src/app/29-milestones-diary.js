@@ -86,7 +86,7 @@ function renderMilestones(){
   const sorted = reached.slice().sort((a,b)=> (b.at || 0) - (a.at || 0));
   body.innerHTML = sorted.map(m => `
     <div class="milestone"${m.entry ? ` data-ms-id="${escapeAttr(m.entry.id)}" style="cursor:pointer;"` : ''}>
-      <div class="milestone-num">${m.n}</div>
+      <div class="milestone-num">${m.n /* html-ok: число вехи */}</div>
       <div class="milestone-body">
         <div class="milestone-title">${escapeHtml(m.title)}</div>
         <div class="milestone-when">${escapeHtml(m.when)}</div>
@@ -94,10 +94,10 @@ function renderMilestones(){
     </div>`).join('') +
     (pending.length ? `<div class="section-title" style="margin-top:18px;">Впереди</div>` +
       pending.map(p => `<div class="milestone pending">
-        <div class="milestone-num">${p.n}</div>
+        <div class="milestone-num">${p.n /* html-ok: число вехи */}</div>
         <div class="milestone-body">
           <div class="milestone-title">${escapeHtml(p.title)}</div>
-          <div class="milestone-when">осталось ${p.left}</div>
+          <div class="milestone-when">осталось ${p.left /* html-ok: остаток до вехи — число */}</div>
         </div>
       </div>`).join('') : '');
 }

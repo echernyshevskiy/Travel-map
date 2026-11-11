@@ -10,6 +10,7 @@ import js from '@eslint/js';
 import globals from 'globals';
 import fs from 'node:fs';
 import path from 'node:path';
+import escapedHtml from './eslint-html-rule.mjs';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const APP = path.join(ROOT, 'src/app');
@@ -20,17 +21,21 @@ const rules = {
   'no-undef': 'error',
   'no-unused-vars': ['warn', { args: 'none', caughtErrors: 'none', varsIgnorePattern: '^_' }],
   // привычный стиль кода, а не ошибка
-  'no-empty': ['error', { allowEmptyCatch: true }],
+  // пустой catch — только с комментарием «почему можно пропустить»; неожиданные сбои — в журнал (logError)
+  'no-empty': ['error', { allowEmptyCatch: false }],
   'no-useless-escape': 'off',
   'no-control-regex': 'off',
   'no-cond-assign': ['error', 'except-parens'],
   'no-prototype-builtins': 'off',
   'no-misleading-character-class': 'off', // флаги-эмодзи в регулярных выражениях
+  // данные в разметку — только экранированными (scripts/eslint-html-rule.mjs)
+  'travel-map/escaped-html': 'error',
 };
 const eslint = new ESLint({
   cwd: ROOT,
   overrideConfigFile: true,
   overrideConfig: [{
+    plugins: { 'travel-map': { rules: { 'escaped-html': escapedHtml } } },
     languageOptions: {
       ecmaVersion: 2023, sourceType: 'module',
       globals: {

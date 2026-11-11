@@ -35,5 +35,6 @@ import { gtlExtract } from '../lib/timeline-parse.js';
 import { travelerProfile } from '../lib/traveler.js';
 import { parseSeaShapes, seaNear, seaUnits, seaBasin } from '../lib/seas.js';
 import { plugCompat, emergencyLines, timeDiffInfo, formatDiff } from '../lib/country-travel.js';
+import { createErrorLog, formatErrorLog } from '../lib/errlog.js';
 // проекция для режима «Глобус» (только нужные части d3-geo, ~30 КБ)
 import { geoOrthographic, geoPath, geoGraticule10, geoArea, geoCentroid, geoInterpolate } from 'd3-geo';

@@ -275,7 +275,7 @@ function syncLayers(){
     if(e.type !== 'route') return;
     const l = layers[e.id];
     if(l && typeof l.bringToFront === 'function'){
-      try{ l.bringToFront(); }catch(err){}
+      try{ l.bringToFront(); }catch(err){ /* слой ещё не на карте (скрыт фильтром) — поднимать нечего */ }
     }
   });
 }

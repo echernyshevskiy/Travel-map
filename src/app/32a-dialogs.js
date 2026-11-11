@@ -32,7 +32,7 @@ function historyFlush(){
   histSteps.pendingBack -= cancel; histSteps.deferredPush -= cancel;
   while(histSteps.deferredPush > 0){
     histSteps.deferredPush--;
-    try{ history.pushState({ travelMapStep: true }, ''); histSteps.depth++; }catch(e){}
+    try{ history.pushState({ travelMapStep: true }, ''); histSteps.depth++; }catch(e){ logError('шаг истории для окна', e); }
   }
   const n = Math.min(histSteps.pendingBack, histSteps.depth); // дальше своих шагов не уходим
   histSteps.pendingBack = 0;
@@ -71,17 +71,17 @@ function dialogFocusInitial(el){
   const title = el.querySelector('.modal-header h2, h2, h3');
   if(title && title.getClientRects().length){
     if(!title.hasAttribute('tabindex')) title.setAttribute('tabindex', '-1');
-    try{ title.focus({ preventScroll: true }); }catch(e){}
+    try{ title.focus({ preventScroll: true }); }catch(e){ /* старый браузер без preventScroll — фокус не критичен */ }
     if(document.activeElement === title) return;
   }
   const first = dialogFocusables(el)[0];
-  if(first){ try{ first.focus({ preventScroll: true }); }catch(e){} }
+  if(first){ try{ first.focus({ preventScroll: true }); }catch(e){ /* как выше */ } }
 }
 function dialogRestoreFocus(el, opener){
   const a = document.activeElement;
   if(a && a !== document.body && !el.contains(a)) return; // фокус уже увели намеренно
   if(!opener || !opener.isConnected || !opener.getClientRects().length) return;
-  try{ opener.focus({ preventScroll: true }); }catch(e){}
+  try{ opener.focus({ preventScroll: true }); }catch(e){ /* кнопка, открывшая окно, уже исчезла */ }
 }
 
 function dialogOnChange(el){

@@ -78,7 +78,7 @@ function buildGpx(){
       const key = placeKey(nm, c[0], c[1]);
       if(emitted.has(key)) return; // это место уже выгружено как город
       emitted.add(key);
-      parts.push(`  <wpt lat="${c[0]}" lon="${c[1]}">`);
+      parts.push(`  <wpt lat="${c[0] /* html-ok: координаты — числа, проверяются при загрузке */}" lon="${c[1] /* html-ok: координаты — числа, проверяются при загрузке */}">`);
       parts.push(`    <name>${gpxEscape(nm)}</name>`);
       parts.push(`    <desc>${gpxEscape('Точка маршрута: ' + e.name)}</desc>`);
       parts.push('    <sym>Waypoint</sym>');
@@ -114,7 +114,7 @@ function buildGpx(){
         const v = profile[idx];
         if(typeof v === 'number' && isFinite(v)) ele = v;
       }
-      parts.push(`      <trkpt lat="${c[0]}" lon="${c[1]}">${ele != null ? `<ele>${ele.toFixed(1)}</ele>` : ''}${(i === 0 && t) ? `<time>${t}</time>` : ''}</trkpt>`);
+      parts.push(`      <trkpt lat="${c[0] /* html-ok: координаты — числа из трека */}" lon="${c[1] /* html-ok: координаты — числа из трека */}">${ele != null ? `<ele>${ele.toFixed(1)}</ele>` : ''}${(i === 0 && t) ? `<time>${t}</time>` : ''}</trkpt>`);
     });
     parts.push('    </trkseg>');
     parts.push('  </trk>');
@@ -129,7 +129,7 @@ document.getElementById('exportGpxBtn').addEventListener('click', ()=>{
   if(allEntries.length === 0){ toast('Пока нечего экспортировать'); return; }
   let res;
   try{ res = buildGpx(); }
-  catch(err){ console.error('GPX export failed', err); toast('Не удалось собрать GPX'); return; }
+  catch(err){ logError('экспорт GPX', err); toast('Не удалось собрать GPX'); return; }
   if(res.wptCount === 0 && res.trkCount === 0){
     toast('Нет ни маршрутов, ни точек с координатами');
     return;
@@ -201,7 +201,7 @@ function buildKml(){
       regionMarks.push(kmlPlacemark(r.name, [...places].join(', '), '#region', `<MultiGeometry>${kmlPolygons(r.geometry)}</MultiGeometry>`));
       counts.regions++;
     });
-  }catch(e){ console.warn('регионы в KML не попали', e); }
+  }catch(e){ logError('регионы в KML', e); }
   if(regionMarks.length) folders.push(`<Folder><name>Регионы России</name>${regionMarks.join('')}</Folder>`);
 
   // города: одна точка на место, визиты собраны в описании (как в GPX)
@@ -283,7 +283,7 @@ document.getElementById('exportKmlBtn').addEventListener('click', async ()=>{
   if(allEntries.length === 0){ toast('Пока нечего экспортировать'); return; }
   let res;
   try{ res = buildKml(); }
-  catch(err){ console.error('KML export failed', err); toast('Не удалось собрать KML'); return; }
+  catch(err){ logError('экспорт KML', err); toast('Не удалось собрать KML'); return; }
   const c = res.counts;
   const summary = `KML: стран ${c.countries}, регионов ${c.regions}, городов ${c.cities}, маршрутов ${c.routes}${c.plans ? ', планов ' + c.plans : ''}`;
   const fileName = `travel-map-${new Date().toISOString().slice(0,10)}.kml`;

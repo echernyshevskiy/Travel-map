@@ -153,7 +153,7 @@ async function gtlNameUnknown(){
       try{
         const r = await reverseGeocode(p.lat, p.lng);
         if(r && r.name){ p.name = r.name; if(r.countryKey) p.countryKey = r.countryKey; }
-      }catch(e){}
+      }catch(e){ /* нет сети или геокодер не ответил — подсказка ниже */ }
       if(!p.name){
         // геокодер недоступен — подскажем ближайший город той же страны, но название не подставляем
         const c = gtlNearestCity(p.lat, p.lng, 150);

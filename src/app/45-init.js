@@ -69,7 +69,7 @@ const COLLAPSE_KEY = 'travel-map-collapsed';
         const collapsed = body.style.display !== 'none';
         apply(collapsed);
         saved[key] = collapsed;
-        try{ localStorage.setItem(COLLAPSE_KEY, JSON.stringify(saved)); }catch(e){}
+        prefSet(COLLAPSE_KEY, JSON.stringify(saved));
       };
       title.addEventListener('click', toggle);
       title.addEventListener('keydown', e=>{ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggle(); } });
@@ -218,7 +218,7 @@ const STATS_NAV = [['Статистика', 'Сводка'], ['По годам',
   if(!card) return;
   const KEY = 'travel-map-glance-collapsed';
   let saved = null;
-  try{ saved = localStorage.getItem(KEY); }catch(e){}
+  saved = prefGet(KEY);
   const isNarrow = window.matchMedia && window.matchMedia('(max-width:768px)').matches;
   const apply = state => {
     card.classList.toggle('collapsed', state);
@@ -230,7 +230,7 @@ const STATS_NAV = [['Статистика', 'Сводка'], ['По годам',
     if(ev && ev.target && ev.target.closest && ev.target.closest('a')) return;
     const next = !card.classList.contains('collapsed');
     apply(next);
-    try{ localStorage.setItem(KEY, next ? '1' : '0'); }catch(e){}
+    prefSet(KEY, next ? '1' : '0');
   };
   card.addEventListener('click', toggle);
   card.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggle(); } });
@@ -245,7 +245,7 @@ const STATS_NAV = [['Статистика', 'Сводка'], ['По годам',
   if(!legend || !btn || !body) return;
   const KEY = 'travel-map-legend-collapsed';
   let saved = null;
-  try{ saved = localStorage.getItem(KEY); }catch(e){}
+  saved = prefGet(KEY);
   const isNarrow = window.matchMedia && window.matchMedia('(max-width:768px)').matches;
   const collapsed = saved === null ? isNarrow : saved === '1';
   const apply = state => {
@@ -257,7 +257,7 @@ const STATS_NAV = [['Статистика', 'Сводка'], ['По годам',
   btn.addEventListener('click', ()=>{
     const next = !legend.classList.contains('collapsed');
     apply(next);
-    try{ localStorage.setItem(KEY, next ? '1' : '0'); }catch(e){}
+    prefSet(KEY, next ? '1' : '0');
   });
 })();
 
@@ -338,7 +338,7 @@ const STATS_NAV = [['Статистика', 'Сводка'], ['По годам',
       // scrollTo с плавной прокруткой поддерживают не все браузеры (заметно на
       // старых Safari) — там просто прыгаем наверх, лишь бы кнопка работала
       if(typeof sidebarEl.scrollTo === 'function'){
-        try{ sidebarEl.scrollTo({ top: 0, behavior: 'smooth' }); return; }catch(e){}
+        try{ sidebarEl.scrollTo({ top: 0, behavior: 'smooth' }); return; }catch(e){ /* см. выше — прыгаем без анимации */ }
       }
       sidebarEl.scrollTop = 0;
     });
@@ -361,7 +361,7 @@ const STATS_NAV = [['Статистика', 'Сводка'], ['По годам',
         }
       }, 300);
     }
-  }catch(e){}
+  }catch(e){ logError('запуск: ярлык приложения', e); }
 
   // прячем заставку в любом случае — даже если инициализация где-то споткнулась,
   // иначе пользователь останется смотреть на неё вечно

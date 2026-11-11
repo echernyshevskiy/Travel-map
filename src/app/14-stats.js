@@ -191,8 +191,8 @@ function renderNewCountriesChart(){
     const title = n === 0
       ? `${y}: новых стран нет, всего к концу года: ${running}`
       : `${y}: +${n} ${n === 1 ? 'страна' : (n < 5 ? 'страны' : 'стран')}, всего к концу года: ${running}`;
-    return `<div class="year-bar-wrap" title="${title}">
-      <div class="pace-value-label">${n || ''}</div>
+    return `<div class="year-bar-wrap" title="${title /* html-ok: подсказка из чисел */}">
+      <div class="pace-value-label">${n /* html-ok: число */ || ''}</div>
       <div class="year-bar" style="height:${h}px;${n === 0 ? 'background:repeating-linear-gradient(45deg,var(--line),var(--line) 2px,transparent 2px 4px);min-height:3px;' : 'background:var(--amber);'}"></div>
       <div class="year-bar-label">${String(y).slice(2)}</div>
     </div>`;
@@ -240,7 +240,7 @@ function renderContinentStats(visited){
     return `<div class="continent-row">
       <div class="continent-name">${cont}</div>
       <div class="continent-bar-track"><div class="continent-bar-fill" style="width:${pct}%;"></div></div>
-      <div class="continent-pct">${count}/${total} · ${pct}%</div>
+      <div class="continent-pct">${count}/${total /* html-ok: число */} · ${pct}%</div>
     </div>`;
   }).join('');
 }
@@ -256,7 +256,7 @@ function renderTopList(containerId, items){
     <div class="top-item">
       <span class="top-rank">${i+1}</span>
       <span class="top-name">${escapeHtml(name)}</span>
-      <span class="top-count">${count} ${pluralVisits(count)}</span>
+      <span class="top-count">${count /* html-ok: число */} ${pluralVisits(count)}</span>
     </div>
   `).join('');
 }

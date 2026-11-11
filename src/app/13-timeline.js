@@ -66,8 +66,8 @@ function applyTimelineOpacity(){
       if(style) layer.setStyle(style);
     }
   });
-  try{ updateRouteStops(); }catch(err){ console.warn('остановки маршрутов', err); }
-  mapRedrawHooks.forEach(fn => { try{ fn(); }catch(err){ console.warn('перерисовка', err); } });
+  try{ updateRouteStops(); }catch(err){ logError('остановки маршрутов', err); }
+  mapRedrawHooks.forEach(fn => { try{ fn(); }catch(err){ logError('перерисовка карты', err); } });
 }
 
 // Остановки рисуем на самой линии маршрута: координаты остановки — это центр

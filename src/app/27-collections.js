@@ -231,9 +231,9 @@ function renderCollectionDetail(col, idx){
     return `<div class="coll-item${s.got ? ' got' : ''}"><span class="ci-mark">${s.got ? '✓' : ''}</span>
       <span class="ci-name">${flag}${escapeHtml(it.name)}<small>${escapeHtml([sub, s.got && s.year ? (s.year + '') : (s.got ? 'есть' : '')].filter(Boolean).join(' · '))}</small></span>
       <span class="ci-act">${it.uid ? `<a class="cancel-edit" href="https://whc.unesco.org/ru/list/${+it.uid}/" target="_blank" rel="noopener" title="Описание на сайте ЮНЕСКО">ⓘ</a>` : ''}
-        ${it.lat != null ? `<button class="cancel-edit" data-ci-map="${i}" title="Показать на карте">на карте</button>` : ''}
-        ${!s.got && !READ_ONLY && it.kind !== 'region' && it.kind !== 'sea' ? `<button class="cancel-edit" data-ci-plan="${i}" title="Добавить в планы">в планы</button>` : ''}
-        ${col.custom && !READ_ONLY ? `<button class="cancel-edit" data-ci-del="${i}" title="Убрать из коллекции">✕</button>` : ''}</span></div>`;
+        ${it.lat != null ? `<button class="cancel-edit" data-ci-map="${i /* html-ok: номер в списке */}" title="Показать на карте">на карте</button>` : ''}
+        ${!s.got && !READ_ONLY && it.kind !== 'region' && it.kind !== 'sea' ? `<button class="cancel-edit" data-ci-plan="${i /* html-ok: номер в списке */}" title="Добавить в планы">в планы</button>` : ''}
+        ${col.custom && !READ_ONLY ? `<button class="cancel-edit" data-ci-del="${i /* html-ok: номер в списке */}" title="Убрать из коллекции">✕</button>` : ''}</span></div>`;
   };
   // большой список (ЮНЕСКО) — поиск и группы по странам, строки группы рисуются при раскрытии
   let groups = null;
@@ -245,7 +245,7 @@ function renderCollectionDetail(col, idx){
     html += `<div class="hint" style="margin:0 0 8px;">Объект засчитывается, если рядом есть ваша отметка, остановка или трек. Список и описания — на <a href="https://whc.unesco.org/ru/list/" target="_blank" rel="noopener" style="color:inherit;">whc.unesco.org</a>.</div>
       <div class="search-wrap" style="margin-bottom:8px;"><input type="text" id="collSearch" placeholder="Найти объект или страну…" autocomplete="off"></div>
       <div id="collSearchRes"></div><div id="collGroups">` +
-      groups.map((g, gi) => `<details class="coll-cc" data-cc="${gi}"${g.k === HOME_COUNTRY_KEY && g.got ? ' open' : ''}><summary>${g.k ? countryFlag(g.k) + ' ' : ''}${escapeHtml(g.name)}<small>${g.got} из ${g.list.length}</small></summary><div class="coll-cc-body"></div></details>`).join('') + `</div>`;
+      groups.map((g, gi) => `<details class="coll-cc" data-cc="${gi}"${g.k === HOME_COUNTRY_KEY && g.got ? ' open' : ''}><summary>${g.k ? countryFlag(g.k) + ' ' : ''}${escapeHtml(g.name)}<small>${g.got /* html-ok: число */} из ${g.list.length}</small></summary><div class="coll-cc-body"></div></details>`).join('') + `</div>`;
   } else {
     html += order.map(o => row(o)).join('');
   }
@@ -355,7 +355,7 @@ function showCollectionOnMap(col, p){
     mk.addTo(collectionLayer);
   });
   const chip = document.getElementById('collectionChip');
-  chip.innerHTML = `<b>${escapeHtml(col.title)}</b><span>${p.got}/${p.total}</span><button title="Убрать с карты" aria-label="Убрать коллекцию с карты">✕</button>`;
+  chip.innerHTML = `<b>${escapeHtml(col.title)}</b><span>${p.got /* html-ok: числа */}/${p.total /* html-ok: числа */}</span><button title="Убрать с карты" aria-label="Убрать коллекцию с карты">✕</button>`;
   chip.style.display = 'flex';
   chip.querySelector('button').addEventListener('click', hideCollectionOnMap);
   document.getElementById('collectionsModal').style.display = 'none';
