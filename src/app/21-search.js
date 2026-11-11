@@ -193,7 +193,7 @@ function showSearchPin(c) {
     <b class="cpop-name">${escapeHtml(c.name)}</b>
     <div class="cpop-status">${escapeHtml([c.region, ru, c.capital ? 'столица' : '', c.pop ? popText(c.pop) + ' жителей' : ''].filter(Boolean).join(' · '))}</div>
     ${visitedYears.length ? `<div class="cpop-status">Вы были здесь: ${visitedYears.join(', ')}</div>` : own.length ? `<div class="cpop-status">В планах</div>` : ''}
-    ${info.lang ? `<div class="cpop-status" style="font-size:11px;">${escapeHtml(['язык: ' + info.lang, info.currency ? 'валюта: ' + info.currency : ''].filter(Boolean).join(' · '))}</div>` : ''}
+    ${info.lang ? `<div class="cpop-status" style="font-size:var(--fs-1);">${escapeHtml(['язык: ' + info.lang, info.currency ? 'валюта: ' + info.currency : ''].filter(Boolean).join(' · '))}</div>` : ''}
     ${
       READ_ONLY
         ? ''

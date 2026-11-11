@@ -27,7 +27,7 @@ function applyReadOnlyUI() {
   if (h1)
     h1.insertAdjacentHTML(
       'beforeend',
-      " <span style=\"font-size:11px;font-style:normal;font-family:'Twemoji Country Flags','Courier Prime',monospace;background:var(--amber-dim);color:var(--on-accent);padding:2px 7px;border-radius:10px;vertical-align:middle;\">RO · только просмотр</span>"
+      " <span style=\"font-size:var(--fs-1);font-style:normal;font-family:'Twemoji Country Flags','Courier Prime',monospace;background:var(--amber-dim);color:var(--on-accent);padding:2px 7px;border-radius:10px;vertical-align:middle;\">RO · только просмотр</span>"
     );
   const legendVersion = document.getElementById('legendVersion');
   if (legendVersion) {

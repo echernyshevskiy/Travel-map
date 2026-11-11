@@ -18,7 +18,7 @@ function renderHomeRegion() {
 
   const homeIcon = L.divIcon({
     className: '',
-    html: `<div style="font-size:18px;line-height:18px;">🏠</div>`,
+    html: `<div class="home-marker">🏠</div>`,
     iconSize: [18, 18],
     iconAnchor: [9, 9]
   });

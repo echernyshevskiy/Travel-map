@@ -41,7 +41,7 @@ function buildBioSpreadHtml(allStamps) {
             )
             .join('')}</div>`
         : `<div style="display:flex;align-items:center;justify-content:center;padding:48px 0;">
-          <div class="pp-bio-oval" style="position:static;transform:rotate(-6deg);width:60px;height:38px;font-size:12px;">КП</div>
+          <div class="pp-bio-oval" style="position:static;transform:rotate(-6deg);width:60px;height:38px;font-size:var(--fs-2);">КП</div>
         </div>`
     }
     <div class="pp-page-num">— 1 —</div>

@@ -491,7 +491,7 @@ function renderEditWaypoints() {
       return `<div class="waypoint-row${i === editWaypointIndex ? ' wp-editing' : ''}">
       <span class="waypoint-index">${i + 1}</span>
       <span class="waypoint-name">${flag ? flag + ' ' : ''}${escapeHtml(name)}
-        <span style="display:block;font-family:'Twemoji Country Flags','Courier Prime',monospace;font-size:9px;color:var(--text-dim);">${coordText}</span>
+        <span style="display:block;font-family:'Twemoji Country Flags','Courier Prime',monospace;font-size:var(--fs-1);color:var(--text-dim);">${coordText}</span>
       </span>
       <div class="waypoint-actions">
         <button data-wp-edit="${i}" title="Заменить точку" aria-label="Заменить точку">✎</button>

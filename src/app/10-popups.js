@@ -115,7 +115,7 @@ function buildPopup(entry) {
     html += `<br>${albums.map(u => `<a href="${escapeAttr(safeUrl(u))}" target="_blank" rel="noopener">🗂 ${escapeHtml(shortLinkLabel(u))}</a>`).join(' · ')}`;
   }
   if (photos.length > 1 && cover) {
-    html += `<div style="font-family:'Twemoji Country Flags','Courier Prime',monospace;font-size:9px;color:var(--text-dim);margin-top:3px;">фото: ${photos.length}</div>`;
+    html += `<div style="font-family:'Twemoji Country Flags','Courier Prime',monospace;font-size:var(--fs-1);color:var(--text-dim);margin-top:3px;">фото: ${photos.length}</div>`;
   }
   if (entry.instagramUrl) {
     if (cover) {
@@ -134,10 +134,10 @@ function buildPopup(entry) {
   }
   html += `<button type="button" class="popup-inlist-btn" data-popup-act="inlist" data-id="${escapeAttr(entry.id)}">≡ Показать в списке</button>`;
   if (!READ_ONLY && entry.status === 'wishlist') {
-    html += `<button data-popup-act="upgrade" data-id="${escapeAttr(entry.id)}" style="margin-top:9px;width:100%;padding:6px 8px;background:var(--amber);border:none;color:var(--on-accent);border-radius:3px;cursor:pointer;font-size:12px;font-family:'Twemoji Country Flags','EB Garamond',serif;">✓ Отметить как посещённое</button>`;
+    html += `<button data-popup-act="upgrade" data-id="${escapeAttr(entry.id)}" style="margin-top:9px;width:100%;padding:6px 8px;background:var(--amber);border:none;color:var(--on-accent);border-radius:3px;cursor:pointer;font-size:var(--fs-2);font-family:'Twemoji Country Flags','EB Garamond',serif;">✓ Отметить как посещённое</button>`;
   }
   if (!READ_ONLY) {
-    html += `<button data-popup-act="delete" data-id="${escapeAttr(entry.id)}" style="margin-top:9px;width:100%;padding:6px 8px;background:var(--danger);border:none;color:var(--on-accent);border-radius:3px;cursor:pointer;font-size:12px;font-family:'Twemoji Country Flags','EB Garamond',serif;">Удалить отметку</button>`;
+    html += `<button data-popup-act="delete" data-id="${escapeAttr(entry.id)}" style="margin-top:9px;width:100%;padding:6px 8px;background:var(--danger);border:none;color:var(--on-accent);border-radius:3px;cursor:pointer;font-size:var(--fs-2);font-family:'Twemoji Country Flags','EB Garamond',serif;">Удалить отметку</button>`;
   }
   html += `</div>`;
   return html;

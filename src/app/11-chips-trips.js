@@ -214,7 +214,7 @@ function renderTripCard(tripName) {
       ${
         READ_ONLY
           ? meta.narrative
-            ? `<label class="trip-sublabel">О поездке</label><p style="font-style:italic;font-size:13px;color:var(--text);line-height:1.6;">${escapeHtml(meta.narrative)}</p>`
+            ? `<label class="trip-sublabel">О поездке</label><p style="font-style:italic;font-size:var(--fs-3);color:var(--text);line-height:1.6;">${escapeHtml(meta.narrative)}</p>`
             : ''
           : `
         <label class="trip-sublabel">О поездке</label>
