@@ -91,6 +91,7 @@
   }
   header h1 span{color:var(--amber);}
   .header-actions{display:flex;align-items:center;gap:16px;}
+  .more-group-title{display:none;}
   .stats{
     display:flex;
     gap:18px;
@@ -873,7 +874,7 @@
   }
   .diag-merge button{
     flex-shrink:0;
-    background:var(--panel-raised);border:1px solid var(--amber-dim);
+    background:var(--panel);border:1px solid var(--amber-dim); /* на --panel-raised контраст был 3,7 : 1 */
     color:var(--amber);font-family:'Twemoji Country Flags','EB Garamond',serif;font-size:11.5px;
     padding:5px 11px;border-radius:4px;cursor:pointer;
   }
@@ -1440,7 +1441,19 @@
   }
   .diag-dismiss:hover{border-color:var(--sage);color:var(--sage);}
   .diag-row .diag-row-meta{color:var(--text-dim);font-size:11.5px;margin-top:2px;font-family:'Twemoji Country Flags','Courier Prime',monospace;}
-  .diag-empty{font-size:12.5px;color:var(--text-dim);font-style:italic;padding:2px 2px 4px;}
+  /* разделы проверки без находок — одной строкой внизу */
+  .diag-clean details > summary{
+    cursor:pointer;font-size:13px;color:var(--text-dim);list-style:none;
+    display:flex;align-items:center;gap:8px;min-height:32px;
+  }
+  .diag-clean details > summary::-webkit-details-marker{display:none;}
+  .diag-clean details > summary::after{content:'▸';margin-left:auto;font-size:11px;}
+  .diag-clean details[open] > summary::after{content:'▾';}
+  .diag-all-clean{margin:0 0 6px;font-size:14px;color:var(--text);}
+  .diag-clean-list{margin:6px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;}
+  .diag-clean-list li{font-size:12.5px;line-height:1.45;}
+  .diag-clean-list b{display:block;font-weight:600;color:var(--text);}
+  .diag-clean-list span{color:var(--text-dim);}
   .passport-book{
     padding:14px 20px 4px;
     display:flex;justify-content:center;
@@ -2219,7 +2232,27 @@
       width:100%;padding:12px 10px;font-size:14px;white-space:normal;text-align:center;
     }
     body.mnav #moreActionsSlot .header-menu-wrap{display:contents;}
-    body.mnav #moreActionsSlot #openTableBtn{grid-column:1 / -1;}
+    /* три группы: «Данные», «Итоги», «Фото, квиз и бег»; внутри — от частого к редкому */
+    body.mnav #moreActionsSlot .more-group-title{display:block;grid-column:1 / -1;margin:10px 0 0;}
+    body.mnav #moreActionsSlot #moreGroupData{order:10;margin-top:0;}
+    body.mnav #moreActionsSlot #openTableBtn{order:11;}
+    body.mnav #moreActionsSlot #openPhotoImportBtn{order:12;}
+    body.mnav #moreActionsSlot #openDiagnosticsBtn{order:13;}
+    body.mnav #moreActionsSlot #openChangelogBtn{order:14;}
+    body.mnav #moreActionsSlot #moreGroupSummary{order:20;}
+    body.mnav #moreActionsSlot #openPassportBtn{order:21;}
+    body.mnav #moreActionsSlot #openRecapBtn{order:22;}
+    body.mnav #moreActionsSlot #openCalendarBtn{order:23;}
+    body.mnav #moreActionsSlot #openCollectionsBtn{order:24;}
+    body.mnav #moreActionsSlot #openMilestonesBtn{order:25;}
+    body.mnav #moreActionsSlot #openCompareBtn{order:26;}
+    body.mnav #moreActionsSlot #openDiaryBtn{order:27;}
+    body.mnav #moreActionsSlot #openTravelerBtn{order:28;}
+    body.mnav #moreActionsSlot #exportSnapshotBtn{order:29;}
+    body.mnav #moreActionsSlot #moreGroupOther{order:30;}
+    body.mnav #moreActionsSlot #openGalleryBtn{order:31;}
+    body.mnav #moreActionsSlot #openQuizBtn{order:32;}
+    body.mnav #moreActionsSlot #openRunningBtn{order:33;}
     /* выпадающее «Итоги» внутри панели не нужно: его пункты стоят прямо в сетке */
     body.mnav #moreActionsSlot #openSummaryMenu{display:none;}
     body.mnav #moreActionsSlot .header-menu{display:contents !important;}

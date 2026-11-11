@@ -109,6 +109,10 @@ window.addEventListener('unhandledrejection', function(e){
       <span>Маршрутов <b id="statRoutes">0</b></span>
       <span>Всего км <b id="statKm">0</b></span>
     </div>
+    <!-- подзаголовки групп видны только во вкладке «Ещё» на телефоне; порядок кнопок там задаёт CSS -->
+    <p class="section-title more-group-title" id="moreGroupData" role="heading" aria-level="3">Данные</p>
+    <p class="section-title more-group-title" id="moreGroupSummary" role="heading" aria-level="3">Итоги</p>
+    <p class="section-title more-group-title" id="moreGroupOther" role="heading" aria-level="3">Фото, квиз и бег</p>
     <button id="openTableBtn" class="header-btn">Таблица отметок</button>
     <div class="header-menu-wrap">
       <button id="openSummaryMenu" class="header-btn" aria-haspopup="true" aria-expanded="false">Итоги ▾</button>
@@ -143,7 +147,6 @@ window.addEventListener('unhandledrejection', function(e){
       <button id="mnavCloseBtn" title="Закрыть панель" aria-label="Закрыть панель и вернуться к карте">✕</button>
     </div>
     <div class="section" id="moreSection" data-mtab="more">
-      <p class="section-title">Разделы</p>
       <div id="moreActionsSlot"></div>
     </div>
 
