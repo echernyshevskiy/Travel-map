@@ -13,6 +13,7 @@
 | `src/app/NN-*.js` | код приложения по разделам (карта, список, синхронизация, бег…); сборщик склеивает их по порядку номеров в один модуль |
 | `src/lib/` | независимая логика — настоящие ES-модули с `export`: геометрия и треки (`geo.js`), форматирование, названия и даты (`format.js`), подсчёт визитов (`visits.js`), слияние при синхронизации (`sync-merge.js`), разбор выгрузок Google (`timeline-parse.js`), «тип путешественника» (`traveler.js`), «на каком море город» (`seas.js`), компактные контуры (`geo-pack.js`), журнал ошибок (`errlog.js`) |
 | `scripts/lint.mjs`, `scripts/eslint-html-rule.mjs` | проверка кода и правило «данные в разметку — только экранированными» |
+| `.prettierrc.json`, `.prettierignore` | оформление кода (Prettier) и что им не трогать |
 | `src/main.js` | точка входа: Leaflet, кластеры, стили, приложение |
 | `src/data/` | справочники: границы стран, регионы России, города, сведения о странах, объекты ЮНЕСКО (`unesco.json`) |
 | `scripts/build-unesco.mjs` | пересборка `src/data/unesco.json` при обновлении списка ЮНЕСКО (точки объектов + файлы «id\|русское название») |
@@ -44,6 +45,7 @@ npm ci
 npm run build          # index.html в корне
 npm run build:friends -- --data backup.json   # friends/index.html из файла данных
 npm run lint          # проверка кода
+npm run format        # оформить код (Prettier); npm run format:check — только проверить
 npm run test:unit     # модульные тесты src/lib
 npx playwright install chromium && npm test
 ```
@@ -82,6 +84,13 @@ npx playwright install chromium && npm test
 функции и переменные, явные ошибки. Разделы `src/app/` проверяются склеенными — так же, как их
 собирает Vite, — а номера строк в отчёте указывают на исходные файлы. Процесс «Тесты» запускает
 проверку первой: опечатка в имени функции остановит выкладку до того, как сломается карта.
+
+**Оформление кода** — Prettier (`.prettierrc.json`: строки до 160 знаков, одинарные кавычки).
+`npm run format` оформляет исходники, `npm run format:check` только проверяет — так делает и
+процесс «Тесты», сразу после ESLint. Не оформляются готовые файлы сборки, справочники
+`src/data/`, сторонний код и `src/index.html` (`.prettierignore`). Коммит, который только
+переформатировал код, записан в `.git-blame-ignore-revs`: GitHub показывает «кто менял строку»
+в обход него, локально — после `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
 
 Два правила проекта сверх обычных:
 
