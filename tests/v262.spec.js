@@ -4,37 +4,75 @@ const { openApp, expectNoErrors, sampleEntries } = require('./helpers');
 
 const broken = () => [
   ...sampleEntries(),
-  null, 'строка', 42, { id: 'p1', type: 'planet', name: 'Марс', year: 2030 },
+  null,
+  'строка',
+  42,
+  { id: 'p1', type: 'planet', name: 'Марс', year: 2030 },
   { id: 'nc', type: 'city', name: 'Без координат', lat: null, lng: null, year: 2019, status: 'visited', photos: [] },
   { id: 'dup', type: 'city', name: 'Первый', lat: 44, lng: 44, year: 2016, status: 'visited', photos: [] },
   { id: 'dup', type: 'city', name: 'Второй', lat: 44.2, lng: 44.2, year: 2016, status: 'visited', photos: 'не массив' },
-  { id: 'rw', type: 'route', name: 'Кривые точки', year: 2022, coordsEncoded: '', distanceKm: 'много', waypointNames: ['A', 'B'], waypointCoords: [[55, 37], ['x']], waypointCountryKeys: 'Russia' },
+  {
+    id: 'rw',
+    type: 'route',
+    name: 'Кривые точки',
+    year: 2022,
+    coordsEncoded: '',
+    distanceKm: 'много',
+    waypointNames: ['A', 'B'],
+    waypointCoords: [[55, 37], ['x']],
+    waypointCountryKeys: 'Russia'
+  }
 ];
 
 test('битые записи откладываются, остальное работает; одинаковые id разводятся', async ({ page }) => {
-  const { errors } = await openApp(page, { entries: broken(), tripMeta: { '__collection:c': { kind: 'collection', name: 'Моя', createdAt: 1,
-    items: [null, { kind: 'city', name: 'Мусор', lat: 'x', lng: null }, { kind: 'city', name: 'Казань', lat: 55.79, lng: 49.12 }, { kind: 'country', key: 'Georgia' }] } } });
+  const { errors } = await openApp(page, {
+    entries: broken(),
+    tripMeta: {
+      '__collection:c': {
+        kind: 'collection',
+        name: 'Моя',
+        createdAt: 1,
+        items: [
+          null,
+          { kind: 'city', name: 'Мусор', lat: 'x', lng: null },
+          { kind: 'city', name: 'Казань', lat: 55.79, lng: 49.12 },
+          { kind: 'country', key: 'Georgia' }
+        ]
+      }
+    }
+  });
   const s = await page.evaluate(() => ({
     n: allEntries.length,
     ids: new Set(allEntries.map(e => e.id)).size,
     dup: allEntries.filter(e => e.name === 'Первый' || e.name === 'Второй').map(e => e.id),
     q: JSON.parse(localStorage.getItem('travel-map-quarantine') || '[]').length,
     saved: JSON.parse(localStorage.getItem('travel-map-data')).entries.length,
-    rw: allEntries.find(e => e.id === 'rw').waypointCoords,
+    rw: allEntries.find(e => e.id === 'rw').waypointCoords
   }));
   expect(s.n).toBe(sampleEntries().length + 4);
   expect(s.ids).toBe(s.n);
-  expect(s.dup[0]).toBe('dup'); expect(s.dup[1]).not.toBe('dup');
+  expect(s.dup[0]).toBe('dup');
+  expect(s.dup[1]).not.toBe('dup');
   expect(s.q).toBe(4);
   expect(s.saved).toBe(s.n);
   expect(s.rw).toEqual([[55, 37], null]);
   // экраны рисуются
-  await page.evaluate(() => { renderList(); renderTable(); renderDiagnostics(); renderPassport(); renderTraveler(); });
+  await page.evaluate(() => {
+    renderList();
+    renderTable();
+    renderDiagnostics();
+    renderPassport();
+    renderTraveler();
+  });
   // город без координат: вместо ошибки — подсказка
   await page.evaluate(() => focusEntry(allEntries.find(e => e.id === 'nc')));
   await expect(page.locator('#toast')).toContainText('нет места на карте');
   // своя коллекция: мусорные пункты не показываются, «✕» убирает именно тот пункт
-  await page.evaluate(() => { collectionOpenId = '__collection:c'; renderCollections(); document.getElementById('collectionsModal').style.display = 'flex'; });
+  await page.evaluate(() => {
+    collectionOpenId = '__collection:c';
+    renderCollections();
+    document.getElementById('collectionsModal').style.display = 'flex';
+  });
   await expect(page.locator('#collectionsBody .coll-item')).toHaveCount(2);
   await page.locator('#collectionsBody .coll-item', { hasText: 'Казань' }).locator('[data-ci-del]').click();
   await expect.poll(() => page.evaluate(() => tripMeta['__collection:c'].items.map(i => i.name || i.key))).toEqual(['Georgia']);
@@ -48,8 +86,11 @@ test('переполненное хранилище: кэш геокодера �
     const orig = Storage.prototype.setItem;
     let first = true;
     // первая запись данных — «нет места», пока кэш не убран
-    Storage.prototype.setItem = function(k, v){
-      if(k === 'travel-map-data' && first && this.getItem('travel-map-geocache')){ first = false; throw new DOMException('full', 'QuotaExceededError'); }
+    Storage.prototype.setItem = function (k, v) {
+      if (k === 'travel-map-data' && first && this.getItem('travel-map-geocache')) {
+        first = false;
+        throw new DOMException('full', 'QuotaExceededError');
+      }
       return orig.call(this, k, v);
     };
     allEntries[0].notes = 'после переполнения';
@@ -82,7 +123,10 @@ test('резервная копия JSON и CSV: в файлах все запи
 test('снимок карты в PNG скачивается', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
   const { errors } = await openApp(page);
-  const [png] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), page.evaluate(() => document.getElementById('exportSnapshotBtn').click())]);
+  const [png] = await Promise.all([
+    page.waitForEvent('download', { timeout: 20000 }),
+    page.evaluate(() => document.getElementById('exportSnapshotBtn').click())
+  ]);
   const buf = fs.readFileSync(await png.path());
   expect(buf.slice(1, 4).toString()).toBe('PNG');
   expect(buf.length).toBeGreaterThan(20000);
@@ -92,13 +136,22 @@ test('снимок карты в PNG скачивается', async ({ page }, i
 test('добавление через форму без сети: город и страна из подсказок, маршрут по городам', async ({ page }) => {
   const { errors } = await openApp(page);
   const before = await page.evaluate(() => allEntries.length);
-  await page.evaluate(() => { mnavShow && mnavShow('add'); });
+  await page.evaluate(() => {
+    mnavShow && mnavShow('add');
+  });
   // город
   await page.evaluate(() => document.querySelector('.type-btn[data-type="city"]').click());
   await page.fill('#citySearch', 'Самар');
   await page.locator('#citySuggest .suggest-item', { hasText: 'Самара' }).first().click();
   await page.evaluate(() => document.getElementById('saveBtn').click());
-  await expect.poll(() => page.evaluate(() => { const e = allEntries.find(x => x.name === 'Самара'); return e && [e.type, e.countryKey, Math.round(e.lat)]; })).toEqual(['city', 'Russia', 53]);
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const e = allEntries.find(x => x.name === 'Самара');
+        return e && [e.type, e.countryKey, Math.round(e.lat)];
+      })
+    )
+    .toEqual(['city', 'Russia', 53]);
   // страна
   await page.evaluate(() => document.querySelector('.type-btn[data-type="country"]').click());
   await page.fill('#countrySearch', 'Финл');
@@ -108,12 +161,24 @@ test('добавление через форму без сети: город и 
   // маршрут по городам: без сервиса дорог — прямыми отрезками
   await page.evaluate(() => document.querySelector('.type-btn[data-type="route"]').click());
   await page.evaluate(() => document.querySelector('[data-source="cities"]').click());
-  for(const [q, name] of [['Самар', 'Самара'], ['Тольят', 'Тольятти'], ['Сызра', 'Сызрань']]){
+  for (const [q, name] of [
+    ['Самар', 'Самара'],
+    ['Тольят', 'Тольятти'],
+    ['Сызра', 'Сызрань']
+  ]) {
     await page.fill('#routeCitySearch', q);
     await page.locator('#routeCitySuggest .suggest-item', { hasText: name }).first().click();
   }
   await page.evaluate(() => document.getElementById('saveBtn').click());
-  await expect.poll(() => page.evaluate(() => { const e = allEntries.find(x => x.type === 'route' && x.waypointNames && x.waypointNames[0] === 'Самара'); return e && [e.waypointNames.length, e.isEstimated, e.distanceKm > 50]; }), { timeout: 15000 })
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const e = allEntries.find(x => x.type === 'route' && x.waypointNames && x.waypointNames[0] === 'Самара');
+          return e && [e.waypointNames.length, e.isEstimated, e.distanceKm > 50];
+        }),
+      { timeout: 15000 }
+    )
     .toEqual([3, true, true]);
   expect(await page.evaluate(() => allEntries.length)).toBe(before + 3);
   await expectNoErrors(errors);
@@ -121,9 +186,30 @@ test('добавление через форму без сети: город и 
 
 test('история поездки, паспорт и порядок точек в поездке', async ({ page }) => {
   const { sampleEntries: se } = require('./helpers');
-  const entries = [...se(), { id: 'ci_mt', type: 'city', name: 'Мцхета', year: 2023, month: 5, lat: 41.84, lng: 44.72, countryKey: 'Georgia', color: '#3F5240', trip: 'Кавказ 2023', tripOrder: 2, status: 'visited', photos: [], purpose: 'tourism' }];
+  const entries = [
+    ...se(),
+    {
+      id: 'ci_mt',
+      type: 'city',
+      name: 'Мцхета',
+      year: 2023,
+      month: 5,
+      lat: 41.84,
+      lng: 44.72,
+      countryKey: 'Georgia',
+      color: '#3F5240',
+      trip: 'Кавказ 2023',
+      tripOrder: 2,
+      status: 'visited',
+      photos: [],
+      purpose: 'tourism'
+    }
+  ];
   const { errors } = await openApp(page, { entries });
-  await page.evaluate(() => { const t = allEntries.find(e => e.id === 'ci_tb'); t.tripOrder = 1; });
+  await page.evaluate(() => {
+    const t = allEntries.find(e => e.id === 'ci_tb');
+    t.tripOrder = 1;
+  });
   await page.evaluate(() => openTripStory('Кавказ 2023'));
   await expect(page.locator('#storyModal')).toBeVisible();
   await expect(page.locator('#storyFeed')).toContainText('Мцхета');
@@ -144,7 +230,11 @@ test('история поездки, паспорт и порядок точек
 test('старт: добавление с проверкой ввода, процент обогнанных', async ({ page }) => {
   const { errors } = await openApp(page);
   const n0 = await page.evaluate(() => races.length);
-  await page.evaluate(() => { document.getElementById('openRunningBtn').click(); editingRaceId = 'new'; renderRaces(); });
+  await page.evaluate(() => {
+    document.getElementById('openRunningBtn').click();
+    editingRaceId = 'new';
+    renderRaces();
+  });
   await page.fill('#raceName', 'Тестовый полумарафон');
   await page.fill('#raceDate', '2025-05-18');
   await page.fill('#raceDist', '21.1');
@@ -153,7 +243,8 @@ test('старт: добавление с проверкой ввода, про�
   await page.evaluate(() => document.getElementById('raceSaveBtn').click());
   await expect(page.locator('#toast')).toContainText('Время не распознано');
   await page.fill('#raceTime', '1:45:30');
-  await page.fill('#racePlace', '500'); await page.fill('#raceTotal', '400');
+  await page.fill('#racePlace', '500');
+  await page.fill('#raceTotal', '400');
   await page.evaluate(() => document.getElementById('raceSaveBtn').click());
   await expect(page.locator('#toast')).toContainText('Место не может быть больше');
   await page.fill('#raceTotal', '2000');
@@ -168,11 +259,20 @@ test('старт: добавление с проверкой ввода, про�
 test('старты: ✓ и ✎ открывают форму на виду, курсор — в нужном поле', async ({ page }) => {
   const { sampleRaces } = require('./helpers');
   // длинный список состоявшихся — форма рисуется под ним
-  const races = [...sampleRaces(), ...Array.from({ length: 12 }, (_, i) => ({ id: 'd' + i, name: 'Старт ' + i, date: `20${10 + i}-05-01`, distanceKm: 10, time: '50:00', status: 'done' })),
-    { id: 'up1', name: 'Будущий', date: '2027-04-20', distanceKm: 21.1, status: 'upcoming' }];
+  const races = [
+    ...sampleRaces(),
+    ...Array.from({ length: 12 }, (_, i) => ({ id: 'd' + i, name: 'Старт ' + i, date: `20${10 + i}-05-01`, distanceKm: 10, time: '50:00', status: 'done' })),
+    { id: 'up1', name: 'Будущий', date: '2027-04-20', distanceKm: 21.1, status: 'upcoming' }
+  ];
   const { errors } = await openApp(page, { races });
   await page.evaluate(() => document.getElementById('openRunningBtn').click());
-  const inView = () => page.evaluate(() => { const f = document.querySelector('.race-form'); if(!f) return false; const b = f.getBoundingClientRect(); return b.top >= 0 && b.top < innerHeight - 40; });
+  const inView = () =>
+    page.evaluate(() => {
+      const f = document.querySelector('.race-form');
+      if (!f) return false;
+      const b = f.getBoundingClientRect();
+      return b.top >= 0 && b.top < innerHeight - 40;
+    });
   await page.locator('[data-race-finish="up1"]').click();
   await expect.poll(inView).toBe(true);
   await expect(page.locator('#raceTime')).toBeFocused();

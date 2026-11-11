@@ -29,47 +29,61 @@ const rules = {
   'no-prototype-builtins': 'off',
   'no-misleading-character-class': 'off', // флаги-эмодзи в регулярных выражениях
   // данные в разметку — только экранированными (scripts/eslint-html-rule.mjs)
-  'travel-map/escaped-html': 'error',
+  'travel-map/escaped-html': 'error'
 };
 const eslint = new ESLint({
   cwd: ROOT,
   overrideConfigFile: true,
-  overrideConfig: [{
-    plugins: { 'travel-map': { rules: { 'escaped-html': escapedHtml } } },
-    languageOptions: {
-      ecmaVersion: 2023, sourceType: 'module',
-      globals: {
-        ...globals.browser,
-        L: 'readonly',                    // Leaflet (src/vendor/leaflet-global.js)
-        XLSX: 'readonly',                 // SheetJS — подгружается по требованию при экспорте в Excel
-        showFatalErrorBanner: 'readonly', // из классического скрипта в <head> index.html
+  overrideConfig: [
+    {
+      plugins: { 'travel-map': { rules: { 'escaped-html': escapedHtml } } },
+      languageOptions: {
+        ecmaVersion: 2023,
+        sourceType: 'module',
+        globals: {
+          ...globals.browser,
+          L: 'readonly', // Leaflet (src/vendor/leaflet-global.js)
+          XLSX: 'readonly', // SheetJS — подгружается по требованию при экспорте в Excel
+          showFatalErrorBanner: 'readonly' // из классического скрипта в <head> index.html
+        }
       },
-    },
-    rules,
-  }],
+      rules
+    }
+  ]
 });
 
 // склейка разделов с таблицей «строка склейки → файл и строка»
-const parts = fs.readdirSync(APP).filter(f => /^\d\d[\w-]*\.js$/.test(f)).sort();
-let code = '', line = 1;
+const parts = fs
+  .readdirSync(APP)
+  .filter(f => /^\d\d[\w-]*\.js$/.test(f))
+  .sort();
+let code = '',
+  line = 1;
 const spans = [];
-for(const f of parts){
+for (const f of parts) {
   const src = fs.readFileSync(path.join(APP, f), 'utf8').replace(/\n?$/, '\n');
   spans.push({ file: 'src/app/' + f, from: line });
   code += src;
   line += src.split('\n').length - 1;
 }
-const where = l => { let s = spans[0]; for(const x of spans) if(x.from <= l) s = x; return { file: s.file, line: l - s.from + 1 }; };
+const where = l => {
+  let s = spans[0];
+  for (const x of spans) if (x.from <= l) s = x;
+  return { file: s.file, line: l - s.from + 1 };
+};
 
 const results = [];
 const [app] = await eslint.lintText(code, { filePath: path.join(APP, 'index.js') });
 app.messages.forEach(m => results.push({ ...where(m.line), col: m.column, sev: m.severity, msg: m.message, rule: m.ruleId }));
-for(const r of await eslint.lintFiles(['src/lib/*.js'])){
-  r.messages.forEach(m => results.push({ file: path.relative(ROOT, r.filePath), line: m.line, col: m.column, sev: m.severity, msg: m.message, rule: m.ruleId }));
+for (const r of await eslint.lintFiles(['src/lib/*.js'])) {
+  r.messages.forEach(m =>
+    results.push({ file: path.relative(ROOT, r.filePath), line: m.line, col: m.column, sev: m.severity, msg: m.message, rule: m.ruleId })
+  );
 }
 
 results.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
-for(const r of results) console.log(`${r.sev === 2 ? 'ошибка' : 'внимание'}  ${r.file}:${r.line}:${r.col}  ${r.msg}  (${r.rule})`);
-const errors = results.filter(r => r.sev === 2).length, warns = results.length - errors;
+for (const r of results) console.log(`${r.sev === 2 ? 'ошибка' : 'внимание'}  ${r.file}:${r.line}:${r.col}  ${r.msg}  (${r.rule})`);
+const errors = results.filter(r => r.sev === 2).length,
+  warns = results.length - errors;
 console.log(errors || warns ? `\nошибок: ${errors}, предупреждений: ${warns}` : 'Код чистый: ошибок и предупреждений нет');
 process.exit(errors ? 1 : 0);

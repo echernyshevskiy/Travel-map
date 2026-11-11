@@ -7,21 +7,33 @@ const { openApp, expectNoErrors, ROOT } = require('./helpers');
 
 // кадр с отметкой времени раньше нажатия — так бывает на живом браузере
 // (отметка кадра — его начало); раньше это давало рывок в обратную сторону
-const earlyFrames = page => page.evaluate(() => {
-  const raf = window.requestAnimationFrame.bind(window);
-  window.requestAnimationFrame = cb => raf(ts => cb(Math.min(ts, performance.now() - 40)));
-});
+const earlyFrames = page =>
+  page.evaluate(() => {
+    const raf = window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame = cb => raf(ts => cb(Math.min(ts, performance.now() - 40)));
+  });
 
 test('глобус: «−» у предела приближения отдаляет, а не выкидывает на плоскую карту', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'клавиатура — на ПК');
   const { errors } = await openApp(page);
   await page.click('#globeToggleBtn');
   await expect(page.locator('#globeCanvas')).toBeVisible();
-  await page.evaluate(() => { globe.proj.rotate([-43, -42, 0]); globe.proj.scale(globeMaxScale() * 0.985); globeDraw(); });
+  await page.evaluate(() => {
+    globe.proj.rotate([-43, -42, 0]);
+    globe.proj.scale(globeMaxScale() * 0.985);
+    globeDraw();
+  });
   await earlyFrames(page);
   const s0 = await page.evaluate(() => {
-    window.__max = 0; const orig = globe.proj.scale.bind(globe.proj);
-    globe.proj.scale = function(v){ if(arguments.length){ __max = Math.max(__max, v); return orig(v); } return orig(); };
+    window.__max = 0;
+    const orig = globe.proj.scale.bind(globe.proj);
+    globe.proj.scale = function (v) {
+      if (arguments.length) {
+        __max = Math.max(__max, v);
+        return orig(v);
+      }
+      return orig();
+    };
     return globe.proj.scale();
   });
   await page.keyboard.press('-');
@@ -38,10 +50,15 @@ test('глобус: перелёт и инерция не дёргаются н�
   await expect(page.locator('#globeCanvas')).toBeVisible();
   await earlyFrames(page);
   const r = await page.evaluate(async () => {
-    globe.proj.rotate([0, 0, 0]); globe.proj.scale(globeFitScale()); globeDraw();
+    globe.proj.rotate([0, 0, 0]);
+    globe.proj.scale(globeFitScale());
+    globeDraw();
     const lons = [];
     globeFlyTo([60, 0], globeFitScale(), 300);
-    for(let i = 0; i < 25; i++){ await new Promise(res => requestAnimationFrame(() => res())); lons.push(-globe.proj.rotate()[0]); }
+    for (let i = 0; i < 25; i++) {
+      await new Promise(res => requestAnimationFrame(() => res()));
+      lons.push(-globe.proj.rotate()[0]);
+    }
     // долгота центра растёт монотонно к 60°, без шага назад
     const back = lons.some((v, i) => i && v < lons[i - 1] - 1e-6);
     globeStartInertia(0.5, 0);
@@ -61,10 +78,10 @@ test('шрифты интерфейса — свои файлы рядом с п
   expect(html).not.toMatch(/fonts\.(googleapis|gstatic)\.com/);
   const urls = [...html.matchAll(/url\(fonts\/([^?)]+)\?v=([0-9a-f]{8})\)/g)];
   expect(urls.length).toBeGreaterThanOrEqual(25);
-  for(const [, name] of urls) expect(fs.existsSync(path.join(ROOT, 'fonts', name)), name).toBe(true);
-  for(const fam of ['Playfair Display', 'EB Garamond', 'Courier Prime']) expect(html).toContain(`font-family:'${fam}'`);
+  for (const [, name] of urls) expect(fs.existsSync(path.join(ROOT, 'fonts', name)), name).toBe(true);
+  for (const fam of ['Playfair Display', 'EB Garamond', 'Courier Prime']) expect(html).toContain(`font-family:'${fam}'`);
   const friends = fs.readFileSync(path.join(ROOT, 'friends/index.html'), 'utf8');
-  if(friends.includes('appFonts')) expect(friends).not.toMatch(/url\(fonts\//);
+  if (friends.includes('appFonts')) expect(friends).not.toMatch(/url\(fonts\//);
 });
 
 test('превью ссылки: полные адреса картинки и страницы', async ({}, info) => {

@@ -36,7 +36,11 @@ test('коллекции в версии для друзей — только п
   await expectNoErrors(errors);
 });
 
-for(const [file, label] of [['timeline-android.json', 'Android'], ['timeline-ios.json', 'iPhone'], ['timeline-takeout.json', 'Takeout']]){
+for (const [file, label] of [
+  ['timeline-android.json', 'Android'],
+  ['timeline-ios.json', 'iPhone'],
+  ['timeline-takeout.json', 'Takeout']
+]) {
   test(`импорт Google Maps (${label}): поездки, страны, добавление`, async ({ page }, info) => {
     test.skip(info.project.name !== 'desktop' && label !== 'Android', 'раскладку проверяем на одном формате');
     const { errors } = await openApp(page, { entries: [] });

@@ -48,7 +48,7 @@ tester.run('escaped-html', rule, {
     'const up = races.map(r => ({ r, left: daysUntil(r.date) })).filter(x => x.left >= 0)[0]; const daysUntil = d => 5; el.innerHTML = `<b>${up.left}</b>`;',
     'const rows = []; list.forEach(d => rows.push({ label: "x", entry: d, count: d.items.length })); el.innerHTML = rows.map(r => `<b>${r.label} ${r.count}</b>`).join("");',
     // reduce по числам
-    'const total = list.reduce((s, e) => s + e.n.length, 0); el.innerHTML = `<b>${total}</b>`;',
+    'const total = list.reduce((s, e) => s + e.n.length, 0); el.innerHTML = `<b>${total}</b>`;'
   ],
   invalid: [
     bad('el.innerHTML = `<b>${entry.name}</b>`;'),
@@ -75,6 +75,6 @@ tester.run('escaped-html', rule, {
     // а соседнее поле с данными — нет
     bad('const rows = []; list.forEach(d => rows.push({ label: d.name, count: 1 })); el.innerHTML = rows.map(r => `<b>${r.label}</b>`).join("");'),
     // присваивание не шаблоном
-    bad('el.innerHTML = entry.notes;'),
-  ],
+    bad('el.innerHTML = entry.notes;')
+  ]
 });

@@ -6,9 +6,15 @@ const memStorage = () => {
   return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k), _m: m };
 };
 const brokenStorage = () => ({
-  getItem(){ throw new Error('SecurityError'); },
-  setItem(){ throw new Error('QuotaExceededError'); },
-  removeItem(){ throw new Error('SecurityError'); },
+  getItem() {
+    throw new Error('SecurityError');
+  },
+  setItem() {
+    throw new Error('QuotaExceededError');
+  },
+  removeItem() {
+    throw new Error('SecurityError');
+  }
 });
 
 describe('errorText', () => {
@@ -33,7 +39,8 @@ describe('errorText', () => {
 describe('stackLines', () => {
   it('до трёх строк, адрес — только имя файла', () => {
     const e = new Error('x');
-    e.stack = 'Error: x\n    at foo (https://example.org/Travel-map/index.html?v=2:1:100)\n    at bar (file:///C:/a/b/index.html:1:200)\n    at baz (index.html:1:3)\n    at qux (index.html:1:4)';
+    e.stack =
+      'Error: x\n    at foo (https://example.org/Travel-map/index.html?v=2:1:100)\n    at bar (file:///C:/a/b/index.html:1:200)\n    at baz (index.html:1:3)\n    at qux (index.html:1:4)';
     expect(stackLines(e)).toEqual(['at foo (index.html:1:100)', 'at bar (index.html:1:200)', 'at baz (index.html:1:3)']);
     expect(stackLines('строка')).toEqual([]);
   });
@@ -43,7 +50,7 @@ describe('createErrorLog', () => {
   it('хранит не больше ERRLOG_MAX записей, старые уходят', () => {
     const st = memStorage();
     const log = createErrorLog({ storage: st });
-    for(let i = 0; i < ERRLOG_MAX + 15; i++) log.add('место ' + i, new Error('ошибка ' + i));
+    for (let i = 0; i < ERRLOG_MAX + 15; i++) log.add('место ' + i, new Error('ошибка ' + i));
     const list = log.list();
     expect(list.length).toBe(ERRLOG_MAX);
     expect(list[0].msg).toBe('ошибка 15');
@@ -64,7 +71,7 @@ describe('createErrorLog', () => {
     expect(list[0].t).toBe(1002);
   });
   it('работает без хранилища и с недоступным хранилищем', () => {
-    for(const storage of [null, brokenStorage()]){
+    for (const storage of [null, brokenStorage()]) {
       const log = createErrorLog({ storage });
       expect(() => log.add('x', new Error('y'))).not.toThrow();
       expect(log.list().length).toBe(1);
@@ -91,10 +98,13 @@ describe('createErrorLog', () => {
 
 describe('formatErrorLog', () => {
   it('новые сверху, со счётчиком и стеком', () => {
-    const txt = formatErrorLog([
-      { t: 0, where: 'a', msg: 'первая' },
-      { t: 1, where: 'b', msg: 'вторая', n: 2, stack: ['at f (index.html:1:2)'] },
-    ], t => 'T' + t);
+    const txt = formatErrorLog(
+      [
+        { t: 0, where: 'a', msg: 'первая' },
+        { t: 1, where: 'b', msg: 'вторая', n: 2, stack: ['at f (index.html:1:2)'] }
+      ],
+      t => 'T' + t
+    );
     expect(txt).toBe('T1  b (×2)\n  вторая\n    at f (index.html:1:2)\nT0  a\n  первая');
   });
 });

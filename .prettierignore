@@ -1,0 +1,16 @@
+# Готовые файлы и сторонний код — не форматируем (их собирает сборка или они чужие)
+index.html
+friends/
+dist/
+fonts/
+borders/
+covers/
+vendor/
+src/vendor/
+src/data/
+scripts/data/
+node_modules/
+test-results/
+playwright-report/
+# разметка: пробелы между тегами влияют на вид страницы
+src/index.html

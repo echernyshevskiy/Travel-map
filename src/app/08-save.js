@@ -1,35 +1,42 @@
 // ---------- GPX upload ----------
-document.getElementById('fileDrop').addEventListener('click', ()=>{
+document.getElementById('fileDrop').addEventListener('click', () => {
   document.getElementById('gpxInput').click();
 });
-document.getElementById('gpxInput').addEventListener('change', (e)=>{
+document.getElementById('gpxInput').addEventListener('change', e => {
   const files = Array.from(e.target.files || []);
-  if(files.length === 0) return;
+  if (files.length === 0) return;
   pendingGpxList = [];
   let failed = [];
   let processed = 0;
 
-  function finishFile(result){
+  function finishFile(result) {
     processed++;
-    if(result) pendingGpxList.push(result);
+    if (result) pendingGpxList.push(result);
     else failed.push(result);
-    if(processed === files.length) updateFileDropSummary(failed.length);
+    if (processed === files.length) updateFileDropSummary(failed.length);
   }
 
-  files.forEach(file=>{
+  files.forEach(file => {
     const reader = new FileReader();
-    reader.onload = (ev)=>{
-      try{
+    reader.onload = ev => {
+      try {
         const parsed = parseGPX(ev.target.result);
-        if(parsed.coords.length < 2){ finishFile(null, file.name); return; }
+        if (parsed.coords.length < 2) {
+          finishFile(null, file.name);
+          return;
+        }
         const distanceKm = gpxDistanceKm(parsed);
         const elevationGain = gpxElevationGain(parsed);
         const maxElevation = parsed.elevations.length > 0 ? Math.max(...parsed.elevations) : null;
-        const durationMin = parsed.times.length > 1 ? (parsed.times[parsed.times.length-1] - parsed.times[0]) / 60000 : null;
+        const durationMin = parsed.times.length > 1 ? (parsed.times[parsed.times.length - 1] - parsed.times[0]) / 60000 : null;
         const profile = parsed.elevations.length > 1 ? downsampleNumeric(parsed.elevations, 40) : null;
-        const ds = parsed.segments.length > 1
-          ? downsampleSegments(parsed.segments.map(g => g.coords), 800)
-          : { coords: downsample(parsed.coords), breaks: [] };
+        const ds =
+          parsed.segments.length > 1
+            ? downsampleSegments(
+                parsed.segments.map(g => g.coords),
+                800
+              )
+            : { coords: downsample(parsed.coords), breaks: [] };
         const coords = ds.coords;
         const baseName = file.name.replace(/\.gpx$/i, '');
         // Дата старта — по местному времени МЕСТА, а не устройства.
@@ -38,12 +45,15 @@ document.getElementById('gpxInput').addEventListener('change', (e)=>{
         // следующим днём — а помните вы его тем вечером. Часовой пояс берём
         // из долготы первой точки: 15° долготы ≈ один час. Это приближение,
         // но ошибается максимум на час, тогда как пояс устройства — на сутки.
-        let startYear = null, startMonth = null, startDate = null, endDate = null;
-        if(parsed.times.length > 0){
+        let startYear = null,
+          startMonth = null,
+          startDate = null,
+          endDate = null;
+        if (parsed.times.length > 0) {
           const t = new Date(parsed.times[0]);
-          if(!isNaN(t.getTime())){
+          if (!isNaN(t.getTime())) {
             const lng = parsed.coords.length ? parsed.coords[0][1] : null;
-            const offsetH = (lng !== null && isFinite(lng)) ? Math.round(lng / 15) : 0;
+            const offsetH = lng !== null && isFinite(lng) ? Math.round(lng / 15) : 0;
             const local = new Date(t.getTime() + offsetH * 3600000);
             startYear = local.getUTCFullYear();
             startMonth = local.getUTCMonth() + 1;
@@ -54,8 +64,24 @@ document.getElementById('gpxInput').addEventListener('change', (e)=>{
           }
         }
         const trackDaysInfo = countDistinctDays(parsed.times); // объединённый в один файл многодневный поход — не один день, а столько, сколько разных календарных дат встретилось в самом треке; если меток времени вовсе нет (например, файлы из планировщиков маршрутов вроде The Ride Atlas), auto-детект бессмысленен — тогда используется ручное поле «Число дней»
-        finishFile({ coords, segBreaks: ds.breaks, distanceKm, fileName: file.name, baseName, elevationGain, maxElevation, durationMin, profile, startYear, startMonth, startDate, endDate, trackDays: trackDaysInfo.days, hasTimeData: trackDaysInfo.hasTimeData });
-      }catch(err){
+        finishFile({
+          coords,
+          segBreaks: ds.breaks,
+          distanceKm,
+          fileName: file.name,
+          baseName,
+          elevationGain,
+          maxElevation,
+          durationMin,
+          profile,
+          startYear,
+          startMonth,
+          startDate,
+          endDate,
+          trackDays: trackDaysInfo.days,
+          hasTimeData: trackDaysInfo.hasTimeData
+        });
+      } catch (err) {
         finishFile(null);
       }
     };
@@ -64,20 +90,21 @@ document.getElementById('gpxInput').addEventListener('change', (e)=>{
   });
 });
 
-function updateFileDropSummary(failedCount){
+function updateFileDropSummary(failedCount) {
   const drop = document.getElementById('fileDrop');
-  if(pendingGpxList.length === 0){
+  if (pendingGpxList.length === 0) {
     drop.textContent = 'Не удалось прочитать выбранные файлы';
     drop.classList.remove('has-file');
     return;
   }
-  const totalKm = pendingGpxList.reduce((s,g) => s + g.distanceKm, 0);
-  const totalElevation = pendingGpxList.reduce((s,g) => s + (g.elevationGain || 0), 0);
-  let summary = pendingGpxList.length === 1
-    ? `${pendingGpxList[0].fileName} — ${pendingGpxList[0].distanceKm.toFixed(1)} км`
-    : `${pendingGpxList.length} файлов — суммарно ${totalKm.toFixed(1)} км`;
-  if(totalElevation > 0) summary += `, +${Math.round(totalElevation)} м`;
-  if(failedCount > 0) summary += ` (${failedCount} не удалось прочитать)`;
+  const totalKm = pendingGpxList.reduce((s, g) => s + g.distanceKm, 0);
+  const totalElevation = pendingGpxList.reduce((s, g) => s + (g.elevationGain || 0), 0);
+  let summary =
+    pendingGpxList.length === 1
+      ? `${pendingGpxList[0].fileName} — ${pendingGpxList[0].distanceKm.toFixed(1)} км`
+      : `${pendingGpxList.length} файлов — суммарно ${totalKm.toFixed(1)} км`;
+  if (totalElevation > 0) summary += `, +${Math.round(totalElevation)} м`;
+  if (failedCount > 0) summary += ` (${failedCount} не удалось прочитать)`;
   drop.textContent = summary;
   drop.classList.add('has-file');
 
@@ -87,64 +114,65 @@ function updateFileDropSummary(failedCount){
   const detectedMonths = pendingGpxList.map(g => g.startMonth).filter(Boolean);
   const detectedYears = pendingGpxList.map(g => g.startYear).filter(Boolean);
   // покрытие подставляем по суммарному набору высоты загруженных треков
-  const totKm = pendingGpxList.reduce((s,g) => s + (g.distanceKm || 0), 0);
-  const totGain = pendingGpxList.reduce((s,g) => s + (g.elevationGain || 0), 0);
+  const totKm = pendingGpxList.reduce((s, g) => s + (g.distanceKm || 0), 0);
+  const totGain = pendingGpxList.reduce((s, g) => s + (g.elevationGain || 0), 0);
   const tSel = document.getElementById('fieldTerrain');
-  if(tSel && totKm > 0) tSel.value = guessTerrain(totKm, totGain);
-  if(detectedMonths.length > 0 && detectedMonths.every(m => m === detectedMonths[0])){
+  if (tSel && totKm > 0) tSel.value = guessTerrain(totKm, totGain);
+  if (detectedMonths.length > 0 && detectedMonths.every(m => m === detectedMonths[0])) {
     document.getElementById('fieldMonth').value = detectedMonths[0];
     const season = seasonForMonth(detectedMonths[0]);
-    if(season) document.getElementById('fieldSeason').value = season;
+    if (season) document.getElementById('fieldSeason').value = season;
   }
-  if(detectedYears.length > 0 && detectedYears.every(y => y === detectedYears[0])){
+  if (detectedYears.length > 0 && detectedYears.every(y => y === detectedYears[0])) {
     document.getElementById('fieldYear').value = detectedYears[0];
   }
 }
 
-function formatDuration(min){
+function formatDuration(min) {
   const h = Math.floor(min / 60);
   const m = Math.round(min % 60);
   return h > 0 ? `${h} ч ${m} мин` : `${m} мин`;
 }
 
-function buildActivityBreakdownHtml(byActivity){
+function buildActivityBreakdownHtml(byActivity) {
   const blocks = [];
-  if(byActivity.hiking){
+  if (byActivity.hiking) {
     const h = byActivity.hiking;
     const rows = [
       ['пройдено', `${h.totalKm.toFixed(1)} км`],
       h.totalDurationMin > 0 ? ['время в пути', formatDuration(h.totalDurationMin)] : null,
       h.totalElevation > 0 ? ['набор высоты', `${Math.round(h.totalElevation)} м`] : null,
       ['активных дней', h.activeDays],
-      ['в среднем за день', `${h.avgKmPerDay.toFixed(1)} км`],
+      ['в среднем за день', `${h.avgKmPerDay.toFixed(1)} км`]
     ].filter(Boolean);
     blocks.push({ icon: '🥾', title: 'Хайкинг', rows });
   }
-  if(byActivity.running){
+  if (byActivity.running) {
     const r = byActivity.running;
     const pace = formatPace(r.avgPaceMinPerKm);
     const rows = [
       ['пройдено', `${r.totalKm.toFixed(1)} км`],
       r.totalDurationMin > 0 ? ['время', formatDuration(r.totalDurationMin)] : null,
-      pace ? ['средний темп', pace] : null,
+      pace ? ['средний темп', pace] : null
     ].filter(Boolean);
     blocks.push({ icon: '🏃', title: 'Бег', rows });
   }
-  if(byActivity.roadtrip){
+  if (byActivity.roadtrip) {
     const rt = byActivity.roadtrip;
-    const rows = [
-      ['пройдено', `${rt.totalKm.toFixed(1)} км`],
-      rt.citiesCount > 0 ? ['городов посещено', rt.citiesCount] : null,
-    ].filter(Boolean);
+    const rows = [['пройдено', `${rt.totalKm.toFixed(1)} км`], rt.citiesCount > 0 ? ['городов посещено', rt.citiesCount] : null].filter(Boolean);
     blocks.push({ icon: '🚗', title: 'Автотрип', rows });
   }
-  if(blocks.length === 0) return '';
-  return blocks.map(b => `
+  if (blocks.length === 0) return '';
+  return blocks
+    .map(
+      b => `
     <div class="activity-breakdown">
       <div class="activity-breakdown-title">${b.icon} ${b.title}</div>
-      ${b.rows.map(([label,val]) => `<div class="trip-stat"><span>${label /* html-ok: подписи — наши строки, значения — числа и время */}</span><b>${val /* html-ok: подписи — наши строки, значения — числа и время */}</b></div>`).join('')}
+      ${b.rows.map(([label, val]) => `<div class="trip-stat"><span>${label /* html-ok: подписи — наши строки, значения — числа и время */}</span><b>${val /* html-ok: подписи — наши строки, значения — числа и время */}</b></div>`).join('')}
     </div>
-  `).join('');
+  `
+    )
+    .join('');
 }
 
 // ---------- save ----------
@@ -153,43 +181,50 @@ document.getElementById('fieldYear').value = new Date().getFullYear();
 document.getElementById('fieldActivity').addEventListener('change', updateHikingDaysVisibility);
 // баннер «отметить страну» теперь зависит от года — при его смене пересчитываем,
 // иначе на экране осталось бы предложение, относящееся к прежнему году
-document.getElementById('fieldYear').addEventListener('input', ()=>{
-  try{ renderCityCountrySuggest(); }catch(e){ logError('предложение отметить страну', e); }
+document.getElementById('fieldYear').addEventListener('input', () => {
+  try {
+    renderCityCountrySuggest();
+  } catch (e) {
+    logError('предложение отметить страну', e);
+  }
 });
 document.getElementById('fieldCompany').addEventListener('change', updateCommunityVisibility);
 
 // ---------- точные даты в форме ----------
-function setExactDatesOpen(open){
+function setExactDatesOpen(open) {
   document.getElementById('exactDatesFields').style.display = open ? '' : 'none';
   const t = document.getElementById('exactDatesToggle');
   t.textContent = open ? '− убрать точные даты' : '+ точные даты';
   t.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
-function setFormDates(from, to){
+function setFormDates(from, to) {
   document.getElementById('fieldDateFrom').value = from || '';
   document.getElementById('fieldDateTo').value = to || '';
   setExactDatesOpen(!!from);
 }
 // даты из формы: { dateFrom, dateTo } — только корректные; конец не раньше начала
-function readFormDates(){
-  if(document.getElementById('exactDatesFields').style.display === 'none') return { dateFrom: undefined, dateTo: undefined };
-  const from = document.getElementById('fieldDateFrom').value, to = document.getElementById('fieldDateTo').value;
-  if(!parseIsoDate(from)) return { dateFrom: undefined, dateTo: undefined };
+function readFormDates() {
+  if (document.getElementById('exactDatesFields').style.display === 'none') return { dateFrom: undefined, dateTo: undefined };
+  const from = document.getElementById('fieldDateFrom').value,
+    to = document.getElementById('fieldDateTo').value;
+  if (!parseIsoDate(from)) return { dateFrom: undefined, dateTo: undefined };
   return { dateFrom: from, dateTo: parseIsoDate(to) && to > from ? to : undefined };
 }
-function applyDates(entry, d){
-  if(d.dateFrom) entry.dateFrom = d.dateFrom; else delete entry.dateFrom;
-  if(d.dateTo) entry.dateTo = d.dateTo; else delete entry.dateTo;
+function applyDates(entry, d) {
+  if (d.dateFrom) entry.dateFrom = d.dateFrom;
+  else delete entry.dateFrom;
+  if (d.dateTo) entry.dateTo = d.dateTo;
+  else delete entry.dateTo;
 }
-document.getElementById('exactDatesToggle').addEventListener('click', ()=>{
+document.getElementById('exactDatesToggle').addEventListener('click', () => {
   const open = document.getElementById('exactDatesFields').style.display === 'none';
-  if(!open) setFormDates('', '');
+  if (!open) setFormDates('', '');
   else setExactDatesOpen(true);
 });
 // первый день задаёт год и месяц (и сезон — через обработчик месяца)
-document.getElementById('fieldDateFrom').addEventListener('change', ()=>{
+document.getElementById('fieldDateFrom').addEventListener('change', () => {
   const d = parseIsoDate(document.getElementById('fieldDateFrom').value);
-  if(!d) return;
+  if (!d) return;
   document.getElementById('fieldYear').value = d.y;
   const m = document.getElementById('fieldMonth');
   m.value = String(d.m);
@@ -198,18 +233,25 @@ document.getElementById('fieldDateFrom').addEventListener('change', ()=>{
   to.min = document.getElementById('fieldDateFrom').value;
 });
 
-document.getElementById('fieldMonth').addEventListener('change', ()=>{
+document.getElementById('fieldMonth').addEventListener('change', () => {
   const month = parseInt(document.getElementById('fieldMonth').value);
   const season = seasonForMonth(month);
-  if(season) document.getElementById('fieldSeason').value = season;
+  if (season) document.getElementById('fieldSeason').value = season;
 });
 
-document.getElementById('saveBtn').addEventListener('click', async ()=>{
-  if(READ_ONLY){ toast('Это read-only версия — редактирование недоступно'); return; }
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  if (READ_ONLY) {
+    toast('Это read-only версия — редактирование недоступно');
+    return;
+  }
   const name = document.getElementById('fieldName').value.trim();
   const year = parseInt(document.getElementById('fieldYear').value) || new Date().getFullYear();
   const month = parseInt(document.getElementById('fieldMonth').value) || undefined;
-  const photos = document.getElementById('fieldPhoto').value.split('\n').map(s => normalizePhotoUrl(s.trim())).filter(Boolean);
+  const photos = document
+    .getElementById('fieldPhoto')
+    .value.split('\n')
+    .map(s => normalizePhotoUrl(s.trim()))
+    .filter(Boolean);
   const instagramUrl = document.getElementById('fieldInstagram').value.trim();
   const mapLinkUrl = document.getElementById('fieldMapLink').value.trim();
   const docLinkUrl = document.getElementById('fieldDocLink').value.trim();
@@ -218,49 +260,82 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
   const entriesBefore = allEntries.length;
   const purpose = document.getElementById('fieldPurpose').value;
   const company = document.getElementById('fieldCompany').value;
-  const community = company === 'group' ? (document.getElementById('fieldCommunity').value || undefined) : undefined;
+  const community = company === 'group' ? document.getElementById('fieldCommunity').value || undefined : undefined;
   const season = document.getElementById('fieldSeason').value;
   const color = document.getElementById('fieldColor').value;
   const status = currentType === 'route' ? 'visited' : currentStatus;
   const trip = document.getElementById('fieldTrip').value.trim();
   const formDates = readFormDates();
 
-  if(editingId){
+  if (editingId) {
     const entry = allEntries.find(x => x.id === editingId);
-    if(entry){
-      const snapshot = { name: entry.name, year: entry.year, month: entry.month, photos: entry.photos, instagramUrl: entry.instagramUrl,
-        mapLinkUrl: entry.mapLinkUrl, docLinkUrl: entry.docLinkUrl,
-        notes: entry.notes, purpose: entry.purpose, company: entry.company, community: entry.community, season: entry.season, color: entry.color,
-        trip: entry.trip, tripOrder: entry.tripOrder, status: entry.status, activity: entry.activity, favorite: entry.favorite, trackDays: entry.trackDays,
-        lat: entry.lat, lng: entry.lng, countryKey: entry.countryKey, hidden: entry.hidden, dateFrom: entry.dateFrom, dateTo: entry.dateTo };
-      entry.name = name || entry.name; entry.year = year; entry.month = month; entry.photos = photos; entry.instagramUrl = instagramUrl; entry.notes = notes;
+    if (entry) {
+      const snapshot = {
+        name: entry.name,
+        year: entry.year,
+        month: entry.month,
+        photos: entry.photos,
+        instagramUrl: entry.instagramUrl,
+        mapLinkUrl: entry.mapLinkUrl,
+        docLinkUrl: entry.docLinkUrl,
+        notes: entry.notes,
+        purpose: entry.purpose,
+        company: entry.company,
+        community: entry.community,
+        season: entry.season,
+        color: entry.color,
+        trip: entry.trip,
+        tripOrder: entry.tripOrder,
+        status: entry.status,
+        activity: entry.activity,
+        favorite: entry.favorite,
+        trackDays: entry.trackDays,
+        lat: entry.lat,
+        lng: entry.lng,
+        countryKey: entry.countryKey,
+        hidden: entry.hidden,
+        dateFrom: entry.dateFrom,
+        dateTo: entry.dateTo
+      };
+      entry.name = name || entry.name;
+      entry.year = year;
+      entry.month = month;
+      entry.photos = photos;
+      entry.instagramUrl = instagramUrl;
+      entry.notes = notes;
       applyDates(entry, formDates);
-      entry.mapLinkUrl = mapLinkUrl; entry.docLinkUrl = docLinkUrl;
-      entry.purpose = purpose; entry.company = company; entry.community = community; entry.season = season; entry.color = color;
-      if(hideFromFriends) entry.hidden = true; else delete entry.hidden;
+      entry.mapLinkUrl = mapLinkUrl;
+      entry.docLinkUrl = docLinkUrl;
+      entry.purpose = purpose;
+      entry.company = company;
+      entry.community = community;
+      entry.season = season;
+      entry.color = color;
+      if (hideFromFriends) entry.hidden = true;
+      else delete entry.hidden;
       const oldTrip = entry.trip;
-      if(entry.trip !== trip) entry.tripOrder = trip ? nextTripOrder(trip) : undefined;
+      if (entry.trip !== trip) entry.tripOrder = trip ? nextTripOrder(trip) : undefined;
       entry.trip = trip;
-      if(oldTrip !== trip) cleanupTripMetaIfOrphaned(oldTrip);
-      if(entry.type !== 'route') entry.status = status;
-      if(entry.type === 'route'){
+      if (oldTrip !== trip) cleanupTripMetaIfOrphaned(oldTrip);
+      if (entry.type !== 'route') entry.status = status;
+      if (entry.type === 'route') {
         entry.activity = document.getElementById('fieldActivity').value;
         entry.trackDays = parseInt(document.getElementById('fieldTrackDays').value) || entry.trackDays || 1;
         entry.terrain = entry.activity === 'running' ? document.getElementById('fieldTerrain').value : undefined;
       }
-      if(entry.type === 'city'){
+      if (entry.type === 'city') {
         entry.favorite = document.getElementById('fieldFavorite').checked;
         // страна теперь явно видна в форме, поэтому применяем её всегда —
         // иначе исправить её можно было бы только заново найдя город
         entry.countryKey = document.getElementById('fieldCityCountry').value || null;
       }
-      if(entry.type === 'city' && pendingLatLng){
+      if (entry.type === 'city' && pendingLatLng) {
         // координаты меняем только если во время именно этого редактирования
         // реально искали и выбрали город заново
         entry.lat = pendingLatLng.lat;
         entry.lng = pendingLatLng.lng;
       }
-      if(entry.type === 'country' && pendingCountryKey){
+      if (entry.type === 'country' && pendingCountryKey) {
         entry.countryKey = pendingCountryKey;
       }
       lastAction = { type: 'edit', id: entry.id, snapshot };
@@ -268,15 +343,18 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     const saved = await saveData();
     exitEditMode(false);
     rebuildAll();
-    if(saved) showUndoToast('Изменения сохранены');
+    if (saved) showUndoToast('Изменения сохранены');
     return;
   }
 
-  if(currentType === 'route'){
+  if (currentType === 'route') {
     const activity = document.getElementById('fieldActivity').value;
 
-    if(routeSource === 'cities'){
-      if(routeWaypoints.length < 2){ toast('Добавьте минимум 2 города для маршрута'); return; }
+    if (routeSource === 'cities') {
+      if (routeWaypoints.length < 2) {
+        toast('Добавьте минимум 2 города для маршрута');
+        return;
+      }
 
       const saveBtn = document.getElementById('saveBtn');
       const originalBtnText = saveBtn.textContent;
@@ -287,7 +365,7 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
       saveBtn.textContent = originalBtnText;
 
       let coords, distanceKm, isEstimated;
-      if(roadRoute){
+      if (roadRoute) {
         coords = roadRoute.coords;
         distanceKm = roadRoute.distanceKm;
         isEstimated = false;
@@ -297,12 +375,38 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
         isEstimated = true;
       }
 
-      const autoName = `${routeWaypoints[0].name} — ${routeWaypoints[routeWaypoints.length-1].name}`;
+      const autoName = `${routeWaypoints[0].name} — ${routeWaypoints[routeWaypoints.length - 1].name}`;
       const routeWaypointsForSuggest = routeWaypoints.slice();
       allEntries.push({
-        id: genId(), type:'route', name: name || autoName, year, month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, community, season, color, activity, status: 'visited', trip, tripOrder: nextTripOrder(trip),
-        coordsEncoded: encodePolyline(coords), distanceKm, elevationGain: null, maxElevation: null, durationMin: null, profile: null,
-        waypointNames: routeWaypoints.map(w => w.name), waypointCoords: routeWaypoints.map(w => [w.lat, w.lng]), waypointCountryKeys: routeWaypoints.map(w => w.countryKey || null), isEstimated
+        id: genId(),
+        type: 'route',
+        name: name || autoName,
+        year,
+        month,
+        photos,
+        instagramUrl,
+        mapLinkUrl,
+        docLinkUrl,
+        notes,
+        purpose,
+        company,
+        community,
+        season,
+        color,
+        activity,
+        status: 'visited',
+        trip,
+        tripOrder: nextTripOrder(trip),
+        coordsEncoded: encodePolyline(coords),
+        distanceKm,
+        elevationGain: null,
+        maxElevation: null,
+        durationMin: null,
+        profile: null,
+        waypointNames: routeWaypoints.map(w => w.name),
+        waypointCoords: routeWaypoints.map(w => [w.lat, w.lng]),
+        waypointCountryKeys: routeWaypoints.map(w => w.countryKey || null),
+        isEstimated
       });
       routeWaypoints = [];
       renderRouteWaypoints();
@@ -310,25 +414,51 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
       resetEntryFormFields();
       const saved = await saveData();
       rebuildAll();
-      if(saved) toast(isEstimated ? 'Маршрут добавлен: сервис дорог недоступен, использована прямая линия' : 'Маршрут добавлен по дорогам');
+      if (saved) toast(isEstimated ? 'Маршрут добавлен: сервис дорог недоступен, использована прямая линия' : 'Маршрут добавлен по дорогам');
       suggestMissingCountriesForWaypoints(routeWaypointsForSuggest);
       return;
     }
 
-    if(pendingGpxList.length === 0){ toast('Загрузите один или несколько GPX-файлов'); return; }
+    if (pendingGpxList.length === 0) {
+      toast('Загрузите один или несколько GPX-файлов');
+      return;
+    }
     const multi = pendingGpxList.length > 1;
-    pendingGpxList.forEach((g, gi)=>{
+    pendingGpxList.forEach((g, gi) => {
       // заданное название — как есть; имя файла — только если название пустое.
       // Несколько файлов под одним названием различаем номером
       const routeName = name ? (multi ? `${name} (${gi + 1})` : name) : g.baseName;
       allEntries.push({
-        id: genId(), type:'route', name: routeName, year: g.startYear || year, month: g.startMonth || month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, community, season: (g.startMonth && seasonForMonth(g.startMonth)) || season, color, activity, status: 'visited', trip, tripOrder: nextTripOrder(trip),
-        coordsEncoded: encodePolyline(g.coords), segBreaks: (g.segBreaks && g.segBreaks.length) ? g.segBreaks : undefined, distanceKm: g.distanceKm,
-        elevationGain: g.elevationGain, maxElevation: g.maxElevation,
-        durationMin: g.durationMin, profile: g.profile,
-        dateFrom: g.startDate || undefined, dateTo: g.endDate && g.startDate && g.endDate > g.startDate ? g.endDate : undefined,
-        trackDays: g.hasTimeData ? g.trackDays : (parseInt(document.getElementById('fieldTrackDays').value) || 1),
-        terrain: activity === 'running' ? (document.getElementById('fieldTerrain').value || guessTerrain(g.distanceKm, g.elevationGain)) : undefined
+        id: genId(),
+        type: 'route',
+        name: routeName,
+        year: g.startYear || year,
+        month: g.startMonth || month,
+        photos,
+        instagramUrl,
+        mapLinkUrl,
+        docLinkUrl,
+        notes,
+        purpose,
+        company,
+        community,
+        season: (g.startMonth && seasonForMonth(g.startMonth)) || season,
+        color,
+        activity,
+        status: 'visited',
+        trip,
+        tripOrder: nextTripOrder(trip),
+        coordsEncoded: encodePolyline(g.coords),
+        segBreaks: g.segBreaks && g.segBreaks.length ? g.segBreaks : undefined,
+        distanceKm: g.distanceKm,
+        elevationGain: g.elevationGain,
+        maxElevation: g.maxElevation,
+        durationMin: g.durationMin,
+        profile: g.profile,
+        dateFrom: g.startDate || undefined,
+        dateTo: g.endDate && g.startDate && g.endDate > g.startDate ? g.endDate : undefined,
+        trackDays: g.hasTimeData ? g.trackDays : parseInt(document.getElementById('fieldTrackDays').value) || 1,
+        terrain: activity === 'running' ? document.getElementById('fieldTerrain').value || guessTerrain(g.distanceKm, g.elevationGain) : undefined
       });
     });
     const addedCount = pendingGpxList.length;
@@ -341,23 +471,67 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     resetEntryFormFields();
     const saved = await saveData();
     rebuildAll();
-    if(saved) toast(addedCount === 1 ? 'Маршрут добавлен' : `Добавлено маршрутов: ${addedCount}`);
+    if (saved) toast(addedCount === 1 ? 'Маршрут добавлен' : `Добавлено маршрутов: ${addedCount}`);
     return;
-  } else if(currentType === 'city'){
-    if(!pendingLatLng){ toast('Выберите город из подсказок или укажите точку на карте'); return; }
+  } else if (currentType === 'city') {
+    if (!pendingLatLng) {
+      toast('Выберите город из подсказок или укажите точку на карте');
+      return;
+    }
     const finalName = name || pendingCityName || 'Без названия';
     const favorite = document.getElementById('fieldFavorite').checked;
     allEntries.push({
-      id: genId(), type: 'city', name: finalName, year, month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, community, season, color, favorite, status, trip, tripOrder: nextTripOrder(trip),
-      lat: pendingLatLng.lat, lng: pendingLatLng.lng, countryKey: (document.getElementById('fieldCityCountry').value || pendingCityCountryKey || null)
+      id: genId(),
+      type: 'city',
+      name: finalName,
+      year,
+      month,
+      photos,
+      instagramUrl,
+      mapLinkUrl,
+      docLinkUrl,
+      notes,
+      purpose,
+      company,
+      community,
+      season,
+      color,
+      favorite,
+      status,
+      trip,
+      tripOrder: nextTripOrder(trip),
+      lat: pendingLatLng.lat,
+      lng: pendingLatLng.lng,
+      countryKey: document.getElementById('fieldCityCountry').value || pendingCityCountryKey || null
     });
     clearCitySelection();
     document.getElementById('fieldFavorite').checked = false;
-  } else { // country
-    if(!pendingCountryKey){ toast('Выберите страну из подсказок или на карте'); return; }
+  } else {
+    // country
+    if (!pendingCountryKey) {
+      toast('Выберите страну из подсказок или на карте');
+      return;
+    }
     const ruName = COUNTRY_RU[pendingCountryKey] || pendingCountryKey;
     allEntries.push({
-      id: genId(), type: 'country', name: name || ruName, year, month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, community, season, color, status, trip, tripOrder: nextTripOrder(trip),
+      id: genId(),
+      type: 'country',
+      name: name || ruName,
+      year,
+      month,
+      photos,
+      instagramUrl,
+      mapLinkUrl,
+      docLinkUrl,
+      notes,
+      purpose,
+      company,
+      community,
+      season,
+      color,
+      status,
+      trip,
+      tripOrder: nextTripOrder(trip),
       countryKey: pendingCountryKey
     });
     clearCountrySelection();
@@ -368,12 +542,12 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
 
   const saved = await saveData();
   rebuildAll();
-  if(saved) toast('Добавлено');
+  if (saved) toast('Добавлено');
 });
 
-document.getElementById('cancelEditBtn').addEventListener('click', ()=> exitEditMode(true));
+document.getElementById('cancelEditBtn').addEventListener('click', () => exitEditMode(true));
 
-function exitEditMode(fullReset){
+function exitEditMode(fullReset) {
   editingId = null;
   document.getElementById('typeToggle').classList.remove('type-locked');
   document.getElementById('routeSourceBlock').style.display = '';
@@ -392,9 +566,9 @@ function exitEditMode(fullReset){
   setFieldColor(DEFAULT_COLOR[currentType]);
   currentStatus = 'visited';
   document.querySelectorAll('.type-btn[data-status]').forEach(b => b.classList.toggle('active', b.dataset.status === 'visited'));
-  if(!fullReset) return; // после сохранения оставляем когда/зачем/с кем — обычно следующая точка из той же поездки
+  if (!fullReset) return; // после сохранения оставляем когда/зачем/с кем — обычно следующая точка из той же поездки
   document.getElementById('fieldYear').value = new Date().getFullYear();
-  document.getElementById('fieldMonth').value = '';   // сбрасывался не всегда — из-за этого месяц расходился с сезоном
+  document.getElementById('fieldMonth').value = ''; // сбрасывался не всегда — из-за этого месяц расходился с сезоном
   setFormDates('', '');
   document.getElementById('fieldPurpose').value = 'tourism';
   document.getElementById('fieldCompany').value = 'alone';
@@ -403,42 +577,48 @@ function exitEditMode(fullReset){
   document.getElementById('fieldSeason').value = 'summer';
 }
 
-function resetEntryFormFields(){
-  ['fieldName','fieldPhoto','fieldInstagram','fieldMapLink','fieldDocLink','fieldNotes','fieldTrip']
-    .forEach(id => { document.getElementById(id).value = ''; });
+function resetEntryFormFields() {
+  ['fieldName', 'fieldPhoto', 'fieldInstagram', 'fieldMapLink', 'fieldDocLink', 'fieldNotes', 'fieldTrip'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
   document.getElementById('fieldHidden').checked = false;
 }
 // флаг «не показывать друзьям» — на все записи, созданные этим сохранением
 // (GPX может дать сразу несколько маршрутов)
-function markNewEntriesHidden(fromIndex, hidden){
+function markNewEntriesHidden(fromIndex, hidden) {
   // точные даты из формы — новым записям, у которых нет своих (у GPX — из трека)
   const d = readFormDates();
-  if(d.dateFrom) for(let i = fromIndex; i < allEntries.length; i++){ if(!allEntries[i].dateFrom) applyDates(allEntries[i], d); }
-  if(!hidden) return;
-  for(let i = fromIndex; i < allEntries.length; i++) allEntries[i].hidden = true;
+  if (d.dateFrom)
+    for (let i = fromIndex; i < allEntries.length; i++) {
+      if (!allEntries[i].dateFrom) applyDates(allEntries[i], d);
+    }
+  if (!hidden) return;
+  for (let i = fromIndex; i < allEntries.length; i++) allEntries[i].hidden = true;
 }
 
-function genId(){ return 'e_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function genId() {
+  return 'e_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
 
-function cleanupTripMetaIfOrphaned(tripName){
-  if(!tripName) return;
+function cleanupTripMetaIfOrphaned(tripName) {
+  if (!tripName) return;
   const stillUsed = allEntries.some(e => e.trip === tripName);
-  if(!stillUsed) delete tripMeta[tripName];
+  if (!stillUsed) delete tripMeta[tripName];
 }
 
-function nextTripOrder(tripName){
-  if(!tripName) return undefined;
+function nextTripOrder(tripName) {
+  if (!tripName) return undefined;
   const existing = allEntries.filter(e => e.trip === tripName);
-  return existing.reduce((m,e) => Math.max(m, e.tripOrder || 0), 0) + 1;
+  return existing.reduce((m, e) => Math.max(m, e.tripOrder || 0), 0) + 1;
 }
 
 // ---------- layer type filter chips ----------
-document.querySelectorAll('.chip[data-layer]').forEach(chip=>{
-  chip.addEventListener('click', ()=>{
+document.querySelectorAll('.chip[data-layer]').forEach(chip => {
+  chip.addEventListener('click', () => {
     const t = chip.dataset.layer;
     chip.classList.toggle('active');
-    if(activeLayerTypes.has(t)) activeLayerTypes.delete(t); else activeLayerTypes.add(t);
+    if (activeLayerTypes.has(t)) activeLayerTypes.delete(t);
+    else activeLayerTypes.add(t);
     applyFilters();
   });
 });
-

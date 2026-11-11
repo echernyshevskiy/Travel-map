@@ -28,6 +28,8 @@ jobs:
       - run: npm ci
       - name: Проверка кода (ESLint)
         run: npm run lint
+      - name: Оформление кода (Prettier)
+        run: npm run format:check
       - name: Модульные тесты (src/lib)
         run: npm run test:unit
       - name: Собрать index.html из src/

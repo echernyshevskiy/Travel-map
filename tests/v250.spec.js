@@ -35,13 +35,31 @@ test('телефон: список и статистика — на разных
 
 test('регионы России: только топ-5 по визитам', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
-  const city = (id, name, lat, lng, month) => ({ id, type: 'city', name, year: 2024, month, lat, lng, countryKey: 'Russia', status: 'visited', color: '#3F5240', photos: [] });
+  const city = (id, name, lat, lng, month) => ({
+    id,
+    type: 'city',
+    name,
+    year: 2024,
+    month,
+    lat,
+    lng,
+    countryKey: 'Russia',
+    status: 'visited',
+    color: '#3F5240',
+    photos: []
+  });
   const entries = [
     // три разных месяца — три визита (в одном месяце считались бы одним)
-    city('a1', 'Казань', 55.79, 49.12, 3), city('a2', 'Казань', 55.79, 49.12, 5), city('a3', 'Казань', 55.79, 49.12, 7),
-    city('b1', 'Сочи', 43.6, 39.73), city('b2', 'Анапа', 44.89, 37.32),
-    city('c1', 'Тверь', 56.86, 35.9), city('d1', 'Псков', 57.82, 28.33), city('e1', 'Пермь', 58.0, 56.25),
-    city('f1', 'Омск', 54.99, 73.37), city('g1', 'Томск', 56.48, 84.95)
+    city('a1', 'Казань', 55.79, 49.12, 3),
+    city('a2', 'Казань', 55.79, 49.12, 5),
+    city('a3', 'Казань', 55.79, 49.12, 7),
+    city('b1', 'Сочи', 43.6, 39.73),
+    city('b2', 'Анапа', 44.89, 37.32),
+    city('c1', 'Тверь', 56.86, 35.9),
+    city('d1', 'Псков', 57.82, 28.33),
+    city('e1', 'Пермь', 58.0, 56.25),
+    city('f1', 'Омск', 54.99, 73.37),
+    city('g1', 'Томск', 56.48, 84.95)
   ];
   const { errors } = await openApp(page, { entries });
   const items = page.locator('#ruRegionsList .top-item');
@@ -57,9 +75,12 @@ test('GPX: заданное название без имени файла, не�
   test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
   const { errors } = await openApp(page, { entries: [] });
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gpx-'));
-  const gpx = (la) => `<?xml version="1.0"?><gpx><trk><trkseg><trkpt lat="${la}" lon="37.6"/><trkpt lat="${la + 0.01}" lon="37.61"/><trkpt lat="${la + 0.02}" lon="37.63"/></trkseg></trk></gpx>`;
-  const f1 = path.join(dir, 'Morning_Run_2026-10-01.gpx'), f2 = path.join(dir, 'Evening_Run.gpx');
-  fs.writeFileSync(f1, gpx(55.7)); fs.writeFileSync(f2, gpx(55.8));
+  const gpx = la =>
+    `<?xml version="1.0"?><gpx><trk><trkseg><trkpt lat="${la}" lon="37.6"/><trkpt lat="${la + 0.01}" lon="37.61"/><trkpt lat="${la + 0.02}" lon="37.63"/></trkseg></trk></gpx>`;
+  const f1 = path.join(dir, 'Morning_Run_2026-10-01.gpx'),
+    f2 = path.join(dir, 'Evening_Run.gpx');
+  fs.writeFileSync(f1, gpx(55.7));
+  fs.writeFileSync(f2, gpx(55.8));
   await page.locator('.type-btn[data-type="route"]').click();
   await page.setInputFiles('#gpxInput', f1);
   await expect.poll(() => page.evaluate(() => pendingGpxList.length)).toBe(1);
@@ -82,7 +103,11 @@ test('палитра: есть «по умолчанию» для своего �
   await expect(def).toHaveAttribute('data-color', '#3F5240');
   await expect(def).toHaveAttribute('aria-checked', 'true');
   // правка записи со своим цветом: кнопка по умолчанию возвращает базовый
-  await page.evaluate(() => { const e = allEntries.find(x => x.type === 'country' && x.status !== 'wishlist'); e.color = '#7A3E5A'; startEdit(e); });
+  await page.evaluate(() => {
+    const e = allEntries.find(x => x.type === 'country' && x.status !== 'wishlist');
+    e.color = '#7A3E5A';
+    startEdit(e);
+  });
   expect(await page.inputValue('#fieldColor')).toBe('#7a3e5a');
   await expect(page.locator('.color-sw.is-default')).toHaveAttribute('data-color', '#A6592E');
   await expect(page.locator('.color-sw.is-default')).toHaveAttribute('aria-checked', 'false');

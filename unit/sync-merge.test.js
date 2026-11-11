@@ -3,7 +3,8 @@ import { itemJson, mergeFields, mergeKind, parseTokenExpiry } from '../src/lib/s
 
 describe('mergeFields — слияние записи по полям', () => {
   it('одинаковые данные — берётся более свежая отметка, без fieldTimes', () => {
-    const l = { id: 1, name: 'A', updatedAt: 5 }, r = { id: 1, name: 'A', updatedAt: 3 };
+    const l = { id: 1, name: 'A', updatedAt: 5 },
+      r = { id: 1, name: 'A', updatedAt: 3 };
     expect(mergeFields(l, r)).toBe(l);
   });
   it('правки разных полей на двух устройствах сохраняются обе', () => {
@@ -14,13 +15,13 @@ describe('mergeFields — слияние записи по полям', () => {
     expect(m).toMatchObject({ note: 'хинкали', color: '#e33', name: 'Тбилиси', updatedAt: 300 });
     expect(m.fieldTimes).toEqual({ note: 200, color: 300 });
     expect(m.ftBase).toBe(100);
-    expect(mergeFields(pc, phone)).toEqual(m);   // порядок не важен
+    expect(mergeFields(pc, phone)).toEqual(m); // порядок не важен
   });
   it('заметка с телефона и год с ноутбука не затирают друг друга', () => {
     const base = { id: 'x', type: 'city', name: 'Казань', year: 2019, updatedAt: 100 };
     const phone = { ...base, notes: 'с телефона', updatedAt: 200, fieldTimes: { notes: 200 }, ftBase: 100 };
     const laptop = { ...base, year: 2021, updatedAt: 300, fieldTimes: { year: 300 }, ftBase: 100 };
-    for(const m of [mergeFields(phone, laptop), mergeFields(laptop, phone)]){
+    for (const m of [mergeFields(phone, laptop), mergeFields(laptop, phone)]) {
       expect(m).toMatchObject({ notes: 'с телефона', year: 2021, name: 'Казань', updatedAt: 300 });
     }
   });
@@ -51,7 +52,18 @@ describe('mergeFields — слияние записи по полям', () => {
 describe('mergeKind — слияние списков с удалениями', () => {
   const pairs = arr => arr.map(x => [x.id, x]);
   it('объединяет записи, локальный порядок первым', () => {
-    const { pairs: out, tomb } = mergeKind(pairs([{ id: 'a', updatedAt: 1 }, { id: 'b', updatedAt: 1 }]), pairs([{ id: 'c', updatedAt: 1 }, { id: 'a', updatedAt: 1 }]), {}, {});
+    const { pairs: out, tomb } = mergeKind(
+      pairs([
+        { id: 'a', updatedAt: 1 },
+        { id: 'b', updatedAt: 1 }
+      ]),
+      pairs([
+        { id: 'c', updatedAt: 1 },
+        { id: 'a', updatedAt: 1 }
+      ]),
+      {},
+      {}
+    );
     expect(out.map(p => p[0])).toEqual(['a', 'b', 'c']);
     expect(tomb).toEqual({});
   });
@@ -66,7 +78,8 @@ describe('mergeKind — слияние списков с удалениями', 
     expect(tomb).toEqual({});
   });
   it('из двух отметок удаления берётся более поздняя; входные объекты не меняются', () => {
-    const lt = { a: 5, b: 50 }, rt = { a: 40 };
+    const lt = { a: 5, b: 50 },
+      rt = { a: 40 };
     const { tomb } = mergeKind([], [], lt, rt);
     expect(tomb).toEqual({ a: 40, b: 50 });
     expect(rt).toEqual({ a: 40 });

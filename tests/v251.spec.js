@@ -4,7 +4,11 @@ const { openApp, expectNoErrors } = require('./helpers');
 
 test('страница поездки: маршрут — настоящая мини-карта, без сети — контуры', async ({ page }) => {
   const { errors } = await openApp(page); // тайлы в тестах недоступны — должна включиться подложка из контуров
-  const trip = await page.evaluate(() => { const r = allEntries.find(e => e.id === 'rt_gpx'); r.trip = 'Подмосковье'; return r.trip; });
+  const trip = await page.evaluate(() => {
+    const r = allEntries.find(e => e.id === 'rt_gpx');
+    r.trip = 'Подмосковье';
+    return r.trip;
+  });
   await page.evaluate(t => openTripPage(t), trip);
   const holder = page.locator('[data-route-map]').first();
   await holder.scrollIntoViewIfNeeded();

@@ -1,0 +1,4 @@
+# Коммиты, которые только меняли оформление кода, — git blame их пропускает.
+# GitHub учитывает этот файл сам; локально: git config blame.ignoreRevsFile .git-blame-ignore-revs
+# v2.76: автоформатирование Prettier
+a22282011d18a3d4369d345aa80bf97d338ee996

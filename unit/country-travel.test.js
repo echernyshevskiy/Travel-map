@@ -7,11 +7,11 @@ import { plugCompat, emergencyLines, tzDiffMin, timeDiffInfo, formatDiff } from 
 describe('country_travel.json', () => {
   it('есть для всех стран справочника; поля правильной формы', () => {
     expect(Object.keys(TRAVEL).sort()).toEqual(Object.keys(INFO).sort());
-    for(const [k, t] of Object.entries(TRAVEL)){
-      if(t.plugs) expect(t.plugs, k).toMatch(/^[A-N]+$/);
-      if(t.drive) expect(['L', 'R'], k).toContain(t.drive);
+    for (const [k, t] of Object.entries(TRAVEL)) {
+      if (t.plugs) expect(t.plugs, k).toMatch(/^[A-N]+$/);
+      if (t.drive) expect(['L', 'R'], k).toContain(t.drive);
       expect([100, 110, 115, 120, 127, 230], k).toContain(t.v);
-      if(t.tel) expect(t.tel, k).toMatch(/^\d{1,4}$/);
+      if (t.tel) expect(t.tel, k).toMatch(/^\d{1,4}$/);
     }
     expect(Object.values(TRAVEL).filter(t => t.plugs).length).toBeGreaterThan(200);
   });
@@ -28,19 +28,27 @@ describe('country_travel.json', () => {
 describe('вилки', () => {
   it('из России (C, F)', () => {
     expect(plugCompat('CF', 'CF').level).toBe('same');
-    expect(plugCompat('CF', 'CEF').level).toBe('same');             // Франция: E принимает и C, и F
+    expect(plugCompat('CF', 'CEF').level).toBe('same'); // Франция: E принимает и C, и F
     expect(plugCompat('CF', 'CFL')).toMatchObject({ level: 'same' });
     expect(plugCompat('CF', 'CJ')).toMatchObject({ level: 'some', fits: ['C'], nofit: ['F'] }); // Швейцария
-    expect(plugCompat('CF', 'L')).toMatchObject({ level: 'some', fits: ['C'] });               // старая итальянская
-    expect(plugCompat('CF', 'G').level).toBe('none');               // Британия
-    expect(plugCompat('CF', 'AB').level).toBe('none');              // США
+    expect(plugCompat('CF', 'L')).toMatchObject({ level: 'some', fits: ['C'] }); // старая итальянская
+    expect(plugCompat('CF', 'G').level).toBe('none'); // Британия
+    expect(plugCompat('CF', 'AB').level).toBe('none'); // США
     expect(plugCompat(null, 'G')).toBe(null);
   });
 });
 
 describe('экстренные номера', () => {
   it('единый 112 и службы без дублей', () => {
-    expect(emergencyLines({ p: '102/112', a: '103/112', f: '101/112', n112: 'main' })).toEqual({ single: ['112'], services: [['полиция', ['102']], ['скорая', ['103']], ['пожарные', ['101']]], mobile112: false });
+    expect(emergencyLines({ p: '102/112', a: '103/112', f: '101/112', n112: 'main' })).toEqual({
+      single: ['112'],
+      services: [
+        ['полиция', ['102']],
+        ['скорая', ['103']],
+        ['пожарные', ['101']]
+      ],
+      mobile112: false
+    });
     expect(emergencyLines({ p: '112', n112: 'main' })).toEqual({ single: ['112'], services: [], mobile112: false });
   });
   it('один номер на всё и 112 с мобильного', () => {
@@ -53,7 +61,8 @@ describe('экстренные номера', () => {
 
 describe('время', () => {
   it('разница с Москвой с учётом летнего времени', () => {
-    const jan = new Date(Date.UTC(2026, 0, 15)), jul = new Date(Date.UTC(2026, 6, 15));
+    const jan = new Date(Date.UTC(2026, 0, 15)),
+      jul = new Date(Date.UTC(2026, 6, 15));
     expect(tzDiffMin('Europe/Berlin', 'Europe/Moscow', jan)).toBe(-120);
     expect(tzDiffMin('Europe/Berlin', 'Europe/Moscow', jul)).toBe(-60);
     expect(tzDiffMin('America/New_York', 'Europe/Moscow', jan)).toBe(-480);
@@ -64,7 +73,7 @@ describe('время', () => {
     const t = timeDiffInfo('Europe/Berlin', 'Europe/Moscow', new Date(Date.UTC(2026, 10, 8)));
     expect(t).toMatchObject({ now: -120, winter: -120, summer: -60 });
     expect(t.next.diff).toBe(-60);
-    expect(t.next.date.toISOString().slice(0, 10)).toBe('2027-03-28');   // последнее воскресенье марта
+    expect(t.next.date.toISOString().slice(0, 10)).toBe('2027-03-28'); // последнее воскресенье марта
     const g = timeDiffInfo('Asia/Tbilisi', 'Europe/Moscow', new Date(Date.UTC(2026, 10, 8)));
     expect(g).toMatchObject({ now: 60, winter: 60, summer: 60, next: null });
     // южное полушарие: в Сиднее летнее время — в январе
