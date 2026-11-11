@@ -265,6 +265,7 @@ function startEdit(entry){
     currentStatus = entry.status || 'visited';
     document.querySelectorAll('.type-btn[data-status]').forEach(b => b.classList.toggle('active', b.dataset.status === currentStatus));
   }
+  setFormMoreOpen(entryHasMoreFields(entry));
   document.getElementById('cancelEditBtn').style.display = 'block';
   document.getElementById('saveBtn').textContent = 'Сохранить изменения';
   mnavShow('add');

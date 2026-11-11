@@ -8,7 +8,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
 <!-- личная карта: не показывать в поисковиках (превью ссылок в мессенджерах это не отключает) -->
 <meta name="robots" content="noindex, nofollow">
 <title>Карта путешествий</title>
@@ -156,8 +156,8 @@ window.addEventListener('unhandledrejection', function(e){
       <p class="section-title">Добавить отметку</p>
       <label>Тип</label>
       <div class="type-toggle" id="typeToggle">
-        <div class="type-btn active" data-type="country">Страна</div>
-        <div class="type-btn" data-type="city">Город</div>
+        <div class="type-btn" data-type="country">Страна</div>
+        <div class="type-btn active" data-type="city">Город</div>
         <div class="type-btn" data-type="route">Маршрут</div>
       </div>
 
@@ -167,7 +167,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div class="type-btn" data-status="wishlist">Хочу посетить</div>
       </div>
 
-      <div id="countryFields">
+      <div id="countryFields" style="display:none;">
         <label>Страна</label>
         <div class="search-wrap">
           <input type="text" id="countrySearch" placeholder="Начните вводить название..." autocomplete="off">
@@ -181,7 +181,7 @@ window.addEventListener('unhandledrejection', function(e){
         </div>
       </div>
 
-      <div id="cityFields" style="display:none;">
+      <div id="cityFields">
         <label>Город</label>
         <div class="search-wrap">
           <input type="text" id="citySearch" placeholder="Начните вводить название..." autocomplete="off">
@@ -193,13 +193,6 @@ window.addEventListener('unhandledrejection', function(e){
         <div id="cityMapMode" style="display:none;">
           <button class="place-btn" id="placeCityBtn">Указать точку на карте</button>
         </div>
-        <label>Страна города</label>
-        <select id="fieldCityCountry"></select>
-        <div class="hint">Заполняется автоматически при выборе города. Исправьте, если определилась неверно или осталась пустой.</div>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:12px;">
-          <input type="checkbox" id="fieldFavorite" style="width:16px;height:16px;accent-color:var(--amber);margin:0;">
-          <span style="margin:0;font-size:12.5px;color:var(--text);">❤ Любимый город</span>
-        </label>
       </div>
 
       <div id="routeFields" style="display:none;">
@@ -266,8 +259,11 @@ window.addEventListener('unhandledrejection', function(e){
         </div>
       </div>
 
-      <label>Название</label>
-      <input type="text" id="fieldName" placeholder="можно оставить как определено автоматически">
+      <!-- название записи: видно при правке и в «Подробнее»; у новой — берётся из выбранного места -->
+      <div id="nameRow" hidden>
+        <label for="fieldName">Название</label>
+        <input type="text" id="fieldName" placeholder="можно оставить как определено автоматически">
+      </div>
 
       <label>Год</label>
       <input type="number" id="fieldYear" min="1990" max="2100">
@@ -300,6 +296,18 @@ window.addEventListener('unhandledrejection', function(e){
         <div class="hint" style="margin-top:4px;">Год и месяц подставятся сами. Последний день можно не указывать.</div>
       </div>
 
+      <!-- «Подробнее»: всё, кроме типа, места и даты; при правке заполненной записи раскрыто -->
+      <button type="button" class="form-more-toggle" id="formMoreToggle" aria-expanded="false" aria-controls="formMoreFields">Подробнее <span class="form-more-hint">— название, поездка, заметка, ссылки, цвет</span></button>
+      <div id="formMoreFields" hidden>
+      <div id="cityMoreFields">
+        <label>Страна города</label>
+        <select id="fieldCityCountry"></select>
+        <div class="hint">Заполняется автоматически при выборе города. Исправьте, если определилась неверно или осталась пустой.</div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:12px;">
+          <input type="checkbox" id="fieldFavorite" style="width:16px;height:16px;accent-color:var(--amber);margin:0;">
+          <span style="margin:0;font-size:12.5px;color:var(--text);">❤ Любимый город</span>
+        </label>
+      </div>
       <label>Цель поездки</label>
       <select id="fieldPurpose">
         <option value="tourism">Туризм</option>
@@ -342,7 +350,7 @@ window.addEventListener('unhandledrejection', function(e){
       <label>Цвет на карте</label>
       <div class="color-row">
         <div class="color-swatches" id="colorSwatches" role="radiogroup" aria-label="Цвет на карте"></div>
-        <input type="color" id="fieldColor" value="#A6592E" list="colorPresets" title="Свой цвет" aria-label="Свой цвет">
+        <input type="color" id="fieldColor" value="#3F5240" list="colorPresets" title="Свой цвет" aria-label="Свой цвет">
         <datalist id="colorPresets"></datalist>
       </div>
 
@@ -366,9 +374,13 @@ window.addEventListener('unhandledrejection', function(e){
         <span style="margin:0;font-size:12.5px;color:var(--text);">🔒 Не показывать друзьям</span>
       </label>
       <div class="hint" style="margin-top:2px;">Запись не попадёт в версию для друзей. Заметки туда не попадают никогда.</div>
+      </div>
 
-      <button class="save-btn" id="saveBtn">Сохранить</button>
-      <button class="cancel-edit" id="cancelEditBtn" style="display:none;">Отменить редактирование</button>
+      <!-- кнопки закреплены внизу формы и видны всегда, в том числе при открытой клавиатуре -->
+      <div class="form-actions" id="formActions">
+        <button class="save-btn" id="saveBtn">Сохранить</button>
+        <button class="cancel-edit" id="cancelEditBtn" style="display:none;">Отмена</button>
+      </div>
     </div>
 
     <div class="section" data-mtab="filters">

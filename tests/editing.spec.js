@@ -22,6 +22,7 @@ test('правка маршрута открывает поля маршрута
 test('правка города показывает страну города', async ({ page }) => {
   await openApp(page);
   await page.evaluate(() => startEdit(allEntries.find(e => e.id === 'ci_kz')));
+  await page.locator('#formMoreToggle').click(); // v2.74: страна города — в «Подробнее»
   await expect(page.locator('#fieldCityCountry')).toBeVisible();
   await expect(page.locator('#fieldCityCountry')).toHaveValue('Russia');
 });
