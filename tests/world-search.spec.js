@@ -2,8 +2,8 @@
 const { test, expect } = require('@playwright/test');
 const { openApp, expectNoErrors } = require('./helpers');
 
-async function openSearch(page, info){
-  if(info.project.name === 'phone') await page.locator('[data-mtab-btn="list"]').click();
+async function openSearch(page, info) {
+  if (info.project.name === 'phone') await page.locator('[data-mtab-btn="list"]').click();
 }
 
 test('страна мира: из поиска — на карту с карточкой', async ({ page }, info) => {
@@ -20,12 +20,14 @@ test('город мира без сети: карточка и «Хочу пос
   const { errors } = await openApp(page);
   await context.setOffline(true);
   await openSearch(page, info);
-  await page.fill('#globalSearch', 'Кельн');           // «е» вместо «ё» тоже находит
+  await page.fill('#globalSearch', 'Кельн'); // «е» вместо «ё» тоже находит
   await expect(page.locator('#worldSuggest')).toContainText('Кёльн');
   await page.locator('#worldSuggest [data-ws]').first().click();
   await expect(page.locator('.leaflet-popup')).toContainText('Германия');
   await page.locator('.leaflet-popup [data-ws-act="wish"]').click();
-  await expect.poll(() => page.evaluate(() => allEntries.filter(e => e.name === 'Кёльн' && e.status === 'wishlist' && e.countryKey === 'Germany').length)).toBe(1);
+  await expect
+    .poll(() => page.evaluate(() => allEntries.filter(e => e.name === 'Кёльн' && e.status === 'wishlist' && e.countryKey === 'Germany').length))
+    .toBe(1);
   await expectNoErrors(errors);
 });
 
@@ -43,8 +45,15 @@ test('шрифт флагов подключается, когда систем�
   test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
   // имитация Windows: проверка рисования флага «проваливается»
   await page.addInitScript(() => {
-    const g = HTMLCanvasElement.prototype.getContext; let first = true;
-    HTMLCanvasElement.prototype.getContext = function(){ if(first){ first = false; return null; } return g.apply(this, arguments); };
+    const g = HTMLCanvasElement.prototype.getContext;
+    let first = true;
+    HTMLCanvasElement.prototype.getContext = function () {
+      if (first) {
+        first = false;
+        return null;
+      }
+      return g.apply(this, arguments);
+    };
   });
   await openApp(page);
   expect(await page.evaluate(() => window.FLAG_FONT_NEEDED)).toBe(true);
@@ -56,8 +65,13 @@ test('кнопка темы — на карте, подпись карты не 
   await expect(page.locator('.map-controls #themeToggleBtn')).toBeVisible();
   await page.locator('#themeToggleBtn').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await page.evaluate(() => { tileFallbackDone = true; setBasemap('street'); });
-  const [a, t] = await page.evaluate(() => [document.querySelector('.leaflet-control-attribution').getBoundingClientRect().toJSON(),
-                                           document.getElementById('timelineBar').getBoundingClientRect().toJSON()]);
+  await page.evaluate(() => {
+    tileFallbackDone = true;
+    setBasemap('street');
+  });
+  const [a, t] = await page.evaluate(() => [
+    document.querySelector('.leaflet-control-attribution').getBoundingClientRect().toJSON(),
+    document.getElementById('timelineBar').getBoundingClientRect().toJSON()
+  ]);
   expect(a.top >= t.bottom - 0.5 || a.right <= t.left || a.bottom <= t.top).toBe(true);
 });

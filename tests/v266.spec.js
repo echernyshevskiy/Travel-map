@@ -6,14 +6,27 @@ const { openApp, expectNoErrors } = require('./helpers');
 
 test('импорт из фото: найденная поездка добавляется городом, отменяется одним нажатием', async ({ page }) => {
   // название места — «из сети» (подменённый ответ геокодера)
-  const { errors } = await openApp(page, { entries: [], mocks: { 'nominatim.openstreetmap.org/reverse': () => ({ contentType: 'application/json',
-    body: JSON.stringify({ address: { city: 'Тбилиси', country: 'Грузия', country_code: 'ge' } }) }) } });
+  const { errors } = await openApp(page, {
+    entries: [],
+    mocks: {
+      'nominatim.openstreetmap.org/reverse': () => ({
+        contentType: 'application/json',
+        body: JSON.stringify({ address: { city: 'Тбилиси', country: 'Грузия', country_code: 'ge' } })
+      })
+    }
+  });
   await page.evaluate(() => document.getElementById('openPhotoImportBtn').click());
   await page.setInputFiles('#photoInput', path.join(__dirname, 'fixtures', 'heic-tbilisi.heic'));
   await expect(page.locator('[data-photo-name="0"]')).toHaveValue('Тбилиси');
   await expect(page.locator('[data-photo-pick="0"]')).toBeChecked();
   await page.click('#photoApplyBtn');
-  await expect.poll(() => page.evaluate(() => { const e = allEntries.find(x => x.name === 'Тбилиси'); return e && [e.type, e.year, e.month, e.countryKey, Math.round(e.lat)]; }))
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const e = allEntries.find(x => x.name === 'Тбилиси');
+        return e && [e.type, e.year, e.month, e.countryKey, Math.round(e.lat)];
+      })
+    )
     .toEqual(['city', 2024, 7, 'Georgia', 42]);
   await expect(page.locator('#photoImportModal')).toBeHidden();
   await expect(page.locator('#toast')).toContainText('Добавлено записей: 1');
@@ -36,8 +49,14 @@ test('импорт из фото: снятая галочка и пустое н
 
 test('«Что здесь?» в карточке страны: название места и «+ добавить как город»', async ({ page }) => {
   let asked = '';
-  const { errors } = await openApp(page, { mocks: { 'nominatim.openstreetmap.org/reverse': url => { asked = url; return { contentType: 'application/json',
-    body: JSON.stringify({ address: { village: 'Степанцминда', country: 'Грузия', country_code: 'ge' } }) }; } } });
+  const { errors } = await openApp(page, {
+    mocks: {
+      'nominatim.openstreetmap.org/reverse': url => {
+        asked = url;
+        return { contentType: 'application/json', body: JSON.stringify({ address: { village: 'Степанцминда', country: 'Грузия', country_code: 'ge' } }) };
+      }
+    }
+  });
   await page.evaluate(() => openCountryPopup('Georgia', L.latLng(42.66, 44.64)));
   await page.locator('[data-cpop-act="where"]').click();
   await expect(page.locator('#cpopPlace')).toContainText('Степанцминда');
@@ -51,7 +70,7 @@ test('«Что здесь?» в карточке страны: название 
 test('«Что здесь?» без сети — справочник городов, а не ошибка', async ({ page, context }) => {
   const { errors } = await openApp(page);
   await context.setOffline(true);
-  await page.evaluate(() => openCountryPopup('Georgia', L.latLng(41.70, 44.79)));
+  await page.evaluate(() => openCountryPopup('Georgia', L.latLng(41.7, 44.79)));
   await page.locator('[data-cpop-act="where"]').click();
   await expect(page.locator('#cpopPlace')).toContainText('Тбилиси');
   await context.setOffline(false);
@@ -60,16 +79,26 @@ test('«Что здесь?» без сети — справочник город
 
 test('полноэкранная карта: кнопка и Esc, карта занимает всё окно', async ({ page }) => {
   const { errors } = await openApp(page);
-  const size = () => page.evaluate(() => { const s = map.getSize(); return [s.x, s.y, innerWidth, innerHeight]; });
+  const size = () =>
+    page.evaluate(() => {
+      const s = map.getSize();
+      return [s.x, s.y, innerWidth, innerHeight];
+    });
   await page.click('#mapFullBtn');
   await expect(page.locator('body')).toHaveClass(/map-full/);
   await expect(page.locator('#mapFullBtn')).toHaveAttribute('aria-label', 'Свернуть карту обратно');
-  await expect.poll(async () => { const [w, h, W, H] = await size(); return Math.abs(w - W) <= 2 && Math.abs(h - H) <= 2; }).toBe(true);
+  await expect
+    .poll(async () => {
+      const [w, h, W, H] = await size();
+      return Math.abs(w - W) <= 2 && Math.abs(h - H) <= 2;
+    })
+    .toBe(true);
   await page.keyboard.press('Escape');
   await expect(page.locator('body')).not.toHaveClass(/map-full/);
   await expect(page.locator('#mapFullBtn')).toHaveAttribute('aria-label', 'Развернуть карту на весь экран');
   // и снова кнопкой
-  await page.click('#mapFullBtn'); await page.click('#mapFullBtn');
+  await page.click('#mapFullBtn');
+  await page.click('#mapFullBtn');
   await expect(page.locator('body')).not.toHaveClass(/map-full/);
   await expectNoErrors(errors);
 });

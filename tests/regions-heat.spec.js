@@ -20,7 +20,9 @@ test('тепловая карта и исследованные квадраты
   expect(n).toBeGreaterThan(5); // поход; маршрут «по прямой» не учитывается
   expect(await page.evaluate(() => [...heatTiles].length === squaresOfRoute(allEntries.find(e => e.id === 'rt_gpx')).size)).toBe(true);
   await page.evaluate(() => document.getElementById('heatChip').click());
-  await page.evaluate(() => { map.setView([56.0, 37.21], 11, { animate: false }); });
-  await expect.poll(() => page.evaluate(() => squaresLayer ? squaresLayer.getLayers().length : 0)).toBeGreaterThan(0);
+  await page.evaluate(() => {
+    map.setView([56.0, 37.21], 11, { animate: false });
+  });
+  await expect.poll(() => page.evaluate(() => (squaresLayer ? squaresLayer.getLayers().length : 0))).toBeGreaterThan(0);
   await expectNoErrors(errors);
 });

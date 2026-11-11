@@ -6,95 +6,124 @@ const MNAV_MQ = window.matchMedia('(max-width:768px) and (min-height:601px)');
 const MNAV_TITLES = { list: 'Записи', filters: 'Фильтры', add: 'Новая отметка', more: 'Ещё' };
 let mnavTab = 'map';
 let mnavPushed = false; // панель добавила шаг в историю браузера
-function mnavOn(){ return document.body.classList.contains('mnav'); }
-function setListView(view){
+function mnavOn() {
+  return document.body.classList.contains('mnav');
+}
+function setListView(view) {
   document.body.classList.toggle('list-stats', view === 'stats');
   document.querySelectorAll('#listSwitch [data-lsw]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.lsw === view)));
   const sb = document.getElementById('sidebar');
-  if(sb && mnavOn()) sb.scrollTop = 0;
-  if(!mnavOn()) sideTabFromMtab('list'); // на компьютере «Записи» и «Статистика» — отдельные вкладки
+  if (sb && mnavOn()) sb.scrollTop = 0;
+  if (!mnavOn()) sideTabFromMtab('list'); // на компьютере «Записи» и «Статистика» — отдельные вкладки
 }
 document.querySelectorAll('#listSwitch [data-lsw]').forEach(b => b.addEventListener('click', () => setListView(b.dataset.lsw)));
-function mnavShow(tab){
-  if(!mnavOn()){ sideTabFromMtab(tab); return; } // на компьютере — та же вкладка боковой панели (44a-side-tabs.js)
-  if(READ_ONLY && tab === 'add') tab = 'map';
+function mnavShow(tab) {
+  if (!mnavOn()) {
+    sideTabFromMtab(tab);
+    return;
+  } // на компьютере — та же вкладка боковой панели (44a-side-tabs.js)
+  if (READ_ONLY && tab === 'add') tab = 'map';
   const wasOpen = mnavTab !== 'map';
   const changed = tab !== mnavTab;
   mnavTab = tab;
   const body = document.body;
-  ['list','filters','add','more'].forEach(t => body.classList.toggle('mtab-' + t, t === tab));
+  ['list', 'filters', 'add', 'more'].forEach(t => body.classList.toggle('mtab-' + t, t === tab));
   body.classList.toggle('mtab-open', tab !== 'map');
   document.querySelectorAll('[data-mtab-btn]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.mtabBtn === tab)));
   const title = document.getElementById('mnavSheetTitle');
-  if(title) title.textContent = tab === 'add' && editingId ? 'Правка отметки' : (MNAV_TITLES[tab] || '');
-  if(changed && tab !== 'map') document.getElementById('sidebar').scrollTop = 0;
+  if (title) title.textContent = tab === 'add' && editingId ? 'Правка отметки' : MNAV_TITLES[tab] || '';
+  if (changed && tab !== 'map') document.getElementById('sidebar').scrollTop = 0;
   // «Назад» на Android закрывает панель, а не уходит со страницы.
   // Шаг истории общий с окнами (32a-dialogs.js): снимаем его тем же способом,
   // чтобы открытое поверх окно не закрылось этим переходом.
-  if(tab !== 'map' && !wasOpen){
+  if (tab !== 'map' && !wasOpen) {
     mnavPushed = historyPushStep();
-  } else if(tab === 'map' && wasOpen && mnavPushed){
+  } else if (tab === 'map' && wasOpen && mnavPushed) {
     mnavPushed = false;
     historyBackSilently();
   }
 }
-window.addEventListener('popstate', ()=>{
-  if(mnavOn() && mnavTab !== 'map'){
+window.addEventListener('popstate', () => {
+  if (mnavOn() && mnavTab !== 'map') {
     mnavTab = 'map'; // уже ушли назад по истории — второй раз не возвращаемся
     mnavPushed = false;
-    ['list','filters','add','more'].forEach(t => document.body.classList.remove('mtab-' + t));
+    ['list', 'filters', 'add', 'more'].forEach(t => document.body.classList.remove('mtab-' + t));
     document.body.classList.remove('mtab-open');
     document.querySelectorAll('[data-mtab-btn]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.mtabBtn === 'map')));
   }
 });
-function mnavApplyMode(){
+function mnavApplyMode() {
   const on = MNAV_MQ.matches;
   const was = mnavOn();
   document.body.classList.toggle('mnav', on);
   const actions = document.querySelector('.header-actions');
   const slot = document.getElementById('moreActionsSlot');
   const header = document.querySelector('header');
-  if(actions && slot && header){
-    if(on && actions.parentElement !== slot) slot.appendChild(actions);
-    if(!on && actions.parentElement !== header) header.appendChild(actions);
+  if (actions && slot && header) {
+    if (on && actions.parentElement !== slot) slot.appendChild(actions);
+    if (!on && actions.parentElement !== header) header.appendChild(actions);
   }
-  if(on && !was){ mnavTab = 'map'; mnavShow('map'); }
-  if(!on && was){
-    ['list','filters','add','more'].forEach(t => document.body.classList.remove('mtab-' + t));
+  if (on && !was) {
+    mnavTab = 'map';
+    mnavShow('map');
+  }
+  if (!on && was) {
+    ['list', 'filters', 'add', 'more'].forEach(t => document.body.classList.remove('mtab-' + t));
     document.body.classList.remove('mtab-open');
     mnavTab = 'map';
-    if(mnavPushed){ mnavPushed = false; historyBackSilently(); }
+    if (mnavPushed) {
+      mnavPushed = false;
+      historyBackSilently();
+    }
   }
-  if(on !== was) setTimeout(()=> map.invalidateSize(), 60);
+  if (on !== was) setTimeout(() => map.invalidateSize(), 60);
 }
-function updateMnavBadge(){
+function updateMnavBadge() {
   const dot = document.getElementById('mnavFilterDot');
-  if(dot) dot.classList.toggle('on', !!anyFilterActive());
+  if (dot) dot.classList.toggle('on', !!anyFilterActive());
 }
-(function setupMobileNav(){
-  if(READ_ONLY){
+(function setupMobileNav() {
+  if (READ_ONLY) {
     const addBtn = document.querySelector('[data-mtab-btn="add"]');
-    if(addBtn) addBtn.style.display = 'none';
+    if (addBtn) addBtn.style.display = 'none';
   }
-  document.querySelectorAll('[data-mtab-btn]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
+  document.querySelectorAll('[data-mtab-btn]').forEach(btn => {
+    btn.addEventListener('click', () => {
       const tab = btn.dataset.mtabBtn;
       // повторное нажатие на открытую вкладку убирает панель
       mnavShow(tab === mnavTab ? 'map' : tab);
     });
   });
-  document.getElementById('mnavCloseBtn').addEventListener('click', ()=> mnavShow('map'));
+  document.getElementById('mnavCloseBtn').addEventListener('click', () => mnavShow('map'));
   // смахивание шапки панели вниз закрывает её
   const head = document.getElementById('mnavSheetHead');
   let y0 = null;
-  head.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; }, { passive: true });
-  head.addEventListener('touchmove', e => {
-    if(y0 === null) return;
-    if(e.touches[0].clientY - y0 > 60){ y0 = null; mnavShow('map'); }
-  }, { passive: true });
-  head.addEventListener('touchend', ()=>{ y0 = null; }, { passive: true });
-  if(MNAV_MQ.addEventListener) MNAV_MQ.addEventListener('change', mnavApplyMode);
-  else if(MNAV_MQ.addListener) MNAV_MQ.addListener(mnavApplyMode);
+  head.addEventListener(
+    'touchstart',
+    e => {
+      y0 = e.touches[0].clientY;
+    },
+    { passive: true }
+  );
+  head.addEventListener(
+    'touchmove',
+    e => {
+      if (y0 === null) return;
+      if (e.touches[0].clientY - y0 > 60) {
+        y0 = null;
+        mnavShow('map');
+      }
+    },
+    { passive: true }
+  );
+  head.addEventListener(
+    'touchend',
+    () => {
+      y0 = null;
+    },
+    { passive: true }
+  );
+  if (MNAV_MQ.addEventListener) MNAV_MQ.addEventListener('change', mnavApplyMode);
+  else if (MNAV_MQ.addListener) MNAV_MQ.addListener(mnavApplyMode);
   mnavApplyMode();
 })();
-

@@ -1,6 +1,8 @@
-function where0(v){ return (v || '').trim(); }
+function where0(v) {
+  return (v || '').trim();
+}
 
-function buildBioSpreadHtml(allStamps){
+function buildBioSpreadHtml(allStamps) {
   const visited = allEntries.filter(e => e.status !== 'wishlist' && e.year);
   const cities = distinctCityKeys(getAllCityVisits(visited)).size; // уникальные города, а не число визитов
   const years = visited.map(e => e.year);
@@ -15,7 +17,7 @@ function buildBioSpreadHtml(allStamps){
     ['Открыто карты мира', `${pct}%`],
     ['Первая запись', firstYear ? String(firstYear) : '—'],
     ['Последняя поездка', lastYear ? String(lastYear) : '—'],
-    ['Дом', homeCity],
+    ['Дом', homeCity]
   ];
 
   // машиночитаемая строка — типографский приём, не кодирует ничего реального
@@ -27,14 +29,21 @@ function buildBioSpreadHtml(allStamps){
   const badges = computeBadges();
   const left = `<div class="pp-page left pp-bio-page">
     <div class="pp-page-head"><span>особые отметки</span><span>1</span></div>
-    ${badges.length ? `<div class="pp-badges">${badges.map(b => `
+    ${
+      badges.length
+        ? `<div class="pp-badges">${badges
+            .map(
+              b => `
       <div class="pp-badge">
         <span class="pp-badge-mark">${b.mark /* html-ok: значки — наши постоянные символы */}</span>
         <span class="pp-badge-body"><b>${escapeHtml(b.title)}</b><em>${escapeHtml(b.note)}</em></span>
-      </div>`).join('')}</div>`
-     : `<div style="display:flex;align-items:center;justify-content:center;padding:48px 0;">
+      </div>`
+            )
+            .join('')}</div>`
+        : `<div style="display:flex;align-items:center;justify-content:center;padding:48px 0;">
           <div class="pp-bio-oval" style="position:static;transform:rotate(-6deg);width:60px;height:38px;font-size:12px;">КП</div>
-        </div>`}
+        </div>`
+    }
     <div class="pp-page-num">— 1 —</div>
   </div>`;
 
@@ -44,11 +53,17 @@ function buildBioSpreadHtml(allStamps){
     <div class="pp-bio-top">
       <div class="pp-bio-photo"><b>${allStamps.length}</b><span>стран посещено</span></div>
       <div class="pp-bio-fields">
-        ${fields.slice(0,3).map(([l,v]) => `<div class="pp-bio-field"><label>${escapeHtml(l)}</label><div>${escapeHtml(v)}</div></div>`).join('')}
+        ${fields
+          .slice(0, 3)
+          .map(([l, v]) => `<div class="pp-bio-field"><label>${escapeHtml(l)}</label><div>${escapeHtml(v)}</div></div>`)
+          .join('')}
       </div>
     </div>
     <div class="pp-bio-fields">
-      ${fields.slice(3).map(([l,v]) => `<div class="pp-bio-field"><label>${escapeHtml(l)}</label><div>${escapeHtml(v)}</div></div>`).join('')}
+      ${fields
+        .slice(3)
+        .map(([l, v]) => `<div class="pp-bio-field"><label>${escapeHtml(l)}</label><div>${escapeHtml(v)}</div></div>`)
+        .join('')}
     </div>
     <div class="pp-mrz">${mrzLine1}<br>${mrzLine2}</div>
     <div class="pp-page-num">— 2 —</div>
@@ -57,11 +72,11 @@ function buildBioSpreadHtml(allStamps){
   return `<div class="pp-spread">${left}${right}</div>`;
 }
 
-function renderPassport(){
+function renderPassport() {
   const { all: allStamps, shown: stamps, pages } = passportPages();
 
   document.getElementById('passportCount').textContent =
-    `Собрано печатей: ${allStamps.length} из ${COUNTRY_LIST.length} (${Math.round((allStamps.length/COUNTRY_LIST.length)*100)}% карты мира)` +
+    `Собрано печатей: ${allStamps.length} из ${COUNTRY_LIST.length} (${Math.round((allStamps.length / COUNTRY_LIST.length) * 100)}% карты мира)` +
     (passportSearchQuery ? ` · показано: ${stamps.length}` : '');
 
   const book = document.getElementById('passportBook');
@@ -73,10 +88,10 @@ function renderPassport(){
   const spreadsCount = pages.length / 2;
   const totalSpreads = spreadsCount + 2;
 
-  if(passportSpread > totalSpreads - 1) passportSpread = totalSpreads - 1;
-  if(passportSpread < 0) passportSpread = 0;
+  if (passportSpread > totalSpreads - 1) passportSpread = totalSpreads - 1;
+  if (passportSpread < 0) passportSpread = 0;
 
-  if(passportSpread === 0){
+  if (passportSpread === 0) {
     book.innerHTML = `<div class="pp-cover">
       <div class="pp-cover-top">
         <div class="pp-emblem">${PASSPORT_EMBLEM_SVG}</div>
@@ -94,7 +109,7 @@ function renderPassport(){
       </div>
     </div>`;
     pos.textContent = 'обложка';
-  } else if(passportSpread === 1){
+  } else if (passportSpread === 1) {
     book.innerHTML = buildBioSpreadHtml(allStamps);
     pos.textContent = 'сводка';
   } else {
@@ -109,7 +124,7 @@ function renderPassport(){
   prev.disabled = passportSpread === 0;
   next.disabled = passportSpread >= totalSpreads - 1;
 
-  if(passportSearchQuery && stamps.length === 0){
+  if (passportSearchQuery && stamps.length === 0) {
     book.innerHTML = `<div class="hint" style="padding:20px;">Ничего не найдено по запросу «${escapeHtml(passportSearchQuery)}».</div>`;
     pos.textContent = '';
     prev.disabled = next.disabled = true;
@@ -120,11 +135,15 @@ function renderPassport(){
 // хранится прямыми ссылками на изображения, часть — ссылками на альбом целиком.
 // Вторые физически нельзя показать картинкой, поэтому они выводятся отдельной
 // плиткой со ссылкой наружу, а не «битой» картинкой.
-function galleryHostLabel(url){
-  try{ return new URL(safeUrl(url)).hostname.replace(/^www\./,''); }catch(e){ return 'ссылка'; }
+function galleryHostLabel(url) {
+  try {
+    return new URL(safeUrl(url)).hostname.replace(/^www\./, '');
+  } catch (e) {
+    return 'ссылка';
+  }
 }
 
-function renderGallery(){
+function renderGallery() {
   const body = document.getElementById('galleryBody');
   const visible = allEntries.filter(passesFilter);
   // Одна плитка на запись, а не на каждую ссылку: поездка с четырьмя ссылками
@@ -132,9 +151,9 @@ function renderGallery(){
   // Обложка — первая ссылка, ведущая прямо на изображение; ссылки на альбомы
   // показываем отдельной строкой под подписью, а не отдельными плитками.
   const items = [];
-  visible.forEach(e=>{
+  visible.forEach(e => {
     const photos = (e.photos || []).filter(Boolean);
-    if(photos.length === 0) return;
+    if (photos.length === 0) return;
     const cover = photos.find(p => !photoLinkProblem(p)) || null;
     const albums = photos.filter(p => photoLinkProblem(p));
     items.push({ entry: e, cover, albums, total: photos.length, year: e.year || 0 });
@@ -142,34 +161,34 @@ function renderGallery(){
 
   const withCover = items.filter(i => i.cover).length;
   const onlyAlbums = items.length - withCover;
-  document.getElementById('galleryCount').textContent = items.length === 0
-    ? 'Пока нет фотографий'
-    : `Записей с фото: ${items.length}` +
-      (withCover ? ` · с обложкой: ${withCover}` : '') +
-      (onlyAlbums ? ` · только ссылки на альбом: ${onlyAlbums}` : '');
+  document.getElementById('galleryCount').textContent =
+    items.length === 0
+      ? 'Пока нет фотографий'
+      : `Записей с фото: ${items.length}` + (withCover ? ` · с обложкой: ${withCover}` : '') + (onlyAlbums ? ` · только ссылки на альбом: ${onlyAlbums}` : '');
 
-  if(items.length === 0){
+  if (items.length === 0) {
     body.innerHTML = `<div class="hint" style="padding:20px;">${
-      allEntries.some(e => (e.photos||[]).length)
+      allEntries.some(e => (e.photos || []).length)
         ? 'Под текущие фильтры не попало ни одной записи с фото.'
         : 'Добавьте ссылку на фото в любую отметку — она появится здесь.'
     }</div>`;
     return;
   }
 
-  items.sort((a,b)=> b.year - a.year || a.entry.name.localeCompare(b.entry.name, 'ru'));
+  items.sort((a, b) => b.year - a.year || a.entry.name.localeCompare(b.entry.name, 'ru'));
   const galYearCounts = new Map();
   items.forEach(x => galYearCounts.set(x.year, (galYearCounts.get(x.year) || 0) + 1));
 
-  let html = '', lastYear = null;
-  items.forEach(it=>{
-    if(it.year !== lastYear){
-      if(lastYear !== null) html += '</div>';
+  let html = '',
+    lastYear = null;
+  items.forEach(it => {
+    if (it.year !== lastYear) {
+      if (lastYear !== null) html += '</div>';
       lastYear = it.year;
       html += `<div class="gal-year">${it.year || 'без года'}<span>${galYearCounts.get(it.year) || 0}</span></div><div class="gal-grid">`;
     }
     const e = it.entry;
-    const flag = (e.type === 'country' || e.type === 'city') ? countryFlag(e.countryKey) : '';
+    const flag = e.type === 'country' || e.type === 'city' ? countryFlag(e.countryKey) : '';
     const cap = `${flag ? flag + ' ' : ''}${escapeHtml(e.name)}`;
     const sub = `${escapeHtml(whenLabel(e))}`;
     const albumLinks = it.albums.length
@@ -184,39 +203,39 @@ function renderGallery(){
       ${albumLinks}
     </div>`;
   });
-  if(lastYear !== null) html += '</div>';
+  if (lastYear !== null) html += '</div>';
   body.innerHTML = html;
 }
 
 // клик по миниатюре — закрыть галерею и перелететь к точке на карте
-document.getElementById('galleryBody').addEventListener('click', (ev)=>{
+document.getElementById('galleryBody').addEventListener('click', ev => {
   const item = ev.target.closest('[data-gal-id]');
-  if(!item) return;
+  if (!item) return;
   const entry = allEntries.find(e => e.id === item.dataset.galId);
-  if(!entry) return;
+  if (!entry) return;
   document.getElementById('galleryModal').style.display = 'none';
   focusEntry(entry);
 });
-document.getElementById('openGalleryBtn').addEventListener('click', ()=>{
+document.getElementById('openGalleryBtn').addEventListener('click', () => {
   renderGallery();
   document.getElementById('galleryModal').style.display = 'flex';
 });
-document.getElementById('closeGalleryModal').addEventListener('click', ()=>{
+document.getElementById('closeGalleryModal').addEventListener('click', () => {
   document.getElementById('galleryModal').style.display = 'none';
 });
-document.getElementById('galleryModal').addEventListener('click', (e)=>{
-  if(e.target.id === 'galleryModal') document.getElementById('galleryModal').style.display = 'none';
+document.getElementById('galleryModal').addEventListener('click', e => {
+  if (e.target.id === 'galleryModal') document.getElementById('galleryModal').style.display = 'none';
 });
 
 // Печать выводит весь паспорт целиком, а не текущий разворот: на время печати
 // подставляем все развороты подряд, затем возвращаем обычный вид.
-document.getElementById('ppPrint').addEventListener('click', ()=>{
+document.getElementById('ppPrint').addEventListener('click', () => {
   const book = document.getElementById('passportBook');
   const restore = book.innerHTML;
   const restoreSpread = passportSpread;
   const parts = [];
   const total = passportTotalSpreads();
-  for(let s = 0; s < total; s++){
+  for (let s = 0; s < total; s++) {
     passportSpread = s;
     renderPassport();
     // Разрыв страницы вешаем на простой блочный контейнер, а не на сам
@@ -233,24 +252,28 @@ document.getElementById('ppPrint').addEventListener('click', ()=>{
   // вернуть один разворот, и в файл попадала только текущая страница.
   let done = false;
   const printMq = window.matchMedia ? window.matchMedia('print') : null;
-  const onMqChange = (e)=>{ if(!e.matches) cleanup(); };
-  const cleanup = ()=>{
-    if(done) return;
+  const onMqChange = e => {
+    if (!e.matches) cleanup();
+  };
+  const cleanup = () => {
+    if (done) return;
     done = true;
     book.innerHTML = restore;
     passportSpread = restoreSpread;
     renderPassport();
     window.removeEventListener('afterprint', cleanup);
     window.removeEventListener('focus', onFocus);
-    if(printMq && printMq.removeEventListener) printMq.removeEventListener('change', onMqChange);
+    if (printMq && printMq.removeEventListener) printMq.removeEventListener('change', onMqChange);
   };
   // возврат фокуса означает, что диалог печати закрыт — запасной путь для браузеров,
   // которые не шлют afterprint
-  const onFocus = ()=>{ setTimeout(cleanup, 400); };
+  const onFocus = () => {
+    setTimeout(cleanup, 400);
+  };
 
   window.addEventListener('afterprint', cleanup);
   window.addEventListener('focus', onFocus);
-  if(printMq && printMq.addEventListener) printMq.addEventListener('change', onMqChange);
+  if (printMq && printMq.addEventListener) printMq.addEventListener('change', onMqChange);
 
   window.print();
 });
@@ -258,7 +281,7 @@ document.getElementById('ppPrint').addEventListener('click', ()=>{
 // Итоги года. Считаем по тем же функциям, что и общая статистика, — иначе
 // цифры в итогах и в панели разошлись бы, а это худшее, что может случиться
 // с таким экраном.
-function computeRecap(year){
+function computeRecap(year) {
   const inYear = allEntries.filter(e => e.year === year && e.status !== 'wishlist');
   const before = allEntries.filter(e => e.year < year && e.status !== 'wishlist');
   const seenBefore = new Set(before.filter(e => e.type === 'country').map(e => e.countryKey));
@@ -267,41 +290,43 @@ function computeRecap(year){
   const cityVisits = getAllCityVisits(inYear);
   const cities = distinctCityKeys(cityVisits);
   const routes = inYear.filter(e => e.type === 'route');
-  const km = routes.reduce((s,r) => s + (r.distanceKm || 0), 0);
-  const gain = routes.reduce((s,r) => s + (r.elevationGain || 0), 0);
+  const km = routes.reduce((s, r) => s + (r.distanceKm || 0), 0);
+  const gain = routes.reduce((s, r) => s + (r.elevationGain || 0), 0);
   const months = new Set(inYear.filter(e => e.month).map(e => e.month));
-  const longest = routes.slice().sort((a,b) => (b.distanceKm||0) - (a.distanceKm||0))[0];
+  const longest = routes.slice().sort((a, b) => (b.distanceKm || 0) - (a.distanceKm || 0))[0];
   const trips = new Set(inYear.map(e => e.trip).filter(Boolean));
 
   // самый частый город года
   const freq = {};
-  cityVisits.forEach(c=>{
+  cityVisits.forEach(c => {
     const k = c.name.trim();
-    if(k.toLowerCase() === HOME_CITY_NAME.toLowerCase()) return;
+    if (k.toLowerCase() === HOME_CITY_NAME.toLowerCase()) return;
     freq[k] = (freq[k] || 0) + 1;
   });
-  const topCity = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0];
+  const topCity = Object.entries(freq).sort((a, b) => b[1] - a[1])[0];
 
   // лучший темп бега за год
   const runs = routes.filter(r => r.activity === 'running' && r.durationMin && r.distanceKm);
-  const bestRun = runs.slice().sort((a,b)=>(a.durationMin/a.distanceKm)-(b.durationMin/b.distanceKm))[0];
+  const bestRun = runs.slice().sort((a, b) => a.durationMin / a.distanceKm - b.durationMin / b.distanceKm)[0];
 
   // моря года и впервые увиденные
   const seasYear = [...computeSeaStats(inYear).units.keys()];
   const seasBefore = computeSeaStats(before).units;
   const newSeas = seasYear.filter(n => !seasBefore.has(n));
 
-  return { year, countries, newCountries, cities, km, gain, months, longest, trips, topCity, bestRun, seasYear, newSeas,
-           entries: inYear.length };
+  return { year, countries, newCountries, cities, km, gain, months, longest, trips, topCity, bestRun, seasYear, newSeas, entries: inYear.length };
 }
 
-function renderRecap(){
+function renderRecap() {
   const sel = document.getElementById('recapYear');
   const year = parseInt(sel.value, 10);
   const body = document.getElementById('recapBody');
-  if(!year){ body.innerHTML = `<div class="hint recap-empty">Нет данных с указанным годом.</div>`; return; }
+  if (!year) {
+    body.innerHTML = `<div class="hint recap-empty">Нет данных с указанным годом.</div>`;
+    return;
+  }
   const r = computeRecap(year);
-  if(r.entries === 0){
+  if (r.entries === 0) {
     body.innerHTML = `<div class="hint recap-empty">За ${year} год отметок нет.</div>`;
     return;
   }
@@ -311,67 +336,78 @@ function renderRecap(){
     [r.cities.size, 'городов'],
     [r.trips.size, 'поездок'],
     [r.months.size, 'месяцев в пути'],
-    [r.km >= 1 ? Math.round(r.km).toLocaleString('ru-RU') : '—', 'километров'],
+    [r.km >= 1 ? Math.round(r.km).toLocaleString('ru-RU') : '—', 'километров']
   ];
   const hi = [];
-  if(r.longest) hi.push(['Самый длинный маршрут', `${escapeHtml(r.longest.name)} · ${(r.longest.distanceKm||0).toFixed(1)} км`]);
-  if(r.gain > 0) hi.push(['Набор высоты', `${Math.round(r.gain).toLocaleString('ru-RU')} м`]);
-  if(r.topCity) hi.push(['Чаще всего', `${escapeHtml(r.topCity[0])} · ${r.topCity[1]} ${r.topCity[1]===1?'визит':'визита'}`]);
-  if(r.bestRun) hi.push(['Лучший темп бега', `${formatPace(r.bestRun.durationMin / r.bestRun.distanceKm)}`]);
-  if(r.seasYear.length) hi.push(['Моря и океаны', r.seasYear.map(n => escapeHtml(n) + (r.newSeas.includes(n) ? ' <i>(впервые)</i>' : '')).join(', ')]);
-  if(r.newCountries.length) hi.push(['Новые страны', r.newCountries.map(k => (countryFlag(k) ? countryFlag(k)+' ' : '') + escapeHtml(COUNTRY_RU[k] || k)).join(', ')]);
+  if (r.longest) hi.push(['Самый длинный маршрут', `${escapeHtml(r.longest.name)} · ${(r.longest.distanceKm || 0).toFixed(1)} км`]);
+  if (r.gain > 0) hi.push(['Набор высоты', `${Math.round(r.gain).toLocaleString('ru-RU')} м`]);
+  if (r.topCity) hi.push(['Чаще всего', `${escapeHtml(r.topCity[0])} · ${r.topCity[1]} ${r.topCity[1] === 1 ? 'визит' : 'визита'}`]);
+  if (r.bestRun) hi.push(['Лучший темп бега', `${formatPace(r.bestRun.durationMin / r.bestRun.distanceKm)}`]);
+  if (r.seasYear.length) hi.push(['Моря и океаны', r.seasYear.map(n => escapeHtml(n) + (r.newSeas.includes(n) ? ' <i>(впервые)</i>' : '')).join(', ')]);
+  if (r.newCountries.length)
+    hi.push(['Новые страны', r.newCountries.map(k => (countryFlag(k) ? countryFlag(k) + ' ' : '') + escapeHtml(COUNTRY_RU[k] || k)).join(', ')]);
 
   body.innerHTML = `
     <div class="recap-grid">
-      ${cards.map(([n,l]) => `<div class="recap-card"><div class="recap-num">${n}</div><div class="recap-label">${l}</div></div>`).join('')}
+      ${cards.map(([n, l]) => `<div class="recap-card"><div class="recap-num">${n}</div><div class="recap-label">${l}</div></div>`).join('')}
     </div>
-    ${hi.length ? `<div class="recap-hi stat-grid">${hi.map(([l,v]) => `<div class="stat-row"><span>${l /* html-ok: подписи наши, значения собраны выше с экранированием */}</span><b>${v /* html-ok: подписи наши, значения собраны выше с экранированием */}</b></div>`).join('')}</div>` : ''}
+    ${hi.length ? `<div class="recap-hi stat-grid">${hi.map(([l, v]) => `<div class="stat-row"><span>${l /* html-ok: подписи наши, значения собраны выше с экранированием */}</span><b>${v /* html-ok: подписи наши, значения собраны выше с экранированием */}</b></div>`).join('')}</div>` : ''}
   `;
 }
 
-function fillRecapYears(){
+function fillRecapYears() {
   const sel = document.getElementById('recapYear');
-  const years = [...new Set(allEntries.filter(e => e.status !== 'wishlist' && e.year).map(e => e.year))].sort((a,b)=>b-a);
+  const years = [...new Set(allEntries.filter(e => e.status !== 'wishlist' && e.year).map(e => e.year))].sort((a, b) => b - a);
   sel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('') || `<option value="">—</option>`;
 }
 
-document.getElementById('openRecapBtn').addEventListener('click', ()=>{
+document.getElementById('openRecapBtn').addEventListener('click', () => {
   fillRecapYears();
   renderRecap();
   document.getElementById('recapModal').style.display = 'flex';
 });
 document.getElementById('recapYear').addEventListener('change', renderRecap);
-document.getElementById('closeRecapModal').addEventListener('click', ()=>{
+document.getElementById('closeRecapModal').addEventListener('click', () => {
   document.getElementById('recapModal').style.display = 'none';
 });
-document.getElementById('recapModal').addEventListener('click', (e)=>{
-  if(e.target.id === 'recapModal') document.getElementById('recapModal').style.display = 'none';
+document.getElementById('recapModal').addEventListener('click', e => {
+  if (e.target.id === 'recapModal') document.getElementById('recapModal').style.display = 'none';
 });
 
 // Выгрузка итогов картинкой — вертикальный формат под сторис, оформление
 // то же, что у снимка карты, чтобы обе картинки смотрелись как одна серия
-document.getElementById('recapDownload').addEventListener('click', ()=>{
+document.getElementById('recapDownload').addEventListener('click', () => {
   const year = parseInt(document.getElementById('recapYear').value, 10);
-  if(!year){ toast('Нет данных за выбранный год'); return; }
+  if (!year) {
+    toast('Нет данных за выбранный год');
+    return;
+  }
   const r = computeRecap(year);
-  if(r.entries === 0){ toast('За этот год отметок нет'); return; }
+  if (r.entries === 0) {
+    toast('За этот год отметок нет');
+    return;
+  }
 
-  const W = 1080, H = 1920;
+  const W = 1080,
+    H = 1920;
   const cv = document.createElement('canvas');
-  cv.width = W; cv.height = H;
+  cv.width = W;
+  cv.height = H;
   const ctx = cv.getContext('2d');
 
-  ctx.fillStyle = '#E7DFC7'; ctx.fillRect(0,0,W,H);
-  ctx.strokeStyle = 'rgba(160,140,95,0.30)'; ctx.lineWidth = 2;
-  ctx.strokeRect(38,38,W-76,H-76);
+  ctx.fillStyle = '#E7DFC7';
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(160,140,95,0.30)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(38, 38, W - 76, H - 76);
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#2B3B2E';
   ctx.font = "italic 700 62px 'Twemoji Country Flags','Playfair Display'";
-  ctx.fillText('Год в путешествиях', W/2, 210);
+  ctx.fillText('Год в путешествиях', W / 2, 210);
   ctx.font = "italic 700 150px 'Twemoji Country Flags','Playfair Display'";
   ctx.fillStyle = '#A6592E';
-  ctx.fillText(String(year), W/2, 380);
+  ctx.fillText(String(year), W / 2, 380);
 
   const cards = [
     [r.countries.length, 'стран'],
@@ -379,80 +415,104 @@ document.getElementById('recapDownload').addEventListener('click', ()=>{
     [r.cities.size, 'городов'],
     [r.trips.size, 'поездок'],
     [r.months.size, 'месяцев в пути'],
-    [r.km >= 1 ? Math.round(r.km).toLocaleString('ru-RU') : '—', 'километров'],
+    [r.km >= 1 ? Math.round(r.km).toLocaleString('ru-RU') : '—', 'километров']
   ];
   let y = 520;
-  for(let i = 0; i < cards.length; i += 2){
-    for(let j = 0; j < 2 && i + j < cards.length; j++){
-      const cx = j === 0 ? W*0.29 : W*0.71;
+  for (let i = 0; i < cards.length; i += 2) {
+    for (let j = 0; j < 2 && i + j < cards.length; j++) {
+      const cx = j === 0 ? W * 0.29 : W * 0.71;
       ctx.fillStyle = '#2B3B2E';
       ctx.font = "italic 700 92px 'Twemoji Country Flags','Playfair Display'";
-      ctx.fillText(String(cards[i+j][0]), cx, y);
+      ctx.fillText(String(cards[i + j][0]), cx, y);
       ctx.fillStyle = '#6E6547';
       ctx.font = "26px 'Twemoji Country Flags','EB Garamond'";
-      ctx.fillText(cards[i+j][1], cx, y + 44);
+      ctx.fillText(cards[i + j][1], cx, y + 44);
     }
     y += 190;
   }
 
   const hi = [];
-  if(r.longest) hi.push(['самый длинный маршрут', `${r.longest.name} · ${(r.longest.distanceKm||0).toFixed(1)} км`]);
-  if(r.gain > 0) hi.push(['набор высоты', `${Math.round(r.gain).toLocaleString('ru-RU')} м`]);
-  if(r.topCity) hi.push(['чаще всего', `${r.topCity[0]} · ${r.topCity[1]}`]);
-  if(r.bestRun) hi.push(['лучший темп бега', formatPace(r.bestRun.durationMin / r.bestRun.distanceKm)]);
+  if (r.longest) hi.push(['самый длинный маршрут', `${r.longest.name} · ${(r.longest.distanceKm || 0).toFixed(1)} км`]);
+  if (r.gain > 0) hi.push(['набор высоты', `${Math.round(r.gain).toLocaleString('ru-RU')} м`]);
+  if (r.topCity) hi.push(['чаще всего', `${r.topCity[0]} · ${r.topCity[1]}`]);
+  if (r.bestRun) hi.push(['лучший темп бега', formatPace(r.bestRun.durationMin / r.bestRun.distanceKm)]);
   // моря года: впервые увиденные — первыми; «море» в названиях опускаем, чтобы влезло больше
-  if(r.seasYear.length){
+  if (r.seasYear.length) {
     const short = n => n.replace(/^море /, '').replace(/ море$/, '');
     const list = [...r.newSeas, ...r.seasYear.filter(n => !r.newSeas.includes(n))].map(short);
     hi.push([`моря и океаны · ${r.seasYear.length}` + (r.newSeas.length ? `, впервые ${r.newSeas.length}` : ''), list.join(', ')]);
   }
 
   y += 10;
-  ctx.strokeStyle = 'rgba(160,140,95,0.45)'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(W*0.18, y); ctx.lineTo(W*0.82, y); ctx.stroke();
+  ctx.strokeStyle = 'rgba(160,140,95,0.45)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(W * 0.18, y);
+  ctx.lineTo(W * 0.82, y);
+  ctx.stroke();
   y += 62;
   // до пяти строк: шаг ужимается, чтобы не наехать на подпись внизу
   const rows = hi.slice(0, 5);
   // строка морей может занять две строки — учитываем это в шаге
   const extra = rows.length && rows[rows.length - 1][0].startsWith('моря') ? 46 : 0;
   const step = Math.min(128, Math.floor((H - 150 - y - extra) / Math.max(1, rows.length)));
-  rows.forEach(([label, value])=>{
+  rows.forEach(([label, value]) => {
     ctx.fillStyle = '#6E6547';
     ctx.font = "24px 'Twemoji Country Flags','Courier Prime'";
-    ctx.fillText(label.toUpperCase(), W/2, y);
+    ctx.fillText(label.toUpperCase(), W / 2, y);
     ctx.fillStyle = '#2B3B2E';
     ctx.font = "italic 700 38px 'Twemoji Country Flags','Playfair Display'";
     // длинное значение — в две строки по словам, дальше ужимаем с «…»
-    const fit = t => { let v = t, m = ctx.measureText(v); while(m.width > W - 180 && v.length > 8){ v = v.slice(0, -4) + '…'; m = ctx.measureText(v); } return v; };
+    const fit = t => {
+      let v = t,
+        m = ctx.measureText(v);
+      while (m.width > W - 180 && v.length > 8) {
+        v = v.slice(0, -4) + '…';
+        m = ctx.measureText(v);
+      }
+      return v;
+    };
     let lines = [value];
-    if(ctx.measureText(value).width > W - 180){
+    if (ctx.measureText(value).width > W - 180) {
       const words = value.split(' ');
       let a = '';
-      while(words.length && ctx.measureText((a ? a + ' ' : '') + words[0]).width <= W - 180) a = (a ? a + ' ' : '') + words.shift();
+      while (words.length && ctx.measureText((a ? a + ' ' : '') + words[0]).width <= W - 180) a = (a ? a + ' ' : '') + words.shift();
       lines = a ? [a, words.join(' ')] : [value];
     }
-    lines.slice(0, 2).forEach((l, k) => ctx.fillText(fit(l), W/2, y + 48 + k * 46));
+    lines.slice(0, 2).forEach((l, k) => ctx.fillText(fit(l), W / 2, y + 48 + k * 46));
     y += step + (lines.length > 1 ? 46 : 0);
   });
 
   ctx.fillStyle = '#6E6547';
   ctx.font = "italic 30px 'Twemoji Country Flags','Playfair Display'";
-  ctx.fillText('Карта путешествий', W/2, H - 96);
+  ctx.fillText('Карта путешествий', W / 2, H - 96);
   ctx.font = "22px 'Twemoji Country Flags','Courier Prime'";
-  ctx.fillText(new Date().toLocaleDateString('ru-RU'), W/2, H - 60);
+  ctx.fillText(new Date().toLocaleDateString('ru-RU'), W / 2, H - 60);
 
-  cv.toBlob(blob=>{
-    if(!blob){ toast('Не удалось создать картинку'); return; }
+  cv.toBlob(blob => {
+    if (!blob) {
+      toast('Не удалось создать картинку');
+      return;
+    }
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `год-${year}.png`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(()=> URL.revokeObjectURL(url), 1000);
+    a.href = url;
+    a.download = `год-${year}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast('Картинка сохранена');
   }, 'image/png');
 });
 
-document.getElementById('ppPrev').addEventListener('click', ()=>{ passportSpread--; renderPassport(); });
-document.getElementById('ppNext').addEventListener('click', ()=>{ passportSpread++; renderPassport(); });
+document.getElementById('ppPrev').addEventListener('click', () => {
+  passportSpread--;
+  renderPassport();
+});
+document.getElementById('ppNext').addEventListener('click', () => {
+  passportSpread++;
+  renderPassport();
+});
 
 let homeRegionLayer = null;

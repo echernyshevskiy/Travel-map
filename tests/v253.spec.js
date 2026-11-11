@@ -15,7 +15,7 @@ test('«висящий» геокодер: замена точки и перес
   await page.locator('#refreshWaypointsBtn').click();
   await expect(page.locator('#refreshWaypointsBtn')).toBeEnabled({ timeout: 30000 });
   const after = await page.evaluate(() => allEntries.find(e => e.id === 'rt_city').waypointCoords);
-  expect(after.every(Boolean)).toBe(true);           // ничего не обнулилось
+  expect(after.every(Boolean)).toBe(true); // ничего не обнулилось
   expect(after.length).toBe(before.length);
   await expectNoErrors(errors);
 });

@@ -2,8 +2,25 @@
 const { test, expect } = require('@playwright/test');
 const { openApp, expectNoErrors } = require('./helpers');
 
-const open = (page, key, ll) => page.evaluate(([k, ll]) => { cpopOpen.info = true; cpopOpen.travel = true; map.setView(ll, 5, { animate: false }); openCountryPopup(k, L.latLng(ll)); }, [key, ll]);
-const rows = page => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('.leaflet-popup .ci-row')].map(r => [r.querySelector('.ci-k').textContent.trim(), r.lastElementChild.textContent.replace(/\s+/g, ' ').trim()])));
+const open = (page, key, ll) =>
+  page.evaluate(
+    ([k, ll]) => {
+      cpopOpen.info = true;
+      cpopOpen.travel = true;
+      map.setView(ll, 5, { animate: false });
+      openCountryPopup(k, L.latLng(ll));
+    },
+    [key, ll]
+  );
+const rows = page =>
+  page.evaluate(() =>
+    Object.fromEntries(
+      [...document.querySelectorAll('.leaflet-popup .ci-row')].map(r => [
+        r.querySelector('.ci-k').textContent.trim(),
+        r.lastElementChild.textContent.replace(/\s+/g, ' ').trim()
+      ])
+    )
+  );
 
 test('карточка страны: розетки, напряжение, движение, код, экстренные номера', async ({ page }) => {
   const { errors } = await openApp(page);
@@ -23,7 +40,7 @@ test('карточка страны: розетки, напряжение, дв�
   expect(r['Розетки']).toBe('тип C, J — подойдёт вилка C, для F нужен переходник');
   await open(page, 'Russia', [56, 38]);
   r = await rows(page);
-  expect(r['Розетки']).toBe('тип C, F');                 // дома — без сравнения с домом
+  expect(r['Розетки']).toBe('тип C, F'); // дома — без сравнения с домом
   expect(r['Экстренные']).toBe('единый 112 · полиция 102 · скорая 103 · пожарные 101');
   expect(r['Сейчас там']).not.toMatch(/дома/);
   await expectNoErrors(errors);
@@ -53,7 +70,9 @@ test('разница во времени с домом — с учётом ле�
 
 test('отметка страны: в её карточке тоже есть справка', async ({ page }) => {
   const { errors } = await openApp(page);
-  const html = await page.evaluate(() => buildPopup({ type: 'country', countryKey: 'Thailand', name: 'Таиланд', year: 2024, purpose: 'tourism', status: 'visited' }));
+  const html = await page.evaluate(() =>
+    buildPopup({ type: 'country', countryKey: 'Thailand', name: 'Таиланд', year: 2024, purpose: 'tourism', status: 'visited' })
+  );
   expect(html).toContain('Розетки');
   expect(html).toContain('левостороннее');
   expect(html).toContain('+66');

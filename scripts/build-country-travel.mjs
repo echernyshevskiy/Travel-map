@@ -23,11 +23,22 @@ const keys = Object.keys(INFO).sort();
 // у KDE Мьянма — под старым кодом BU; Северный Кипр — как Кипр
 const KDE_ALIAS = { MM: 'BU' };
 const kde = new Map();
-for(const m of fs.readFileSync(D('kitinerary-countrydb.cpp'), 'utf8').matchAll(/CountryId\{"([A-Z]{2})"\}, DrivingSide::(\w+), \{([^}]*)\}/g)){
-  kde.set(m[1], { drive: m[2] === 'Left' ? 'L' : m[2] === 'Right' ? 'R' : null, plugs: [...m[3].matchAll(/Type([A-N])/g)].map(x => x[1]).sort().join('') });
+for (const m of fs.readFileSync(D('kitinerary-countrydb.cpp'), 'utf8').matchAll(/CountryId\{"([A-Z]{2})"\}, DrivingSide::(\w+), \{([^}]*)\}/g)) {
+  kde.set(m[1], {
+    drive: m[2] === 'Left' ? 'L' : m[2] === 'Right' ? 'R' : null,
+    plugs: [...m[3].matchAll(/Type([A-N])/g)]
+      .map(x => x[1])
+      .sort()
+      .join('')
+  });
 }
 const tel = JSON.parse(fs.readFileSync(D('calling-codes.json'), 'utf8'));
-const table = f => fs.readFileSync(D(f), 'utf8').split('\n').filter(l => l && !l.startsWith('#')).map(l => l.split('|'));
+const table = f =>
+  fs
+    .readFileSync(D(f), 'utf8')
+    .split('\n')
+    .filter(l => l && !l.startsWith('#'))
+    .map(l => l.split('|'));
 const em = new Map(table('emergency-numbers.txt').map(([c, p, a, f, n]) => [c, { p, a, f, n }]));
 const volt = new Map(table('mains-voltage.txt').map(([c, v, note]) => [c, { v: +v, mixed: note === 'mixed' }]));
 
@@ -35,39 +46,50 @@ const ISO_FOR = { 'Northern Cyprus': 'CY', 'Somaliland': 'SO' };
 // территорий, которых нет в выгрузке KDE, — по Wikipedia («AC power plugs and
 // sockets», «Left- and right-hand traffic»); Северный Кипр звонит через +90
 const MANUAL = {
-  'Bermuda': { plugs: 'AB', drive: 'L' }, 'Falkland Islands': { plugs: 'G', drive: 'L' }, 'French Guiana': { plugs: 'CE', drive: 'R' },
-  'Marshall Islands': { plugs: 'AB', drive: 'R' }, 'New Caledonia': { plugs: 'CE', drive: 'R' }, 'Puerto Rico': { plugs: 'AB', drive: 'R' },
-  'South Sudan': { plugs: 'CD', drive: 'R' }, 'Vatican': { plugs: 'CFL', drive: 'R' }, 'West Bank': { plugs: 'CH', drive: 'R' },
-  'Western Sahara': { plugs: 'CE', drive: 'R' }, 'Northern Cyprus': { tel: '90' }
+  'Bermuda': { plugs: 'AB', drive: 'L' },
+  'Falkland Islands': { plugs: 'G', drive: 'L' },
+  'French Guiana': { plugs: 'CE', drive: 'R' },
+  'Marshall Islands': { plugs: 'AB', drive: 'R' },
+  'New Caledonia': { plugs: 'CE', drive: 'R' },
+  'Puerto Rico': { plugs: 'AB', drive: 'R' },
+  'South Sudan': { plugs: 'CD', drive: 'R' },
+  'Vatican': { plugs: 'CFL', drive: 'R' },
+  'West Bank': { plugs: 'CH', drive: 'R' },
+  'Western Sahara': { plugs: 'CE', drive: 'R' },
+  'Northern Cyprus': { tel: '90' }
 };
-const out = {}, miss = { plugs: [], tel: [], em: [] };
-for(const key of keys){
+const out = {},
+  miss = { plugs: [], tel: [], em: [] };
+for (const key of keys) {
   const iso = ISO_FOR[key] || ISO[key];
   const k = kde.get(KDE_ALIAS[iso] || iso) || {};
   const row = {};
-  if(k.plugs) row.plugs = k.plugs; else miss.plugs.push(key);
-  if(k.drive) row.drive = k.drive;
+  if (k.plugs) row.plugs = k.plugs;
+  else miss.plugs.push(key);
+  if (k.drive) row.drive = k.drive;
   const v = volt.get(key);
   row.v = v ? v.v : 230;
-  if(v && v.mixed) row.vMixed = 1;
-  if(tel[iso]) row.tel = tel[iso]; else miss.tel.push(key);
+  if (v && v.mixed) row.vMixed = 1;
+  if (tel[iso]) row.tel = tel[iso];
+  else miss.tel.push(key);
   const e = em.get(key);
-  if(e){
+  if (e) {
     const clean = s => (s && s !== '-' ? s : '');
     const x = { p: clean(e.p), a: clean(e.a), f: clean(e.f) };
-    if(e.n === '112main') x.n112 = 'main'; else if(e.n === '112mobile') x.n112 = 'mobile';
-    if(x.p || x.a || x.f || x.n112) row.em = Object.fromEntries(Object.entries(x).filter(([, val]) => val));
+    if (e.n === '112main') x.n112 = 'main';
+    else if (e.n === '112mobile') x.n112 = 'mobile';
+    if (x.p || x.a || x.f || x.n112) row.em = Object.fromEntries(Object.entries(x).filter(([, val]) => val));
   } else miss.em.push(key);
   Object.assign(row, MANUAL[key] || {});
-  if(row.plugs) miss.plugs = miss.plugs.filter(x => x !== key);
+  if (row.plugs) miss.plugs = miss.plugs.filter(x => x !== key);
   out[key] = row;
 }
 const extra = [...em.keys()].filter(c => !INFO[c]);
-if(extra.length) throw new Error('emergency-numbers.txt: страны не из справочника: ' + extra.join(', '));
+if (extra.length) throw new Error('emergency-numbers.txt: страны не из справочника: ' + extra.join(', '));
 const extraV = [...volt.keys()].filter(c => !INFO[c]);
-if(extraV.length) throw new Error('mains-voltage.txt: страны не из справочника: ' + extraV.join(', '));
+if (extraV.length) throw new Error('mains-voltage.txt: страны не из справочника: ' + extraV.join(', '));
 
 const file = path.join(root, 'src/data/country_travel.json');
 fs.writeFileSync(file, JSON.stringify(out) + '\n');
 console.log(`${keys.length} стран → ${path.relative(root, file)} (${fs.statSync(file).size} байт)`);
-for(const [k, v] of Object.entries(miss)) if(v.length) console.log(`нет данных (${k}): ${v.join(', ')}`);
+for (const [k, v] of Object.entries(miss)) if (v.length) console.log(`нет данных (${k}): ${v.join(', ')}`);

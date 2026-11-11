@@ -2,7 +2,9 @@
 const { test, expect } = require('@playwright/test');
 const { openApp, expectNoErrors } = require('./helpers');
 
-test.beforeEach(async ({}, info) => { test.skip(info.project.name !== 'phone', 'только для телефона'); });
+test.beforeEach(async ({}, info) => {
+  test.skip(info.project.name !== 'phone', 'только для телефона');
+});
 
 test('вкладки открывают свои разделы, карта на весь экран', async ({ page }) => {
   const { errors } = await openApp(page);
@@ -11,7 +13,7 @@ test('вкладки открывают свои разделы, карта на
   const h = await page.evaluate(() => document.getElementById('map').getBoundingClientRect().height / innerHeight);
   expect(h).toBeGreaterThan(0.8);
   const cases = { list: '#entryList', filters: '#yearChips', add: '#addEntrySection', more: '#openTableBtn' };
-  for(const [tab, sel] of Object.entries(cases)){
+  for (const [tab, sel] of Object.entries(cases)) {
     await page.locator(`[data-mtab-btn="${tab}"]`).click();
     await expect(page.locator(sel)).toBeVisible();
   }

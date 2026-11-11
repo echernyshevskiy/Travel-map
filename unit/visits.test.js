@@ -3,8 +3,13 @@ import { getAllCityVisits, uniqueCityVisits, distinctCityKeys } from '../src/lib
 
 const city = (name, extra = {}) => ({ type: 'city', name, lat: 1, lng: 2, year: 2024, ...extra });
 const route = (names, extra = {}) => ({
-  type: 'route', year: 2024, color: '#f00', waypointNames: names,
-  waypointCoords: names.map((_, i) => [i, i]), waypointCountryKeys: names.map(() => 'Россия'), ...extra,
+  type: 'route',
+  year: 2024,
+  color: '#f00',
+  waypointNames: names,
+  waypointCoords: names.map((_, i) => [i, i]),
+  waypointCountryKeys: names.map(() => 'Россия'),
+  ...extra
 });
 
 describe('getAllCityVisits', () => {
@@ -26,13 +31,22 @@ describe('uniqueCityVisits', () => {
     expect(uniqueCityVisits(v).map(x => x.name)).toEqual(['Москва', 'Тула']);
   });
   it('разные месяцы и годы — разные визиты; регистр и пробелы не важны', () => {
-    const v = [{ name: 'Сочи', year: 2023, month: 7 }, { name: ' сочи ', year: 2023, month: 7 },
-      { name: 'Сочи', year: 2023, month: 8 }, { name: 'Сочи', year: 2024, month: 7 }];
+    const v = [
+      { name: 'Сочи', year: 2023, month: 7 },
+      { name: ' сочи ', year: 2023, month: 7 },
+      { name: 'Сочи', year: 2023, month: 8 },
+      { name: 'Сочи', year: 2024, month: 7 }
+    ];
     expect(uniqueCityVisits(v)).toHaveLength(3);
   });
   it('без месяца склеивает по году и поездке, пустые названия отбрасывает', () => {
-    const v = [{ name: 'Рим', year: 2019, trip: 'Италия' }, { name: 'Рим', year: 2019, trip: 'Италия' },
-      { name: 'Рим', year: 2019, trip: 'Ещё раз' }, { name: '', year: 2019 }, { name: null }];
+    const v = [
+      { name: 'Рим', year: 2019, trip: 'Италия' },
+      { name: 'Рим', year: 2019, trip: 'Италия' },
+      { name: 'Рим', year: 2019, trip: 'Ещё раз' },
+      { name: '', year: 2019 },
+      { name: null }
+    ];
     expect(uniqueCityVisits(v)).toHaveLength(2);
   });
 });

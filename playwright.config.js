@@ -16,10 +16,10 @@ module.exports = defineConfig({
     timezoneId: 'Europe/Moscow',
     trace: 'retain-on-failure',
     serviceWorkers: 'block', // сервис-воркер ходил бы в сеть мимо перехвата запросов
-    launchOptions: process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
+    launchOptions: process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1366, height: 900 } } },
-    { name: 'phone', use: { ...devices['Pixel 7'] } },
-  ],
+    { name: 'phone', use: { ...devices['Pixel 7'] } }
+  ]
 });

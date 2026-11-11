@@ -12,9 +12,11 @@ const data = largeData(encodePolyline);
 const CPU = 4; // как средний Android
 
 test.describe.configure({ mode: 'serial' });
-test.beforeEach(({}, info) => { test.skip(info.project.name !== 'desktop', 'замеры — в одной раскладке, с замедлением процессора'); });
+test.beforeEach(({}, info) => {
+  test.skip(info.project.name !== 'desktop', 'замеры — в одной раскладке, с замедлением процессора');
+});
 
-async function openLarge(page){
+async function openLarge(page) {
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU });
   const r = await openApp(page, { entries: data.entries, races: data.races, tripMeta: data.tripMeta });
@@ -31,7 +33,11 @@ test('запуск и отклик на большом архиве (CPU ×4)', 
   // запуск меряется вместе с перехватом всех запросов тестом — поэтому бюджет щедрый
   budget('запуск до карты', await page.evaluate(() => performance.now()), 16000);
   const m = await page.evaluate(async () => {
-    const t = f => { const a = performance.now(); f(); return performance.now() - a; };
+    const t = f => {
+      const a = performance.now();
+      f();
+      return performance.now() - a;
+    };
     const out = {};
     out.filters = t(() => applyFilters());
     out.list = t(() => renderList());
@@ -43,14 +49,27 @@ test('запуск и отклик на большом архиве (CPU ×4)', 
     out.recap = t(() => renderRecap());
     out.labels = t(() => renderMapLabels());
     // квадраты исследованной территории — пересчёт с нуля, без кэша
-    out.heat = t(() => { heatSignature = ''; routeSquaresCache.clear(); updateHeat(allEntries.filter(e => e.type === 'route')); });
+    out.heat = t(() => {
+      heatSignature = '';
+      routeSquaresCache.clear();
+      updateHeat(allEntries.filter(e => e.type === 'route'));
+    });
     const y = document.getElementById('timelineSlider');
-    out.timeline = t(() => { y.value = Math.floor(+y.max / 2); applyTimelineOpacity(); });
-    y.value = y.max; applyTimelineOpacity();
+    out.timeline = t(() => {
+      y.value = Math.floor(+y.max / 2);
+      applyTimelineOpacity();
+    });
+    y.value = y.max;
+    applyTimelineOpacity();
     globeEnter({ noFlyOut: true });
     await new Promise(r => setTimeout(r, 600));
     const fr = [];
-    for(let i = 0; i < 9; i++){ const r = globe.proj.rotate(); globe.proj.rotate([r[0] + 4, r[1], r[2]]); globe.moving = true; fr.push(t(() => globeDraw())); }
+    for (let i = 0; i < 9; i++) {
+      const r = globe.proj.rotate();
+      globe.proj.rotate([r[0] + 4, r[1], r[2]]);
+      globe.moving = true;
+      fr.push(t(() => globeDraw()));
+    }
     globe.moving = false;
     out.globeFrame = fr.sort((a, b) => a - b)[4];
     const trip = allEntries.find(e => e.trip && e.type === 'route').trip;
@@ -78,27 +97,56 @@ test('все экраны и карточки на большом архиве �
   const { errors, cdp } = await openLarge(page);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
   // все окна из меню
-  for(const id of ['openTableBtn', 'openPassportBtn', 'openCalendarBtn', 'openRecapBtn', 'openMilestonesBtn', 'openTravelerBtn', 'openDiaryBtn',
-    'openCollectionsBtn', 'openCompareBtn', 'openChangelogBtn', 'openRunningBtn', 'openGalleryBtn', 'openQuizBtn', 'openDiagnosticsBtn']){
+  for (const id of [
+    'openTableBtn',
+    'openPassportBtn',
+    'openCalendarBtn',
+    'openRecapBtn',
+    'openMilestonesBtn',
+    'openTravelerBtn',
+    'openDiaryBtn',
+    'openCollectionsBtn',
+    'openCompareBtn',
+    'openChangelogBtn',
+    'openRunningBtn',
+    'openGalleryBtn',
+    'openQuizBtn',
+    'openDiagnosticsBtn'
+  ]) {
     await page.evaluate(id => document.getElementById(id).click(), id);
     await page.waitForTimeout(150);
-    await page.evaluate(() => document.querySelectorAll('.modal-overlay').forEach(m => { m.style.display = 'none'; }));
+    await page.evaluate(() =>
+      document.querySelectorAll('.modal-overlay').forEach(m => {
+        m.style.display = 'none';
+      })
+    );
   }
   // карточки: каждая третья запись и все маршруты; страницы всех поездок; несколько облётов
   const n = await page.evaluate(async () => {
     let k = 0;
-    for(const e of allEntries.filter((e, i) => e.type === 'route' || i % 3 === 0)){ focusEntry(e); k++; }
+    for (const e of allEntries.filter((e, i) => e.type === 'route' || i % 3 === 0)) {
+      focusEntry(e);
+      k++;
+    }
     map.closePopup();
     [...new Set(allEntries.map(e => e.trip).filter(Boolean))].forEach(t => openTripPage(t));
     document.getElementById('tripPageModal').style.display = 'none';
     const trips = [...new Set(allEntries.filter(e => e.type === 'route' && e.trip).map(e => e.trip))].slice(0, 3);
-    for(const t of trips){ globeTourStart({ trip: t }); await new Promise(r => setTimeout(r, 700)); globeTourStop(); }
+    for (const t of trips) {
+      globeTourStart({ trip: t });
+      await new Promise(r => setTimeout(r, 700));
+      globeTourStop();
+    }
     globeExit();
     return k;
   });
   expect(n).toBeGreaterThan(100);
   // коллекция ЮНЕСКО целиком и поиск в ней
-  await page.evaluate(() => { collectionOpenId = 'unesco'; renderCollections(); document.getElementById('collectionsModal').style.display = 'flex'; });
+  await page.evaluate(() => {
+    collectionOpenId = 'unesco';
+    renderCollections();
+    document.getElementById('collectionsModal').style.display = 'flex';
+  });
   await page.fill('#collSearch', 'ка');
   await expect(page.locator('#collSearchRes .coll-item').first()).toBeVisible();
   await expectNoErrors(errors);

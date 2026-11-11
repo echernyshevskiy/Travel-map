@@ -17,9 +17,15 @@ test.describe('B1: журнал ошибок', () => {
   test('сбой скрипта попадает в журнал, виден в проверке и переживает перезагрузку', async ({ page }) => {
     await openApp(page);
     // искусственный сбой «в фоне»: такие раньше видели только в консоли
-    await page.evaluate(() => setTimeout(() => { throw new Error('проверочный сбой 4417'); }, 0));
+    await page.evaluate(() =>
+      setTimeout(() => {
+        throw new Error('проверочный сбой 4417');
+      }, 0)
+    );
     await page.evaluate(() => Promise.reject(new Error('проверочный отказ 4418')).catch(() => {}) && null);
-    await page.evaluate(() => { Promise.reject(new Error('проверочный отказ 4419')); });
+    await page.evaluate(() => {
+      Promise.reject(new Error('проверочный отказ 4419'));
+    });
     await expect.poll(() => page.evaluate(() => (localStorage.getItem('travel-map-errlog') || '').includes('4419'))).toBe(true);
     await page.keyboard.press('Escape'); // баннер о сбое не мешает
     await openDiagnostics(page);
@@ -41,8 +47,8 @@ test.describe('B1: журнал ошибок', () => {
     const { errors } = await openApp(page);
     await page.evaluate(() => {
       const orig = Storage.prototype.setItem;
-      Storage.prototype.setItem = function(k, v){
-        if(k === 'travel-map-theme') throw new DOMException('нет места', 'QuotaExceededError');
+      Storage.prototype.setItem = function (k, v) {
+        if (k === 'travel-map-theme') throw new DOMException('нет места', 'QuotaExceededError');
         return orig.call(this, k, v);
       };
     });
@@ -59,8 +65,8 @@ test.describe('B1: журнал ошибок', () => {
     const { errors } = await openApp(page);
     await page.evaluate(() => {
       const orig = Storage.prototype.setItem;
-      Storage.prototype.setItem = function(k, v){
-        if(k === 'travel-map-theme') throw new DOMException('запрещено', 'SecurityError');
+      Storage.prototype.setItem = function (k, v) {
+        if (k === 'travel-map-theme') throw new DOMException('запрещено', 'SecurityError');
         return orig.call(this, k, v);
       };
     });
@@ -72,14 +78,26 @@ test.describe('B1: журнал ошибок', () => {
 
   test('«Скопировать» и «Очистить»', async ({ page, context }, info) => {
     await openApp(page);
-    await page.evaluate(() => setTimeout(() => { throw new Error('для копирования 7731'); }, 0));
+    await page.evaluate(() =>
+      setTimeout(() => {
+        throw new Error('для копирования 7731');
+      }, 0)
+    );
     await expect.poll(() => page.evaluate(() => (localStorage.getItem('travel-map-errlog') || '').includes('7731'))).toBe(true);
     await page.keyboard.press('Escape');
     await openDiagnostics(page);
     // буфер обмена: перехватываем запись, чтобы не зависеть от разрешений браузера
     await page.evaluate(() => {
       window.__copied = null;
-      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: t => { window.__copied = t; return Promise.resolve(); } } });
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          writeText: t => {
+            window.__copied = t;
+            return Promise.resolve();
+          }
+        }
+      });
     });
     await page.click('#errorLogCopyBtn');
     await expect.poll(() => page.evaluate(() => window.__copied)).toContain('для копирования 7731');
@@ -93,7 +111,11 @@ test.describe('B1: журнал ошибок', () => {
   test('в журнал не попадает содержимое записей', async ({ page }) => {
     await openApp(page);
     // ошибка разбора JSON цитирует разбираемый текст — в журнале его быть не должно
-    await page.evaluate(() => setTimeout(() => { JSON.parse('{"entries":[{"name":"Тайное место 9921"}'); }, 0));
+    await page.evaluate(() =>
+      setTimeout(() => {
+        JSON.parse('{"entries":[{"name":"Тайное место 9921"}');
+      }, 0)
+    );
     await expect.poll(() => page.evaluate(() => (localStorage.getItem('travel-map-errlog') || '').length)).toBeGreaterThan(0);
     expect(await page.evaluate(() => localStorage.getItem('travel-map-errlog'))).not.toContain('9921');
   });
@@ -101,7 +123,7 @@ test.describe('B1: журнал ошибок', () => {
   test('версия для друзей: журнала в проверке нет', async ({ page }) => {
     const { errors } = await openApp(page, { build: 'friends' });
     await expect(page.locator('#openDiagnosticsBtn')).toBeHidden();
-    expect(await page.evaluate(() => typeof buildErrorLogSection === 'function' ? buildErrorLogSection() : '')).toBe('');
+    expect(await page.evaluate(() => (typeof buildErrorLogSection === 'function' ? buildErrorLogSection() : ''))).toBe('');
     await expectNoErrors(errors);
   });
 });

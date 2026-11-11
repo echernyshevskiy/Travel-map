@@ -1,8 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import {
-  escapeHtml, safeUrl, normSearch, formatPace, parseRaceTime, formatRaceTime,
-  fmtDelta, daysWord, pluralVisits, monthsWord, cleanPlaceName, looksLikeAdminArea,
-  parseIsoDate, formatDateRange, daysInclusive, dateSpan, localDateAt,
+  escapeHtml,
+  safeUrl,
+  normSearch,
+  formatPace,
+  parseRaceTime,
+  formatRaceTime,
+  fmtDelta,
+  daysWord,
+  pluralVisits,
+  monthsWord,
+  cleanPlaceName,
+  looksLikeAdminArea,
+  parseIsoDate,
+  formatDateRange,
+  daysInclusive,
+  dateSpan,
+  localDateAt
 } from '../src/lib/format.js';
 
 describe('escapeHtml и safeUrl', () => {
@@ -46,14 +60,14 @@ describe('время забега', () => {
     expect(parseRaceTime('45')).toBe(45);
   });
   it('мусор и ноль — null', () => {
-    for(const s of ['', '  ', 'abc', '1::2', '0', '-5', '1:2:3:4']) expect(parseRaceTime(s)).toBeNull();
+    for (const s of ['', '  ', 'abc', '1::2', '0', '-5', '1:2:3:4']) expect(parseRaceTime(s)).toBeNull();
   });
   it('formatRaceTime — обратное преобразование', () => {
     expect(formatRaceTime(98.4)).toBe('1:38:24');
     expect(formatRaceTime(48.2)).toBe('48:12');
     expect(formatRaceTime(59.999)).toBe('1:00:00');
     expect(formatRaceTime(null)).toBe('—');
-    for(const s of ['3:05:07', '42:00', '1:00:01']) expect(formatRaceTime(parseRaceTime(s))).toBe(s);
+    for (const s of ['3:05:07', '42:00', '1:00:01']) expect(formatRaceTime(parseRaceTime(s))).toBe(s);
   });
   it('fmtDelta: знак и формат', () => {
     expect(fmtDelta(-1.5)).toBe('−1:30');
@@ -63,9 +77,17 @@ describe('время забега', () => {
 });
 
 describe('склонения', () => {
-  const cases = [[1, 'день', 'визит', 'месяц'], [2, 'дня', 'визита', 'месяца'], [5, 'дней', 'визитов', 'месяцев'],
-    [11, 'дней', 'визитов', 'месяцев'], [12, 'дней', 'визитов', 'месяцев'], [21, 'день', 'визит', 'месяц'],
-    [22, 'дня', 'визита', 'месяца'], [111, 'дней', 'визитов', 'месяцев'], [0, 'дней', 'визитов', 'месяцев']];
+  const cases = [
+    [1, 'день', 'визит', 'месяц'],
+    [2, 'дня', 'визита', 'месяца'],
+    [5, 'дней', 'визитов', 'месяцев'],
+    [11, 'дней', 'визитов', 'месяцев'],
+    [12, 'дней', 'визитов', 'месяцев'],
+    [21, 'день', 'визит', 'месяц'],
+    [22, 'дня', 'визита', 'месяца'],
+    [111, 'дней', 'визитов', 'месяцев'],
+    [0, 'дней', 'визитов', 'месяцев']
+  ];
   it.each(cases)('%i → %s / %s / %s', (n, d, v, m) => {
     expect(daysWord(n)).toBe(d);
     expect(pluralVisits(n)).toBe(v);
@@ -85,7 +107,7 @@ describe('названия мест от геокодера', () => {
     ['Gemeinde Zermatt', 'Zermatt'],
     ['Тбилиси', 'Тбилиси'],
     ['Orange County', 'Orange County'],
-    ['', ''],
+    ['', '']
   ])('%s → %s', (a, b) => expect(cleanPlaceName(a)).toBe(b));
   it('служебное слово целиком не выкидывает название', () => {
     expect(cleanPlaceName('Municipality')).toBe('Municipality');
@@ -101,8 +123,8 @@ describe('названия мест от геокодера', () => {
 describe('точные даты', () => {
   it('разбор проверяет и формат, и сам день', () => {
     expect(parseIsoDate('2025-09-12')).toMatchObject({ y: 2025, m: 9, d: 12 });
-    for(const bad of ['2025-02-30', '2025-13-01', '12.09.2025', '', null, undefined, '2025-9-1']) expect(parseIsoDate(bad)).toBeNull();
-    expect(parseIsoDate('2024-02-29')).not.toBeNull();   // високосный
+    for (const bad of ['2025-02-30', '2025-13-01', '12.09.2025', '', null, undefined, '2025-9-1']) expect(parseIsoDate(bad)).toBeNull();
+    expect(parseIsoDate('2024-02-29')).not.toBeNull(); // високосный
   });
   it.each([
     ['2025-09-12', null, '12 сен 2025'],
@@ -111,8 +133,8 @@ describe('точные даты', () => {
     ['2025-06-28', '2025-07-03', '28 июн – 3 июл 2025'],
     ['2024-12-30', '2025-01-02', '30 дек 2024 – 2 янв 2025'],
     ['2025-05-09', '2025-05-11', '9–11 мая 2025'],
-    ['2025-09-18', '2025-09-12', '18 сен 2025'],          // конец раньше начала — только начало
-    [null, '2025-09-12', null],
+    ['2025-09-18', '2025-09-12', '18 сен 2025'], // конец раньше начала — только начало
+    [null, '2025-09-12', null]
   ])('%s — %s → %s', (a, b, want) => expect(formatDateRange(a, b)).toBe(want));
   it('дни включительно, через границу месяца и года', () => {
     expect(daysInclusive('2025-09-12', '2025-09-18')).toBe(7);
@@ -121,12 +143,15 @@ describe('точные даты', () => {
     expect(daysInclusive('плохо')).toBe(0);
   });
   it('размах поездки по записям с датами', () => {
-    expect(dateSpan([{ dateFrom: '2025-06-28', dateTo: '2025-07-01' }, { dateFrom: '2025-07-03' }, { year: 2025 }]))
-      .toEqual({ from: '2025-06-28', to: '2025-07-03', days: 6 });
+    expect(dateSpan([{ dateFrom: '2025-06-28', dateTo: '2025-07-01' }, { dateFrom: '2025-07-03' }, { year: 2025 }])).toEqual({
+      from: '2025-06-28',
+      to: '2025-07-03',
+      days: 6
+    });
     expect(dateSpan([{ year: 2025, month: 6 }])).toBeNull();
   });
   it('местная дата по долготе: вечер в Хабаровске — уже завтра по UTC', () => {
-    const t = Date.UTC(2025, 5, 1, 15, 30);               // 15:30 UTC = 01:30 следующего дня в UTC+10
+    const t = Date.UTC(2025, 5, 1, 15, 30); // 15:30 UTC = 01:30 следующего дня в UTC+10
     expect(localDateAt(t, 135)).toBe('2025-06-02');
     expect(localDateAt(t, -75)).toBe('2025-06-01');
     expect(localDateAt(NaN, 0)).toBeNull();

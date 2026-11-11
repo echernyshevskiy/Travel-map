@@ -7,8 +7,10 @@ test('нажатие на маршрут внутри России открыв�
   const xy = await page.evaluate(() => {
     const l = layers['rt_city'];
     map.fitBounds(l.getBounds(), { animate: false });
-    const ll = l.getLatLngs(); const p = ll[Math.floor(ll.length / 2)];
-    const pt = map.latLngToContainerPoint(p), r = document.getElementById('map').getBoundingClientRect();
+    const ll = l.getLatLngs();
+    const p = ll[Math.floor(ll.length / 2)];
+    const pt = map.latLngToContainerPoint(p),
+      r = document.getElementById('map').getBoundingClientRect();
     return [r.left + pt.x + 3, r.top + pt.y + 3]; // чуть мимо линии — в пределах запаса
   });
   await page.waitForTimeout(400);
@@ -24,7 +26,10 @@ test('остановки маршрута — точками, без дубле�
   // у маршрута Москва → Тверь → Санкт-Петербург; Москва, Тверь и Петербург есть и отдельными городами?
   const r = await page.evaluate(() => {
     const own = new Set(allEntries.filter(e => e.type === 'city').map(e => e.name.toLowerCase()));
-    const expected = allEntries.filter(e => e.type === 'route' && e.waypointNames).flatMap(e => e.waypointNames).filter(n => !own.has(n.toLowerCase()));
+    const expected = allEntries
+      .filter(e => e.type === 'route' && e.waypointNames)
+      .flatMap(e => e.waypointNames)
+      .filter(n => !own.has(n.toLowerCase()));
     return { stops: routeStopsLayer.getLayers().length, expected: new Set(expected.map(n => n.toLowerCase())).size };
   });
   expect(r.stops).toBe(r.expected);
@@ -36,8 +41,10 @@ test('город отдельной отметкой и остановкой м�
   await openApp(page);
   const n = await page.evaluate(() => {
     const v = [
-      { name: 'Тверь', year: 2025, month: 6, trip: 'А' }, { name: 'тверь', year: 2025, month: 6, trip: 'А' },
-      { name: 'Тверь', year: 2025, month: 7, trip: 'А' }, { name: 'Тверь', year: 2024, month: null, trip: 'Б' },
+      { name: 'Тверь', year: 2025, month: 6, trip: 'А' },
+      { name: 'тверь', year: 2025, month: 6, trip: 'А' },
+      { name: 'Тверь', year: 2025, month: 7, trip: 'А' },
+      { name: 'Тверь', year: 2024, month: null, trip: 'Б' },
       { name: 'Тверь', year: 2024, month: null, trip: 'Б' }
     ];
     return uniqueCityVisits(v).length;
@@ -47,10 +54,25 @@ test('город отдельной отметкой и остановкой м�
 
 test('карточка страны: не больше шести поездок сразу, остальные по «ещё»', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
-  const entries = Array.from({ length: 9 }, (_, i) => ({ id: 'g' + i, type: 'city', name: 'Город' + i, year: 2015 + i, month: 5, lat: 41.7, lng: 44.8 + i * 0.01,
-    countryKey: 'Georgia', status: 'visited', color: '#3F5240', photos: [], trip: 'Поездка ' + (2015 + i) }));
+  const entries = Array.from({ length: 9 }, (_, i) => ({
+    id: 'g' + i,
+    type: 'city',
+    name: 'Город' + i,
+    year: 2015 + i,
+    month: 5,
+    lat: 41.7,
+    lng: 44.8 + i * 0.01,
+    countryKey: 'Georgia',
+    status: 'visited',
+    color: '#3F5240',
+    photos: [],
+    trip: 'Поездка ' + (2015 + i)
+  }));
   const { errors } = await openApp(page, { entries });
-  await page.evaluate(() => { cpopOpen.trips = true; openCountryPopup('Georgia', L.latLng(41.7, 44.8)); });
+  await page.evaluate(() => {
+    cpopOpen.trips = true;
+    openCountryPopup('Georgia', L.latLng(41.7, 44.8));
+  });
   await expect(page.locator('.cpop-trip[data-cpop-trip]:visible')).toHaveCount(6);
   await expect(page.locator('.cpop-trip[data-cpop-trip]').first()).toHaveText('Поездка 2023'); // свежие сверху
   await page.locator('[data-cpop-act="moretrips"]').click();

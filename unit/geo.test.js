@@ -1,13 +1,41 @@
 import { describe, it, expect } from 'vitest';
 import {
-  haversine, pointInRing, pointInGeometry, trackDistanceKm, encodePolyline, decodePolyline,
-  getEntryCoords, decodedCoordsCache, downsample, downsampleSegments, gpxDistanceKm,
-  geomAreaKm2, polyLabelPoint, mainRing, snapToTrack, simplifyLine,
+  haversine,
+  pointInRing,
+  pointInGeometry,
+  trackDistanceKm,
+  encodePolyline,
+  decodePolyline,
+  getEntryCoords,
+  decodedCoordsCache,
+  downsample,
+  downsampleSegments,
+  gpxDistanceKm,
+  geomAreaKm2,
+  polyLabelPoint,
+  mainRing,
+  snapToTrack,
+  simplifyLine
 } from '../src/lib/geo.js';
 
 // квадрат 1°×1° у экватора, координаты GeoJSON — [lng, lat]
-const square = [[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]];
-const squareWithHole = [square, [[0.4, 0.4], [0.6, 0.4], [0.6, 0.6], [0.4, 0.6], [0.4, 0.4]]];
+const square = [
+  [0, 0],
+  [1, 0],
+  [1, 1],
+  [0, 1],
+  [0, 0]
+];
+const squareWithHole = [
+  square,
+  [
+    [0.4, 0.4],
+    [0.6, 0.4],
+    [0.6, 0.6],
+    [0.4, 0.6],
+    [0.4, 0.4]
+  ]
+];
 
 describe('haversine', () => {
   it('Москва — Санкт-Петербург ≈ 634 км', () => {
@@ -18,7 +46,13 @@ describe('haversine', () => {
     expect(haversine([10, 20], [10, 20])).toBe(0);
   });
   it('trackDistanceKm — сумма отрезков', () => {
-    expect(trackDistanceKm([[0, 0], [1, 0], [2, 0]])).toBeCloseTo(2 * 111.19, 1);
+    expect(
+      trackDistanceKm([
+        [0, 0],
+        [1, 0],
+        [2, 0]
+      ])
+    ).toBeCloseTo(2 * 111.19, 1);
     expect(trackDistanceKm([[0, 0]])).toBe(0);
   });
 });
@@ -43,15 +77,28 @@ describe('точка в многоугольнике', () => {
 
 describe('encoded polyline', () => {
   it('пример из документации Google', () => {
-    const pts = [[38.5, -120.2], [40.7, -120.95], [43.252, -126.453]];
+    const pts = [
+      [38.5, -120.2],
+      [40.7, -120.95],
+      [43.252, -126.453]
+    ];
     expect(encodePolyline(pts)).toBe('_p~iF~ps|U_ulLnnqC_mqNvxq`@');
     expect(decodePolyline('_p~iF~ps|U_ulLnnqC_mqNvxq`@')).toEqual(pts);
   });
   it('туда и обратно с точностью 1e-5, включая отрицательные и ноль', () => {
-    const pts = [[0, 0], [-33.86882, 151.20929], [64.1466, -21.9426], [-0.00001, 0.00001], [89.99999, -179.99999]];
+    const pts = [
+      [0, 0],
+      [-33.86882, 151.20929],
+      [64.1466, -21.9426],
+      [-0.00001, 0.00001],
+      [89.99999, -179.99999]
+    ];
     const back = decodePolyline(encodePolyline(pts));
     expect(back).toHaveLength(pts.length);
-    back.forEach((p, i) => { expect(p[0]).toBeCloseTo(pts[i][0], 5); expect(p[1]).toBeCloseTo(pts[i][1], 5); });
+    back.forEach((p, i) => {
+      expect(p[0]).toBeCloseTo(pts[i][0], 5);
+      expect(p[1]).toBeCloseTo(pts[i][1], 5);
+    });
   });
   it('пустой трек', () => {
     expect(encodePolyline([])).toBe('');
@@ -59,12 +106,19 @@ describe('encoded polyline', () => {
   });
   it('getEntryCoords: кэш видит смену трека у той же записи', () => {
     decodedCoordsCache.clear();
-    const a = [[55.75, 37.62], [55.76, 37.63]], b = [[59.93, 30.33], [59.94, 30.34]];
+    const a = [
+        [55.75, 37.62],
+        [55.76, 37.63]
+      ],
+      b = [
+        [59.93, 30.33],
+        [59.94, 30.34]
+      ];
     const e = { id: 'r1', coordsEncoded: encodePolyline(a) };
     expect(getEntryCoords(e)).toEqual(a);
     e.coordsEncoded = encodePolyline(b);
     expect(getEntryCoords(e)).toEqual(b);
-    expect(getEntryCoords({ id: 'old', coords: a })).toBe(a);   // старые записи без сжатия
+    expect(getEntryCoords({ id: 'old', coords: a })).toBe(a); // старые записи без сжатия
     expect(getEntryCoords({ id: 'none' })).toEqual([]);
   });
 });
@@ -82,7 +136,7 @@ describe('прореживание', () => {
   it('downsampleSegments делит точки пропорционально длине и отмечает разрывы', () => {
     const { coords, breaks } = downsampleSegments([line(3000), line(1000)], 400);
     expect(breaks).toHaveLength(1);
-    expect(breaks[0]).toBeGreaterThan(250);           // первый кусок втрое длиннее — ~300 точек
+    expect(breaks[0]).toBeGreaterThan(250); // первый кусок втрое длиннее — ~300 точек
     expect(coords.length - breaks[0]).toBeGreaterThan(90);
     expect(coords.length).toBeLessThan(420);
   });
@@ -91,7 +145,22 @@ describe('прореживание', () => {
     expect(coords.length - breaks[0]).toBeGreaterThanOrEqual(2);
   });
   it('gpxDistanceKm не считает прыжок между сегментами', () => {
-    const parsed = { segments: [{ coords: [[0, 0], [1, 0]] }, { coords: [[50, 50], [51, 50]] }] };
+    const parsed = {
+      segments: [
+        {
+          coords: [
+            [0, 0],
+            [1, 0]
+          ]
+        },
+        {
+          coords: [
+            [50, 50],
+            [51, 50]
+          ]
+        }
+      ]
+    };
     expect(gpxDistanceKm(parsed)).toBeCloseTo(2 * 111.19, 0);
   });
 });
@@ -103,20 +172,39 @@ describe('площадь и точка подписи', () => {
     expect(a).toBeLessThan(13000);
   });
   it('mainRing выбирает самый большой контур', () => {
-    const big = [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]];
+    const big = [
+      [0, 0],
+      [10, 0],
+      [10, 10],
+      [0, 10],
+      [0, 0]
+    ];
     expect(mainRing({ type: 'MultiPolygon', coordinates: [[square], [big]] })).toBe(big);
     expect(mainRing({ type: 'Polygon', coordinates: [big] })).toBe(big);
   });
   it('polyLabelPoint у «буквы Г» ставит точку внутрь, а не в пустой угол', () => {
     // Г-образная фигура: центр рамки (5,5) лежит вне её
-    const L = [[0, 0], [10, 0], [10, 2], [2, 2], [2, 10], [0, 10], [0, 0]];
-    const pt = polyLabelPoint(L);   // → [lat, lng]
+    const L = [
+      [0, 0],
+      [10, 0],
+      [10, 2],
+      [2, 2],
+      [2, 10],
+      [0, 10],
+      [0, 0]
+    ];
+    const pt = polyLabelPoint(L); // → [lat, lng]
     expect(pointInRing(pt, L)).toBe(true);
   });
 });
 
 describe('snapToTrack — остановка прижимается к линии маршрута', () => {
-  const track = [[[55.0, 37.0], [55.0, 38.0]]]; // отрезок вдоль параллели
+  const track = [
+    [
+      [55.0, 37.0],
+      [55.0, 38.0]
+    ]
+  ]; // отрезок вдоль параллели
   it('проекция на середину отрезка', () => {
     const s = snapToTrack([55.1, 37.5], track);
     expect(s.latlng[0]).toBeCloseTo(55.0, 3);
@@ -129,7 +217,16 @@ describe('snapToTrack — остановка прижимается к лини�
   });
   it('дальше порога — null; разрыв между кусками не считается дорогой', () => {
     expect(snapToTrack([56.0, 37.5], track, 50)).toBeNull();
-    const twoParts = [[[55, 37], [55, 37.1]], [[56, 37], [56, 37.1]]];
+    const twoParts = [
+      [
+        [55, 37],
+        [55, 37.1]
+      ],
+      [
+        [56, 37],
+        [56, 37.1]
+      ]
+    ];
     // точка между кусками ближе к «прыжку» 55→56, но прижимается к настоящему куску
     const s = snapToTrack([55.4, 37.05], twoParts);
     expect(s.latlng[0]).toBeCloseTo(55, 3);
@@ -143,12 +240,25 @@ describe('snapToTrack — остановка прижимается к лини�
 describe('simplifyLine — облегчение контуров для глобуса', () => {
   it('прямую сводит к концам, угол сохраняет', () => {
     const line = Array.from({ length: 50 }, (_, i) => [i, 0]);
-    expect(simplifyLine(line, 0.1)).toEqual([[0, 0], [49, 0]]);
-    const corner = [[0, 0], [5, 0.01], [10, 0], [10, 5], [10, 10]];
-    expect(simplifyLine(corner, 0.1)).toEqual([[0, 0], [10, 0], [10, 10]]);
+    expect(simplifyLine(line, 0.1)).toEqual([
+      [0, 0],
+      [49, 0]
+    ]);
+    const corner = [
+      [0, 0],
+      [5, 0.01],
+      [10, 0],
+      [10, 5],
+      [10, 10]
+    ];
+    expect(simplifyLine(corner, 0.1)).toEqual([
+      [0, 0],
+      [10, 0],
+      [10, 10]
+    ]);
   });
   it('замкнутое кольцо остаётся замкнутым и не теряет форму', () => {
-    const ring = Array.from({ length: 72 }, (_, i) => [Math.cos(i * 5 * Math.PI / 180) * 10, Math.sin(i * 5 * Math.PI / 180) * 10]);
+    const ring = Array.from({ length: 72 }, (_, i) => [Math.cos((i * 5 * Math.PI) / 180) * 10, Math.sin((i * 5 * Math.PI) / 180) * 10]);
     ring.push(ring[0]);
     const s = simplifyLine(ring, 0.5);
     expect(s[0]).toEqual(s[s.length - 1]);
@@ -156,7 +266,18 @@ describe('simplifyLine — облегчение контуров для глоб
     expect(s.length).toBeGreaterThan(5);
   });
   it('короткие и пустые линии не ломаются', () => {
-    expect(simplifyLine([[1, 1], [2, 2]], 1)).toEqual([[1, 1], [2, 2]]);
+    expect(
+      simplifyLine(
+        [
+          [1, 1],
+          [2, 2]
+        ],
+        1
+      )
+    ).toEqual([
+      [1, 1],
+      [2, 2]
+    ]);
     expect(simplifyLine([], 1)).toEqual([]);
     expect(simplifyLine(null, 1)).toEqual([]);
   });

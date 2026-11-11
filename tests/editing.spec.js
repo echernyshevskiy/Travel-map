@@ -2,8 +2,16 @@
 const { test, expect } = require('@playwright/test');
 const { openApp, json, expectNoErrors } = require('./helpers');
 
-const NOVGOROD = { display_name: 'Великий Новгород, Россия', lat: '58.52', lon: '31.27', name: 'Великий Новгород',
-  address: { city: 'Великий Новгород', country: 'Россия', country_code: 'ru' }, type: 'city', class: 'place', addresstype: 'city' };
+const NOVGOROD = {
+  display_name: 'Великий Новгород, Россия',
+  lat: '58.52',
+  lon: '31.27',
+  name: 'Великий Новгород',
+  address: { city: 'Великий Новгород', country: 'Россия', country_code: 'ru' },
+  type: 'city',
+  class: 'place',
+  addresstype: 'city'
+};
 
 test('правка маршрута открывает поля маршрута, тип не меняется', async ({ page }) => {
   const { errors } = await openApp(page);

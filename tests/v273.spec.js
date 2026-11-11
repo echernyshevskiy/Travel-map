@@ -4,16 +4,29 @@
 const { test, expect } = require('@playwright/test');
 const { openApp, expectNoErrors } = require('./helpers');
 
-const shown = (page, id) => page.evaluate(id => { const m = document.getElementById(id); return m.style.display !== 'none' && m.style.display !== ''; }, id);
+const shown = (page, id) =>
+  page.evaluate(id => {
+    const m = document.getElementById(id);
+    return m.style.display !== 'none' && m.style.display !== '';
+  }, id);
 // открыть окно нажатием на его кнопку (на телефоне кнопки спрятаны во вкладке «Ещё»)
-const openVia = (page, btnId) => page.evaluate(id => { const b = document.getElementById(id); b.focus(); b.click(); }, btnId);
+const openVia = (page, btnId) =>
+  page.evaluate(id => {
+    const b = document.getElementById(id);
+    b.focus();
+    b.click();
+  }, btnId);
 const settle = page => page.waitForTimeout(120);
 
 test.describe('A1: «Назад» и фокус в окнах', () => {
   test('«Назад» закрывает окно, страница остаётся', async ({ page }) => {
     const { errors } = await openApp(page);
     const url = page.url();
-    for(const [btn, modal] of [['openTableBtn', 'tableModal'], ['openDiagnosticsBtn', 'diagnosticsModal'], ['openPassportBtn', 'passportModal']]){
+    for (const [btn, modal] of [
+      ['openTableBtn', 'tableModal'],
+      ['openDiagnosticsBtn', 'diagnosticsModal'],
+      ['openPassportBtn', 'passportModal']
+    ]) {
       await openVia(page, btn);
       expect(await shown(page, modal)).toBe(true);
       await settle(page);
@@ -44,10 +57,10 @@ test.describe('A1: «Назад» и фокус в окнах', () => {
   test('закрытие крестиком и Esc не копит шаги истории', async ({ page }) => {
     const { errors } = await openApp(page);
     const len0 = await page.evaluate(() => history.length);
-    for(let i = 0; i < 3; i++){
+    for (let i = 0; i < 3; i++) {
       await openVia(page, 'openTableBtn');
       await settle(page);
-      if(i % 2) await page.keyboard.press('Escape');
+      if (i % 2) await page.keyboard.press('Escape');
       else await page.evaluate(() => document.getElementById('closeTableModal').click());
       await settle(page);
     }
@@ -69,7 +82,7 @@ test.describe('A1: «Назад» и фокус в окнах', () => {
     await settle(page);
     const inside = () => page.evaluate(() => document.getElementById('diagnosticsModal').contains(document.activeElement));
     expect(await inside()).toBe(true);
-    for(let i = 0; i < 30; i++){
+    for (let i = 0; i < 30; i++) {
       await page.keyboard.press(i % 3 === 2 ? 'Shift+Tab' : 'Tab');
       expect(await inside()).toBe(true);
     }
@@ -81,8 +94,9 @@ test.describe('A1: «Назад» и фокус в окнах', () => {
 
   test('у окон есть роль диалога и подпись', async ({ page }) => {
     await openApp(page);
-    const bad = await page.evaluate(() => [...document.querySelectorAll('.modal-overlay')]
-      .filter(m => m.getAttribute('aria-modal') !== 'true' || !m.getAttribute('aria-labelledby')).map(m => m.id));
+    const bad = await page.evaluate(() =>
+      [...document.querySelectorAll('.modal-overlay')].filter(m => m.getAttribute('aria-modal') !== 'true' || !m.getAttribute('aria-labelledby')).map(m => m.id)
+    );
     expect(bad).toEqual([]);
     await openVia(page, 'openTableBtn');
     await settle(page);
@@ -121,19 +135,26 @@ test('A2: кнопки на стартовом экране не меньше 40
   const min = info.project.name === 'phone' ? 44 : 40;
   const res = await page.evaluate(() => {
     const sel = '#map .leaflet-control-zoom a, #mapWrap .map-controls button, #timelineBar button, #legendToggle, #mapGlance';
-    return [...document.querySelectorAll(sel)].filter(el => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden')
-      .map(el => { const r = el.getBoundingClientRect(); return { id: el.id || el.className, l: r.left, t: r.top, w: r.width, h: r.height }; });
+    return [...document.querySelectorAll(sel)]
+      .filter(el => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden')
+      .map(el => {
+        const r = el.getBoundingClientRect();
+        return { id: el.id || el.className, l: r.left, t: r.top, w: r.width, h: r.height };
+      });
   });
   expect(res.length).toBeGreaterThanOrEqual(7);
   const small = res.filter(b => b.w < min - 0.5 || b.h < min - 0.5);
   expect(small, JSON.stringify(small)).toEqual([]);
   // кнопки не наезжают друг на друга
   const overlaps = [];
-  for(let i = 0; i < res.length; i++) for(let j = i + 1; j < res.length; j++){
-    const a = res[i], b = res[j];
-    const x = Math.min(a.l + a.w, b.l + b.w) - Math.max(a.l, b.l), y = Math.min(a.t + a.h, b.t + b.h) - Math.max(a.t, b.t);
-    if(x > 1 && y > 1) overlaps.push(a.id + ' × ' + b.id);
-  }
+  for (let i = 0; i < res.length; i++)
+    for (let j = i + 1; j < res.length; j++) {
+      const a = res[i],
+        b = res[j];
+      const x = Math.min(a.l + a.w, b.l + b.w) - Math.max(a.l, b.l),
+        y = Math.min(a.t + a.h, b.t + b.h) - Math.max(a.t, b.t);
+      if (x > 1 && y > 1) overlaps.push(a.id + ' × ' + b.id);
+    }
   expect(overlaps).toEqual([]);
   await expectNoErrors(errors);
 });
@@ -162,9 +183,15 @@ test.describe('A3: вид карты, тема, легенда', () => {
   });
 
   test('ссылка на поездку важнее сохранённого вида', async ({ page }) => {
-    await page.addInitScript(() => { try{ localStorage.setItem('travel-map-mapview', JSON.stringify({ lat: -33.9, lng: 151.2, z: 9 })); }catch(e){} });
+    await page.addInitScript(() => {
+      try {
+        localStorage.setItem('travel-map-mapview', JSON.stringify({ lat: -33.9, lng: 151.2, z: 9 }));
+      } catch (e) {}
+    });
     const { errors } = await openApp(page);
-    await page.evaluate(() => { location.hash = '#trip=' + encodeURIComponent('Кавказ 2023'); });
+    await page.evaluate(() => {
+      location.hash = '#trip=' + encodeURIComponent('Кавказ 2023');
+    });
     await page.reload();
     await page.waitForFunction(() => !!window.__travelMap);
     await page.waitForTimeout(700);
