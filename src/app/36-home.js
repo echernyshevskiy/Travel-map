@@ -77,7 +77,7 @@ function saveHomeSetting(home) {
     box.innerHTML = found
       .map(
         (c, i) =>
-          `<div class="suggest-item" role="option" tabindex="-1" data-home-i="${i}">${countryFlag(c.countryKey) || '📍'} ${escapeHtml(c.name)}<span class="ws-sub">${escapeHtml([c.region, COUNTRY_RU[c.countryKey]].filter(Boolean).join(', '))}</span></div>`
+          `<div class="suggest-item ws-item" role="option" tabindex="-1" data-home-i="${i}">${countryFlag(c.countryKey) || '📍'} ${escapeHtml(c.name)}<span class="ws-sub">${escapeHtml([c.region, COUNTRY_RU[c.countryKey]].filter(Boolean).join(', '))}</span></div>`
       )
       .join('');
     box.style.display = 'block';

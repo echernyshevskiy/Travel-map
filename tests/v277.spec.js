@@ -71,6 +71,18 @@ const openList = async (page, info) => {
   else await page.evaluate(() => mnavShow('list'));
 };
 
+test('компьютер: все пять вкладок боковой панели помещаются (шрифт по шкале)', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'вкладки панели — только на компьютере');
+  const { errors } = await openApp(page);
+  for (const w of [1366, 1100, 900]) {
+    await page.setViewportSize({ width: w, height: 800 });
+    await page.waitForTimeout(150);
+    const [sw, cw] = await page.evaluate(() => [document.getElementById('sideTabs').scrollWidth, document.getElementById('sideTabs').clientWidth]);
+    expect(sw, `ширина ${w}`).toBeLessThanOrEqual(cw + 1);
+  }
+  await expectNoErrors(errors);
+});
+
 test.describe('B8: список порциями', () => {
   test('1000 записей: сначала 40 строк, остальное — по мере прокрутки', async ({ page }, info) => {
     test.setTimeout(90_000);

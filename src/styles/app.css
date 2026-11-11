@@ -1052,7 +1052,8 @@ details.sea-all > summary {
   align-items: baseline;
   gap: 6px;
 }
-.ws-item .ws-sub {
+.ws-item .ws-sub,
+#homeSuggest .ws-sub {
   margin-left: auto;
   font-size: var(--fs-1);
   color: var(--text-dim);
@@ -6063,7 +6064,7 @@ body.stabs #mnavSearchSection {
 }
 #sideTabs [data-stab] {
   flex: 1 0 auto;
-  padding: 9px 5px 8px;
+  padding: 9px 3px 8px; /* шрифт вырос до шкалы (14 px) — поля поуже, чтобы все пять вкладок помещались */
   min-height: 40px;
   background: none;
   border: none;
@@ -6103,7 +6104,7 @@ body.stabs.stab-list #sidebar > #entryList {
 @media (max-width: 900px) {
   #sideTabs [data-stab] {
     font-size: var(--fs-3);
-    padding: 9px 4px 8px;
+    padding: 9px 2px 8px;
   }
   body.stabs #sideHead {
     padding: 10px 12px 0;
