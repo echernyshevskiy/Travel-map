@@ -96,13 +96,20 @@ const STATS_NAV = [['Статистика', 'Сводка'], ['По годам',
     '<button type="button" class="sn-all" data-sn-all>Свернуть всё</button>';
   sec.prepend(nav);
   const scroller = () => { const sb = document.getElementById('sidebar'); return sb && sb.scrollHeight > sb.clientHeight ? sb : document.scrollingElement; };
-  // на телефоне над строкой липнут шапка листа и переключатель «Записи / Статистика»
+  // на телефоне над строкой липнут шапка листа и переключатель «Записи / Статистика»,
+  // на компьютере — шапка панели с поиском и вкладками
   const stickTop = () => {
-    const sw = document.getElementById('listSwitch'), cs = sw && getComputedStyle(sw);
-    const top = cs && cs.position === 'sticky' && cs.display !== 'none' ? (parseFloat(cs.top) || 0) + sw.offsetHeight : 0;
+    let top = 0;
+    for(const id of ['listSwitch', 'sideHead']){
+      const el = document.getElementById(id), cs = el && getComputedStyle(el);
+      if(cs && cs.position === 'sticky' && cs.display !== 'none') top = Math.max(top, (parseFloat(cs.top) || 0) + el.offsetHeight);
+    }
     nav.style.top = top + 'px';
     return top;
   };
+  stickTop();
+  window.addEventListener('resize', stickTop);
+  if(MNAV_MQ.addEventListener) MNAV_MQ.addEventListener('change', stickTop);
   const isCollapsed = t => t.classList.contains('collapsed');
   const syncAll = () => { nav.querySelector('[data-sn-all]').textContent = items.every(x => isCollapsed(x.title)) ? 'Развернуть всё' : 'Свернуть всё'; };
   nav.addEventListener('click', e => {
@@ -349,8 +356,8 @@ const STATS_NAV = [['Статистика', 'Сводка'], ['По годам',
       setTimeout(()=>{
         if(action === 'quiz') openQuiz();
         else if(action === 'add' && !READ_ONLY){
-          if(mnavOn()) mnavShow('add');
-          else document.getElementById('addEntrySection').scrollIntoView({ block: 'start' });
+          mnavShow('add'); // на компьютере — вкладка «Добавить» боковой панели
+          document.getElementById('addEntrySection').scrollIntoView({ block: 'start' });
         }
       }, 300);
     }

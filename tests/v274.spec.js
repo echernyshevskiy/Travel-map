@@ -220,3 +220,136 @@ test.describe('A5: короткая форма добавления', () => {
     await expectNoErrors(errors);
   });
 });
+
+test.describe('A6: вкладки боковой панели и поиск в шапке', () => {
+  test.beforeEach(async ({}, info) => { test.skip(info.project.name !== 'desktop', 'вкладки панели — только на компьютере'); });
+  const TABS = ['add', 'list', 'stats', 'filters', 'data'];
+  const sideH = page => page.evaluate(() => document.getElementById('sidebar').scrollHeight);
+
+  test('вкладки: одна видна, прокрутка короче прежней, поиск всегда на экране', async ({ page }) => {
+    const { errors } = await openApp(page);
+    // прежняя высота ленты — все разделы сразу (без вкладок)
+    const before = await page.evaluate(() => { document.body.classList.remove('stabs'); const h = document.getElementById('sidebar').scrollHeight; document.body.classList.add('stabs'); return h; });
+    await expect(page.locator('#sideTabs [role="tab"]')).toHaveCount(5);
+    await expect(page.locator('#sideTabs')).toHaveAttribute('role', 'tablist');
+    for(const t of TABS){
+      await page.click('#stab-' + t);
+      await expect(page.locator('#stab-' + t)).toHaveAttribute('aria-selected', 'true');
+      expect(await page.locator('#sideTabs [aria-selected="true"]').count()).toBe(1);
+      const h = await sideH(page);
+      expect(h, t).toBeLessThan(before * 0.6);
+      // поле поиска видно без прокрутки — и после прокрутки вкладки до конца
+      await page.evaluate(() => { const sb = document.getElementById('sidebar'); sb.scrollTop = sb.scrollHeight; });
+      const r = await page.locator('#globalSearch').boundingBox();
+      expect(r && r.y >= 0 && r.y + r.height <= 900, t).toBe(true);
+      await expect(page.locator('#globalSearch')).toBeVisible();
+      // панель вкладки помечена и связана с кнопкой
+      const panels = (await page.getAttribute('#stab-' + t, 'aria-controls')).split(' ');
+      expect(panels.length).toBeGreaterThan(0);
+      for(const id of panels) await expect(page.locator('#' + id)).toHaveAttribute('role', 'tabpanel');
+    }
+    expect(before).toBeGreaterThan(3000);
+    await page.click('#stab-filters');
+    await expect(page.locator('#yearChips')).toBeVisible();
+    await expect(page.locator('#addEntrySection')).toBeHidden();
+    await expect(page.locator('#entryList')).toBeHidden();
+    await expectNoErrors(errors);
+  });
+
+  test('стрелки, Home, End переключают вкладки; выбранная вкладка помнится после перезагрузки', async ({ page }) => {
+    const { errors } = await openApp(page);
+    await page.locator('#stab-add').focus();
+    await page.click('#stab-add');
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('#stab-list')).toBeFocused();
+    await expect(page.locator('#stab-list')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#entryList')).toBeVisible();
+    await page.keyboard.press('End');
+    await expect(page.locator('#stab-data')).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('ArrowRight'); // по кругу
+    await expect(page.locator('#stab-add')).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.locator('#stab-data')).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('Home');
+    await expect(page.locator('#stab-add')).toHaveAttribute('aria-selected', 'true');
+    // только выбранная вкладка в порядке Tab
+    expect(await page.$$eval('#sideTabs [role="tab"]', bs => bs.map(b => b.tabIndex))).toEqual([0, -1, -1, -1, -1]);
+    await page.click('#stab-stats');
+    await page.reload();
+    await page.waitForFunction(() => !!window.__travelMap);
+    await expect(page.locator('#stab-stats')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#mnavStatsSection')).toBeVisible();
+    await expectNoErrors(errors);
+  });
+
+  test('«/» и Ctrl+K ставят курсор в поиск; набор запроса открывает «Список»', async ({ page }) => {
+    const { errors } = await openApp(page);
+    await page.click('#stab-filters');
+    await page.locator('#map').click({ position: { x: 5, y: 400 } }).catch(() => {});
+    await page.keyboard.press('Escape');
+    await page.locator('body').press('/');
+    await expect(page.locator('#globalSearch')).toBeFocused();
+    await page.locator('#globalSearch').blur();
+    await page.keyboard.press('Control+k');
+    await expect(page.locator('#globalSearch')).toBeFocused();
+    // «/» в поле ввода — обычный символ
+    await page.keyboard.type('Каз/');
+    await expect(page.locator('#globalSearch')).toHaveValue('Каз/');
+    await expect(page.locator('#stab-list')).toHaveAttribute('aria-selected', 'true');
+    await expectNoErrors(errors);
+  });
+
+  test('«Показать в списке» из карточки открывает «Список» и прокручивает к записи', async ({ page }) => {
+    // записей больше, чем показывается сразу, — нужная оказывается в самом низу
+    const base = { photos: [], purpose: 'tourism', status: 'visited', type: 'city', color: '#3F5240', countryKey: 'Russia' };
+    const entries = Array.from({ length: 140 }, (_, i) => ({ ...base, id: 'c' + i, name: 'Город ' + String(i).padStart(3, '0'), year: 2000 + (i % 20), lat: 50 + i * 0.05, lng: 40 + i * 0.05 }));
+    const { errors } = await openApp(page, { entries });
+    await page.click('#stab-stats');
+    const target = await page.evaluate(() => {
+      const sorted = allEntries.slice().sort((a,b)=> b.year - a.year || a.name.localeCompare(b.name));
+      return sorted[sorted.length - 1].id;
+    });
+    await page.evaluate(id => layers[id].openPopup ? (map.setView(layers[id].getLatLng(), 12, { animate: false }), cityCluster.zoomToShowLayer(layers[id], () => layers[id].openPopup())) : 0, target);
+    await page.locator('.leaflet-popup [data-popup-act="inlist"]').click();
+    await expect(page.locator('#stab-list')).toHaveAttribute('aria-selected', 'true');
+    const row = page.locator(`#entryList .entry-row[data-entry-id="${target}"]`);
+    await expect(row).toBeVisible();
+    await expect(row).toBeInViewport();
+    await expectNoErrors(errors);
+  });
+
+  test('внутренние переходы: правка записи — «Добавить», ссылка на поездку — «Фильтры»', async ({ page }) => {
+    const { errors } = await openApp(page);
+    await page.click('#stab-list');
+    await page.locator('#entryList .entry-row[data-entry-id="ci_kz"] [data-act="edit"]').click();
+    await expect(page.locator('#stab-add')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#fieldName')).toHaveValue('Казань');
+    await page.click('#cancelEditBtn');
+    await page.click('#stab-list');
+    await page.evaluate(() => { location.hash = '#trip=' + encodeURIComponent('Кавказ 2023'); applyTripFromUrl(); });
+    await expect(page.locator('#stab-filters')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#tripCard')).toBeVisible();
+    await expectNoErrors(errors);
+  });
+
+  test('версия для друзей: вкладки «Добавить» нет, по умолчанию — «Список»', async ({ page }) => {
+    const { errors } = await openApp(page, { build: 'friends' });
+    await expect(page.locator('#stab-add')).toBeHidden();
+    await expect(page.locator('#stab-list')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#addEntrySection')).toBeHidden();
+    await expectNoErrors(errors);
+  });
+});
+
+test('телефон: вкладок панели нет, нижние вкладки и поиск — как раньше', async ({ page }, info) => {
+  test.skip(info.project.name !== 'phone');
+  const { errors } = await openApp(page);
+  await expect(page.locator('#sideTabs')).toBeHidden();
+  expect(await page.evaluate(() => document.body.classList.contains('stabs'))).toBe(false);
+  await page.click('[data-mtab-btn="list"]');
+  await expect(page.locator('#mnavSearchSection #globalSearch')).toBeVisible();
+  await expect(page.locator('#entryList')).toBeVisible();
+  await page.click('[data-mtab-btn="filters"]');
+  await expect(page.locator('#yearChips')).toBeVisible();
+  await expectNoErrors(errors);
+});

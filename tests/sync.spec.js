@@ -38,6 +38,7 @@ async function device(browser, gh, entries){
   page.on('dialog', d => d.accept());
   const opened = await openApp(page, { entries, mocks: {} });
   await page.route('https://api.github.com/**', gh.handler);
+  await page.click('#stab-data'); // v2.74: синхронизация — на вкладке «Данные» боковой панели
   return { ctx, page, errors: opened.errors };
 }
 async function connect(page){

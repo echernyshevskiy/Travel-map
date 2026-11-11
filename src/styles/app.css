@@ -2429,3 +2429,37 @@
 body.mnav .form-actions{padding-bottom:12px;}
 .add-here-popup .leaflet-popup-content{margin:10px 12px;}
 .add-here-btn{background:var(--panel);min-height:40px;padding:8px 14px;font-size:14px;white-space:nowrap;}
+.popup-inlist-btn{margin-top:9px;width:100%;padding:6px 8px;background:var(--panel);border:1px solid var(--line);color:var(--text);
+  border-radius:3px;cursor:pointer;font-size:12px;font-family:'Twemoji Country Flags','EB Garamond',serif;}
+.entry-row-flash{animation:entryFlash 1.6s ease-out;}
+@keyframes entryFlash{0%,40%{background:var(--amber-dim);color:var(--on-accent);}100%{background:transparent;}}
+@media (prefers-reduced-motion: reduce){ .entry-row-flash{animation:none;outline:2px solid var(--amber);} }
+
+/* ---------- A6: вкладки боковой панели на компьютере ---------- */
+#sideHead{display:none;}
+body.stabs #sideHead{
+  display:block;position:sticky;top:0;z-index:6;order:-20;flex:none;
+  background:var(--panel);border-bottom:1px solid var(--line);
+  padding:12px 18px 0;
+}
+body.stabs #sideSearchSlot .search-wrap{margin:0;}
+body.stabs #mnavSearchSection{display:none !important;}
+#sideTabs{display:flex;gap:2px;margin-top:10px;overflow-x:auto;scrollbar-width:none;}
+#sideTabs::-webkit-scrollbar{display:none;}
+#sideTabs [data-stab]{
+  flex:1 0 auto;padding:9px 5px 8px;min-height:40px;
+  background:none;border:none;border-bottom:2px solid transparent;
+  color:var(--text-dim);font-family:'Twemoji Country Flags','EB Garamond',serif;font-size:13.5px;white-space:nowrap;cursor:pointer;
+}
+#sideTabs [data-stab]:hover{color:var(--text);}
+#sideTabs [data-stab][aria-selected="true"]{color:var(--amber);border-bottom-color:var(--amber);font-weight:600;}
+#sideTabs [data-stab]:focus-visible{outline:2px solid var(--amber);outline-offset:-2px;}
+#sideTabs [data-stab][hidden]{display:none;}
+/* видна одна вкладка: остальные разделы панели скрыты */
+body.stabs #sidebar > [data-mtab]{display:none;}
+body.stabs.stab-add #sidebar > [data-mtab="add"],
+body.stabs.stab-filters #sidebar > [data-mtab="filters"],
+body.stabs.stab-data #sidebar > [data-mtab="more"]:not(#moreSection),
+body.stabs.stab-stats #sidebar > #mnavStatsSection,
+body.stabs.stab-list #sidebar > #entryList{display:block;}
+@media (max-width:900px){ #sideTabs [data-stab]{font-size:12.5px;padding:9px 4px 8px;} body.stabs #sideHead{padding:10px 12px 0;} }

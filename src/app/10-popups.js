@@ -103,6 +103,7 @@ function buildPopup(entry){
   if(entry.type === 'route'){
     html += `<button type="button" class="popup-tour-btn" data-tour-entry="${escapeAttr(entry.id)}">🌍 Облёт на глобусе${entry.trip ? ' · вся поездка' : ''}</button>`;
   }
+  html += `<button type="button" class="popup-inlist-btn" data-popup-act="inlist" data-id="${escapeAttr(entry.id)}">≡ Показать в списке</button>`;
   if(!READ_ONLY && entry.status === 'wishlist'){
     html += `<button data-popup-act="upgrade" data-id="${escapeAttr(entry.id)}" style="margin-top:9px;width:100%;padding:6px 8px;background:var(--amber);border:none;color:var(--on-accent);border-radius:3px;cursor:pointer;font-size:12px;font-family:'Twemoji Country Flags','EB Garamond',serif;">✓ Отметить как посещённое</button>`;
   }

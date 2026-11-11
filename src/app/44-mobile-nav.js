@@ -12,10 +12,11 @@ function setListView(view){
   document.querySelectorAll('#listSwitch [data-lsw]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.lsw === view)));
   const sb = document.getElementById('sidebar');
   if(sb && mnavOn()) sb.scrollTop = 0;
+  if(!mnavOn()) sideTabFromMtab('list'); // на компьютере «Записи» и «Статистика» — отдельные вкладки
 }
 document.querySelectorAll('#listSwitch [data-lsw]').forEach(b => b.addEventListener('click', () => setListView(b.dataset.lsw)));
 function mnavShow(tab){
-  if(!mnavOn()) return;
+  if(!mnavOn()){ sideTabFromMtab(tab); return; } // на компьютере — та же вкладка боковой панели (44a-side-tabs.js)
   if(READ_ONLY && tab === 'add') tab = 'map';
   const wasOpen = mnavTab !== 'map';
   const changed = tab !== mnavTab;

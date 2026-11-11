@@ -146,6 +146,17 @@ window.addEventListener('unhandledrejection', function(e){
       <span id="mnavSheetTitle"></span>
       <button id="mnavCloseBtn" title="Закрыть панель" aria-label="Закрыть панель и вернуться к карте">✕</button>
     </div>
+    <!-- шапка панели на компьютере: поиск всегда на виду и вкладки разделов (44a-side-tabs.js) -->
+    <div id="sideHead">
+      <div id="sideSearchSlot"></div>
+      <div id="sideTabs" role="tablist" aria-label="Разделы панели">
+        <button type="button" role="tab" id="stab-add" data-stab="add">Добавить</button>
+        <button type="button" role="tab" id="stab-list" data-stab="list">Список</button>
+        <button type="button" role="tab" id="stab-stats" data-stab="stats">Статистика</button>
+        <button type="button" role="tab" id="stab-filters" data-stab="filters">Фильтры</button>
+        <button type="button" role="tab" id="stab-data" data-stab="data">Данные</button>
+      </div>
+    </div>
     <div class="section" id="moreSection" data-mtab="more">
       <div id="moreActionsSlot"></div>
     </div>
@@ -543,7 +554,7 @@ window.addEventListener('unhandledrejection', function(e){
 
     <div class="section" id="mnavSearchSection" data-mtab="list" style="flex:0;padding-bottom:10px;">
       <p class="section-title">Поиск</p>
-      <div class="search-wrap">
+      <div class="search-wrap" id="globalSearchWrap">
         <input type="text" id="globalSearch" placeholder="Ваши записи, а также любая страна или город мира…" autocomplete="off" style="padding-right:32px;">
         <button id="clearSearchBtn" title="Очистить поиск" aria-label="Очистить поиск" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;display:none;">✕</button>
         <div class="suggest-box world-suggest" id="worldSuggest" style="display:none;" role="listbox"></div>
