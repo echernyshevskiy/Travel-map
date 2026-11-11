@@ -29,6 +29,8 @@ function applyTypeUI(type){
     document.getElementById('countryFields').style.display = currentType === 'country' ? 'block' : 'none';
     document.getElementById('cityFields').style.display = currentType === 'city' ? 'block' : 'none';
     document.getElementById('routeFields').style.display = currentType === 'route' ? 'block' : 'none';
+    document.getElementById('cityMoreFields').style.display = currentType === 'city' ? 'block' : 'none';
+    updateNameRow();
     updateHikingDaysVisibility();
     document.getElementById('refreshWaypointsField').style.display = 'none';
     document.getElementById('editWaypointsField').style.display = 'none';
@@ -40,6 +42,31 @@ function applyTypeUI(type){
     statusLabel.style.opacity = isRoute ? '0.4' : '1';
     if(!editingId) setFieldColor(DEFAULT_COLOR[currentType]); else renderColorSwatches();
 }
+// «Подробнее»: второстепенные поля формы. Свёрнуты для новой записи,
+// раскрыты при правке записи, у которой что-то из них заполнено.
+function setFormMoreOpen(open){
+  const box = document.getElementById('formMoreFields');
+  const btn = document.getElementById('formMoreToggle');
+  if(!box || !btn) return;
+  box.hidden = !open;
+  btn.setAttribute('aria-expanded', String(!!open));
+  updateNameRow();
+}
+// поле «Название» над датой: при правке (это и есть то, что правят), у маршрута
+// (своё имя для треков из GPX) и при раскрытом «Подробнее»
+function updateNameRow(){
+  const row = document.getElementById('nameRow');
+  const box = document.getElementById('formMoreFields');
+  if(row) row.hidden = !(editingId || currentType === 'route' || (box && !box.hidden));
+}
+function entryHasMoreFields(e){
+  return !!(e.notes || (e.photos && e.photos.length) || e.instagramUrl || e.mapLinkUrl || e.docLinkUrl || e.trip || e.hidden || e.favorite || e.community ||
+    (e.purpose && e.purpose !== 'tourism') || (e.company && e.company !== 'alone') ||
+    (e.color && e.color.toLowerCase() !== (DEFAULT_COLOR[e.type] || '').toLowerCase()));
+}
+document.getElementById('formMoreToggle').addEventListener('click', ()=>{
+  setFormMoreOpen(document.getElementById('formMoreFields').hidden);
+});
 document.querySelectorAll('.type-btn[data-type]').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     // тип существующей записи не меняется — геометрия у страны, города и маршрута разная
@@ -402,6 +429,43 @@ document.getElementById('placeCountryBtn').addEventListener('click', ()=>{
 });
 
 map.on('click', handleMapClick);
+// Быстрое добавление: правый щелчок (на телефоне — долгое нажатие) по карте →
+// «Добавить здесь» → форма нового города с уже выбранным местом. Название —
+// ближайший город из встроенного справочника, а при сети уточняется геокодером.
+map.on('contextmenu', e => {
+  if(READ_ONLY || quizMapActive() || placingCity || placingCountry) return;
+  const src = e.originalEvent && e.originalEvent.target;
+  if(src && src.closest && src.closest('.leaflet-popup')) return;
+  if(e.originalEvent && e.originalEvent.preventDefault) e.originalEvent.preventDefault();
+  const ll = e.latlng;
+  const popup = L.popup({ className: 'add-here-popup', closeButton: false, autoPan: false, minWidth: 0 })
+    .setLatLng(ll)
+    .setContent('<button type="button" class="cpop-btn add-here-btn" id="addHereBtn">+ Добавить здесь</button>')
+    .openOn(map);
+  setTimeout(() => {
+    const btn = document.getElementById('addHereBtn');
+    if(!btn) return;
+    btn.addEventListener('click', () => { map.closePopup(popup); addEntryAt(ll); });
+    btn.focus();
+  }, 0);
+});
+function addEntryAt(ll){
+  const feature = findCountryFeature(ll);
+  const countryKey = feature ? feature.properties.name : null;
+  const local = nearestLocalCity(ll.lat, ll.lng, 25);
+  const guess = local ? local.name : `Точка ${ll.lat.toFixed(2)}, ${ll.lng.toFixed(2)}`;
+  prefillCityForm(guess, ll, (local && local.countryKey) || countryKey);
+  if(navigator.onLine === false || nominatimDown()) return;
+  reverseGeocode(ll.lat, ll.lng).then(r => {
+    // человек мог уже сменить запись или поправить название сам
+    const nameField = document.getElementById('fieldName');
+    if(!r || !r.name || editingId || pendingLatLng !== ll || !nameField || nameField.value !== guess) return;
+    nameField.value = r.name;
+    pendingCityName = r.name;
+    if(r.countryKey){ pendingCityCountryKey = r.countryKey; document.getElementById('fieldCityCountry').value = r.countryKey; }
+    setSelectedTag('citySelectedTag', `${r.name}: ${ll.lat.toFixed(3)}, ${ll.lng.toFixed(3)}`, clearCitySelection);
+  }).catch(() => { /* остаётся название из справочника */ });
+}
 function handleMapClick(e){
   if(quizMapActive()){ quizMapAnswer(e.latlng); return; } // идёт «Где это?»
   // Клик по кнопке внутри попапа доходил сюда, карта считала его кликом по
@@ -694,6 +758,7 @@ async function handleCountryPopupAction(act, key, latlng){
   if(section && section.classList.contains('collapsed')) section.classList.remove('collapsed');
   mnavShow('add');
   const nameField = document.getElementById('fieldName');
+  if(act === 'city') setFormMoreOpen(true); // место уже выбрано — осталось назвать
   if(nameField){ nameField.focus(); nameField.scrollIntoView({ block:'center' }); }
   toast(act === 'city' ? `Добавьте город в стране «${ruName}»` : `Добавьте маршрут — точки задайте поиском`);
 }

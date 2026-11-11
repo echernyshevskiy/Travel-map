@@ -200,7 +200,7 @@ map.createPane('routePane'); map.getPane('routePane').style.zIndex = 420;
 const routeRenderer = L.canvas({ pane: 'routePane', tolerance: 8, padding: 0.3 });
 // Остановки маршрутов — точками на карте (если у города нет своей отметки)
 const routeStopsLayer = L.layerGroup().addTo(map);
-let currentType = 'country';
+let currentType = 'city'; // новая запись по умолчанию — город (чаще всего добавляют его)
 
 let placingCity = false;
 let pendingLatLng = null;

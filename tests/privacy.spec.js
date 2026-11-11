@@ -19,6 +19,7 @@ test('в файле версии для друзей нет заметок и с
 test('флаг «Не показывать друзьям» сохраняется при правке', async ({ page }) => {
   await openApp(page);
   await page.evaluate(() => startEdit(allEntries.find(e => e.id === 'ci_kz')));
+  await page.locator('#formMoreToggle').click(); // v2.74: флаг — в «Подробнее»
   await page.locator('#fieldHidden').check();
   await page.locator('#saveBtn').click();
   await expect.poll(() => page.evaluate(() => allEntries.find(e => e.id === 'ci_kz').hidden)).toBe(true);

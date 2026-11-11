@@ -379,6 +379,7 @@ function exitEditMode(fullReset){
   document.getElementById('routeSourceBlock').style.display = '';
   document.getElementById('cancelEditBtn').style.display = 'none';
   document.getElementById('saveBtn').textContent = 'Сохранить';
+  setFormMoreOpen(false);
   resetEntryFormFields();
   document.getElementById('fieldActivity').value = 'hiking';
   document.getElementById('fieldTerrain').value = 'road';

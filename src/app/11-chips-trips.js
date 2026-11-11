@@ -75,6 +75,7 @@ function applyTripFromUrl(){
   applyFilters();
   focusTrip(tripName);
   renderTripCard(tripName);
+  sideTabShow('filters', { remember: false }); // на компьютере карточка поездки — на вкладке «Фильтры»
   const tripCardEl = document.getElementById('tripCard');
   if(tripCardEl) tripCardEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }

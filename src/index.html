@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.73
+  Версия: v2.74
   Дата сборки: 2026-10-12
   История версий смотрите в переписке с Claude.
 -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
 <!-- личная карта: не показывать в поисковиках (превью ссылок в мессенджерах это не отключает) -->
 <meta name="robots" content="noindex, nofollow">
 <title>Карта путешествий</title>
@@ -109,6 +109,10 @@ window.addEventListener('unhandledrejection', function(e){
       <span>Маршрутов <b id="statRoutes">0</b></span>
       <span>Всего км <b id="statKm">0</b></span>
     </div>
+    <!-- подзаголовки групп видны только во вкладке «Ещё» на телефоне; порядок кнопок там задаёт CSS -->
+    <p class="section-title more-group-title" id="moreGroupData" role="heading" aria-level="3">Данные</p>
+    <p class="section-title more-group-title" id="moreGroupSummary" role="heading" aria-level="3">Итоги</p>
+    <p class="section-title more-group-title" id="moreGroupOther" role="heading" aria-level="3">Фото, квиз и бег</p>
     <button id="openTableBtn" class="header-btn">Таблица отметок</button>
     <div class="header-menu-wrap">
       <button id="openSummaryMenu" class="header-btn" aria-haspopup="true" aria-expanded="false">Итоги ▾</button>
@@ -142,8 +146,18 @@ window.addEventListener('unhandledrejection', function(e){
       <span id="mnavSheetTitle"></span>
       <button id="mnavCloseBtn" title="Закрыть панель" aria-label="Закрыть панель и вернуться к карте">✕</button>
     </div>
+    <!-- шапка панели на компьютере: поиск всегда на виду и вкладки разделов (44a-side-tabs.js) -->
+    <div id="sideHead">
+      <div id="sideSearchSlot"></div>
+      <div id="sideTabs" role="tablist" aria-label="Разделы панели">
+        <button type="button" role="tab" id="stab-add" data-stab="add">Добавить</button>
+        <button type="button" role="tab" id="stab-list" data-stab="list">Список</button>
+        <button type="button" role="tab" id="stab-stats" data-stab="stats">Статистика</button>
+        <button type="button" role="tab" id="stab-filters" data-stab="filters">Фильтры</button>
+        <button type="button" role="tab" id="stab-data" data-stab="data">Данные</button>
+      </div>
+    </div>
     <div class="section" id="moreSection" data-mtab="more">
-      <p class="section-title">Разделы</p>
       <div id="moreActionsSlot"></div>
     </div>
 
@@ -153,8 +167,8 @@ window.addEventListener('unhandledrejection', function(e){
       <p class="section-title">Добавить отметку</p>
       <label>Тип</label>
       <div class="type-toggle" id="typeToggle">
-        <div class="type-btn active" data-type="country">Страна</div>
-        <div class="type-btn" data-type="city">Город</div>
+        <div class="type-btn" data-type="country">Страна</div>
+        <div class="type-btn active" data-type="city">Город</div>
         <div class="type-btn" data-type="route">Маршрут</div>
       </div>
 
@@ -164,7 +178,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div class="type-btn" data-status="wishlist">Хочу посетить</div>
       </div>
 
-      <div id="countryFields">
+      <div id="countryFields" style="display:none;">
         <label>Страна</label>
         <div class="search-wrap">
           <input type="text" id="countrySearch" placeholder="Начните вводить название..." autocomplete="off">
@@ -178,7 +192,7 @@ window.addEventListener('unhandledrejection', function(e){
         </div>
       </div>
 
-      <div id="cityFields" style="display:none;">
+      <div id="cityFields">
         <label>Город</label>
         <div class="search-wrap">
           <input type="text" id="citySearch" placeholder="Начните вводить название..." autocomplete="off">
@@ -190,13 +204,6 @@ window.addEventListener('unhandledrejection', function(e){
         <div id="cityMapMode" style="display:none;">
           <button class="place-btn" id="placeCityBtn">Указать точку на карте</button>
         </div>
-        <label>Страна города</label>
-        <select id="fieldCityCountry"></select>
-        <div class="hint">Заполняется автоматически при выборе города. Исправьте, если определилась неверно или осталась пустой.</div>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:12px;">
-          <input type="checkbox" id="fieldFavorite" style="width:16px;height:16px;accent-color:var(--amber);margin:0;">
-          <span style="margin:0;font-size:12.5px;color:var(--text);">❤ Любимый город</span>
-        </label>
       </div>
 
       <div id="routeFields" style="display:none;">
@@ -263,8 +270,11 @@ window.addEventListener('unhandledrejection', function(e){
         </div>
       </div>
 
-      <label>Название</label>
-      <input type="text" id="fieldName" placeholder="можно оставить как определено автоматически">
+      <!-- название записи: видно при правке и в «Подробнее»; у новой — берётся из выбранного места -->
+      <div id="nameRow" hidden>
+        <label for="fieldName">Название</label>
+        <input type="text" id="fieldName" placeholder="можно оставить как определено автоматически">
+      </div>
 
       <label>Год</label>
       <input type="number" id="fieldYear" min="1990" max="2100">
@@ -297,6 +307,18 @@ window.addEventListener('unhandledrejection', function(e){
         <div class="hint" style="margin-top:4px;">Год и месяц подставятся сами. Последний день можно не указывать.</div>
       </div>
 
+      <!-- «Подробнее»: всё, кроме типа, места и даты; при правке заполненной записи раскрыто -->
+      <button type="button" class="form-more-toggle" id="formMoreToggle" aria-expanded="false" aria-controls="formMoreFields">Подробнее <span class="form-more-hint">— название, поездка, заметка, ссылки, цвет</span></button>
+      <div id="formMoreFields" hidden>
+      <div id="cityMoreFields">
+        <label>Страна города</label>
+        <select id="fieldCityCountry"></select>
+        <div class="hint">Заполняется автоматически при выборе города. Исправьте, если определилась неверно или осталась пустой.</div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:12px;">
+          <input type="checkbox" id="fieldFavorite" style="width:16px;height:16px;accent-color:var(--amber);margin:0;">
+          <span style="margin:0;font-size:12.5px;color:var(--text);">❤ Любимый город</span>
+        </label>
+      </div>
       <label>Цель поездки</label>
       <select id="fieldPurpose">
         <option value="tourism">Туризм</option>
@@ -339,7 +361,7 @@ window.addEventListener('unhandledrejection', function(e){
       <label>Цвет на карте</label>
       <div class="color-row">
         <div class="color-swatches" id="colorSwatches" role="radiogroup" aria-label="Цвет на карте"></div>
-        <input type="color" id="fieldColor" value="#A6592E" list="colorPresets" title="Свой цвет" aria-label="Свой цвет">
+        <input type="color" id="fieldColor" value="#3F5240" list="colorPresets" title="Свой цвет" aria-label="Свой цвет">
         <datalist id="colorPresets"></datalist>
       </div>
 
@@ -363,9 +385,13 @@ window.addEventListener('unhandledrejection', function(e){
         <span style="margin:0;font-size:12.5px;color:var(--text);">🔒 Не показывать друзьям</span>
       </label>
       <div class="hint" style="margin-top:2px;">Запись не попадёт в версию для друзей. Заметки туда не попадают никогда.</div>
+      </div>
 
-      <button class="save-btn" id="saveBtn">Сохранить</button>
-      <button class="cancel-edit" id="cancelEditBtn" style="display:none;">Отменить редактирование</button>
+      <!-- кнопки закреплены внизу формы и видны всегда, в том числе при открытой клавиатуре -->
+      <div class="form-actions" id="formActions">
+        <button class="save-btn" id="saveBtn">Сохранить</button>
+        <button class="cancel-edit" id="cancelEditBtn" style="display:none;">Отмена</button>
+      </div>
     </div>
 
     <div class="section" data-mtab="filters">
@@ -528,7 +554,7 @@ window.addEventListener('unhandledrejection', function(e){
 
     <div class="section" id="mnavSearchSection" data-mtab="list" style="flex:0;padding-bottom:10px;">
       <p class="section-title">Поиск</p>
-      <div class="search-wrap">
+      <div class="search-wrap" id="globalSearchWrap">
         <input type="text" id="globalSearch" placeholder="Ваши записи, а также любая страна или город мира…" autocomplete="off" style="padding-right:32px;">
         <button id="clearSearchBtn" title="Очистить поиск" aria-label="Очистить поиск" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;display:none;">✕</button>
         <div class="suggest-box world-suggest" id="worldSuggest" style="display:none;" role="listbox"></div>
@@ -570,7 +596,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
         <div class="legend-credits">флаги: <a href="https://github.com/twitter/twemoji" target="_blank" rel="noopener" style="color:inherit;">Twemoji</a>, CC BY 4.0 · города: Natural Earth, <a href="https://github.com/hflabs/city" target="_blank" rel="noopener" style="color:inherit;">hflabs/city</a>, CC BY-SA 4.0 · границы: Natural Earth, регионы: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:inherit;">OpenStreetMap</a> (ODbL)</div>
-        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.73</div>
+        <div style="margin-top:2px;font-size:9px;opacity:0.55;" id="legendVersion">v2.74</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>

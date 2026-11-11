@@ -53,17 +53,30 @@ function levenshtein(a, b){
   return dp[m][n];
 }
 
+// Разделы без находок не занимают место: их названия собираются в одну
+// строку «Без замечаний» внизу окна (diagCleanSummary).
+let diagCleanTitles = [];
 function buildDiagSection(title, hint, items, emptyText, renderRow){
-  const badge = items.length > 0
-    ? `<span class="diag-count-badge">${items.length}</span>`
-    : `<span class="diag-count-badge ok">✓</span>`;
-  const body = items.length > 0
-    ? `<div class="diag-list">${items.map(renderRow).join('')}</div>`
-    : `<div class="diag-empty">${emptyText}</div>`;
+  if(!items.length){
+    diagCleanTitles.push({ title, emptyText });
+    return '';
+  }
   return `<div class="diag-section">
-    <p class="diag-section-title">${title} ${badge}</p>
+    <p class="diag-section-title">${title} <span class="diag-count-badge">${items.length}</span></p>
     ${hint ? `<div class="diag-section-hint">${hint}</div>` : ''}
-    ${body}
+    <div class="diag-list">${items.map(renderRow).join('')}</div>
+  </div>`;
+}
+function diagCleanSummary(anyFindings){
+  const n = diagCleanTitles.length;
+  if(!n) return '';
+  const word = n % 10 === 1 && n % 100 !== 11 ? 'проверка' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? 'проверки' : 'проверок';
+  const lead = anyFindings ? '' : '<p class="diag-all-clean">Замечаний нет — данные в порядке.</p>';
+  return `<div class="diag-section diag-clean" id="diagCleanSummary">
+    ${lead}<details>
+      <summary><span class="diag-count-badge ok" aria-hidden="true">✓</span> Без замечаний: ${n} ${word}</summary>
+      <ul class="diag-clean-list">${diagCleanTitles.map(t => `<li><b>${t.title}</b><span>${t.emptyText}</span></li>`).join('')}</ul>
+    </details>
   </div>`;
 }
 
@@ -388,6 +401,7 @@ function renderDiagnostics(){
           missingCoords, brokenLinks, nonImagePhotos, duplicateGroups, noCountry,
           missingCountryYears, routesNoWpCountry, tripSuggestions, typeLabel } = computeDiagnostics();
 
+  diagCleanTitles = [];
   let html = '';
   html += buildDiagSection(
     'Несовпадение сохранённой и фактической страны',
@@ -536,6 +550,7 @@ function renderDiagnostics(){
       </div>
     </div>`
   );
+  html += diagCleanSummary(/class="diag-section"/.test(html));
 
   container.innerHTML = html;
   container.querySelectorAll('[data-diag-id]').forEach(row=>{
