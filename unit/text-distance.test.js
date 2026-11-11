@@ -21,7 +21,7 @@ describe('levenshteinWithin', () => {
   });
   it('совпадает с полной таблицей на случайных строках (до порога)', () => {
     let seed = 7;
-    const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+    const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
     const word = () => Array.from({ length: 1 + Math.floor(rnd() * 9) }, () => 'абвгде'[Math.floor(rnd() * 6)]).join('');
     for (let t = 0; t < 4000; t++) {
       const a = word(),

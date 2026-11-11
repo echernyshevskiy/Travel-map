@@ -135,7 +135,11 @@ test.describe('B6: дом в настройках', () => {
   test('смена дома на Тбилиси: страна, пояс, расстояния и карточки пересчитаны, выбор сохраняется', async ({ page }, info) => {
     test.setTimeout(90_000);
     const { errors } = await openApp(page);
-    const farBefore = await page.locator('#statFarthest, #statFarthestF').first().textContent().catch(() => '');
+    const farBefore = await page
+      .locator('#statFarthest, #statFarthestF')
+      .first()
+      .textContent()
+      .catch(() => '');
     await openHomeEditor(page, info);
     await page.fill('#homeSearch', 'Тбилиси');
     await page.locator('#homeSuggest .suggest-item').first().click();
@@ -151,7 +155,11 @@ test.describe('B6: дом в настройках', () => {
     // регионы России по-прежнему считаются (они о России, а не о доме)
     expect(await page.evaluate(() => (ruRegionsState && ruRegionsState.visited ? ruRegionsState.visited.size : 0))).toBeGreaterThan(0);
     // «самая дальняя точка» считается от нового дома
-    const farAfter = await page.locator('#statFarthest, #statFarthestF').first().textContent().catch(() => '');
+    const farAfter = await page
+      .locator('#statFarthest, #statFarthestF')
+      .first()
+      .textContent()
+      .catch(() => '');
     if (farBefore) expect(farAfter).not.toBe(farBefore);
     // перезагрузка — дом прежний
     await page.reload();

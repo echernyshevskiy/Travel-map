@@ -248,7 +248,16 @@ const HOME_DEFAULT = { name: 'Москва, Россия', lat: 55.7558, lng: 37
 function readHomeSetting() {
   try {
     const v = JSON.parse(prefGet(HOME_SETTING_KEY) || 'null');
-    if (v && typeof v.name === 'string' && v.name.trim() && isFinite(v.lat) && isFinite(v.lng) && Math.abs(v.lat) <= 90 && Math.abs(v.lng) <= 180 && COUNTRY_RU[v.countryKey])
+    if (
+      v &&
+      typeof v.name === 'string' &&
+      v.name.trim() &&
+      isFinite(v.lat) &&
+      isFinite(v.lng) &&
+      Math.abs(v.lat) <= 90 &&
+      Math.abs(v.lng) <= 180 &&
+      COUNTRY_RU[v.countryKey]
+    )
       return { name: v.name.trim().slice(0, 80), lat: +v.lat, lng: +v.lng, countryKey: v.countryKey };
   } catch (e) {
     /* испорченная настройка — дом по умолчанию */
