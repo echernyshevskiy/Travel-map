@@ -178,6 +178,9 @@ async function openApp(page, opts = {}) {
     const b = document.getElementById('bootOverlay');
     return (!b || b.classList.contains('hiding')) && !!window.__travelMap;
   });
+  // запуск по этапам (v2.77): статистика и значки досчитываются после первой
+  // отрисовки — ждём, пока очередь отложенных шагов опустеет
+  await page.waitForFunction(() => document.documentElement.dataset.ready === '1');
   return { errors };
 }
 

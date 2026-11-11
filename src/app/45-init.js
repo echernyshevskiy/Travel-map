@@ -343,24 +343,26 @@ const STATS_NAV = [
 })();
 
 (async function init() {
+  const T = perfStep('init');
   try {
     applyReadOnlyUI();
   } catch (err) {
-    console.error('applyReadOnlyUI failed', err);
+    logError('запуск: режим просмотра', err);
   }
   try {
     renderHomeRegion();
   } catch (err) {
-    console.error('renderHomeRegion failed', err);
+    logError('запуск: домашний регион', err);
   }
   try {
     await loadData();
     dropUnusableEntries(); // до журнала, синхронизации и первой отрисовки
   } catch (err) {
-    console.error('loadData failed', err);
+    logError('запуск: чтение данных', err);
     allEntries = [];
     tripMeta = {};
   }
+  T('loadData');
   try {
     rebuildAll();
   } catch (err) {
@@ -369,25 +371,25 @@ const STATS_NAV = [
   try {
     applyTripFromUrl();
   } catch (err) {
-    console.error('applyTripFromUrl failed', err);
+    logError('запуск: поездка из ссылки', err);
   }
   try {
     renderBackupReminder();
   } catch (err) {
-    console.error('renderBackupReminder failed', err);
+    logError('запуск: напоминание о копии', err);
   }
   // опорный снимок для журнала: изменения считаются относительно него
   try {
     changelogSnapshot = snapshotForLog();
   } catch (err) {
-    console.error('changelog init failed', err);
+    logError('запуск: журнал изменений', err);
   }
   // и для синхронизации — после нормализации записей, чтобы она не считалась правкой
   try {
     snapshotSyncBase();
     renderSyncStatus();
   } catch (err) {
-    console.error('sync init failed', err);
+    logError('запуск: синхронизация', err);
   }
   if (!READ_ONLY && readSyncConfig()) scheduleSync(1500);
   // восстанавливаем выбранную подложку — если человек однажды переключился на
@@ -405,14 +407,14 @@ const STATS_NAV = [
       setBasemap('plain');
       setTimeout(() => toast('Файл открыт с диска — подложка карты недоступна, включены контуры стран. По ссылке в браузере карта работает полностью'), 900);
     } catch (err) {
-      console.warn('не удалось включить контуры', err);
+      logError('запуск: включение контуров', err);
     }
   } else {
     try {
       const savedBase = localStorage.getItem('travel-map-basemap');
       if (savedBase && savedBase !== 'street') setBasemap(savedBase);
     } catch (err) {
-      console.warn('настройка подложки недоступна', err);
+      logError('запуск: подложка', err);
     }
   }
 
@@ -422,7 +424,7 @@ const STATS_NAV = [
     try {
       await saveData();
     } catch (err) {
-      console.error('post-migration save failed', err);
+      logError('сохранение после обновления формата', err);
     }
   }
 
@@ -470,6 +472,9 @@ const STATS_NAV = [
     logError('запуск: ярлык приложения', e);
   }
 
+  T('после rebuildAll');
+  T.end();
+  finishBoot();
   // прячем заставку в любом случае — даже если инициализация где-то споткнулась,
   // иначе пользователь останется смотреть на неё вечно
   const boot = document.getElementById('bootOverlay');

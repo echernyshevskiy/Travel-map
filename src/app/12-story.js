@@ -86,7 +86,7 @@ function openTripStory(tripName) {
         storyMap.fitBounds(L.latLngBounds(points), { padding: [40, 40] });
       }
     } catch (err) {
-      console.error('story map render failed', err);
+      logError('карта истории', err);
     }
   }, 60);
 
@@ -253,6 +253,7 @@ function removeEntryLayer(entry, layer) {
 }
 
 function applyFilters() {
+  const T = perfStep('filters');
   // набор отметок меняется — пересчитать подписи
   try {
     scheduleMapLabels();
@@ -269,14 +270,23 @@ function applyFilters() {
     if (should && !has) addEntryLayer(entry, layer);
     if (!should && has) removeEntryLayer(entry, layer);
   });
+  T('слои');
   applyTimelineOpacity();
-  listLimit = LIST_PAGE; // новый набор результатов показываем с первой порции
+  T('лента лет');
+  listLimit = LIST_FIRST; // новый набор результатов показываем с первой порции
   tableLimit = LIST_PAGE;
   renderList(visible);
-  updateFilteredStats(visible);
+  T('список');
+  // при запуске статистика не видна сразу — досчитаем, когда браузер свободен
+  // (без готового списка: к тому времени фильтры могли поменяться)
+  if (booting) idleTask('статистика', () => updateFilteredStats());
+  else updateFilteredStats(visible);
+  T('статистика');
   // именно здесь, а не в rebuildAll: клики по чипам фильтров вызывают applyFilters(),
   // полная перерисовка при этом не запускается
   const resetBtn = document.getElementById('resetFiltersBtn');
   if (resetBtn) resetBtn.style.display = anyFilterActive() ? 'block' : 'none';
   updateMnavBadge();
+  T('прочее');
+  T.end();
 }

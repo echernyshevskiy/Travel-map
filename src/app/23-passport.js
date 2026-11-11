@@ -40,21 +40,6 @@ document.getElementById('openCalendarBtn').addEventListener('click', () => {
   document.getElementById('calendarModal').style.display = 'flex';
 });
 
-// расстояние Левенштейна — нужно для поиска похожих (возможно, опечатанных) названий городов
-function levenshtein(a, b) {
-  const m = a.length,
-    n = b.length;
-  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
-  for (let i = 0; i <= m; i++) dp[i][0] = i;
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-    }
-  }
-  return dp[m][n];
-}
-
 // Разделы без находок не занимают место: их названия собираются в одну
 // строку «Без замечаний» внизу окна (diagCleanSummary).
 let diagCleanTitles = [];
@@ -205,7 +190,7 @@ function computeDiagnostics() {
         // если получается 0, совпадение невозможно и считать нечего
         const allowed = Math.min(2, Math.floor(maxLen * 0.3));
         if (allowed < 1) continue;
-        const dist = levenshtein(a.low, b.low);
+        const dist = levenshteinWithin(a.low, b.low, allowed); // с порогом — полную таблицу не считаем
         if (dist > 0 && dist <= allowed) pairs.push([a.n, b.n]);
       }
     }
@@ -536,6 +521,10 @@ function updateDiagnosticsBadge() {
   // изменении данных — вплоть до переключения сердечка. Откладываем расчёт,
   // чтобы он не задерживал видимое обновление интерфейса.
   if (diagBadgeTimer) clearTimeout(diagBadgeTimer);
+  if (booting) {
+    idleTask('значок проверки', computeDiagnosticsBadgeNow);
+    return;
+  }
   diagBadgeTimer = setTimeout(() => {
     diagBadgeTimer = null;
     computeDiagnosticsBadgeNow();

@@ -171,7 +171,7 @@ function setupTripMiniMaps(body, tripEntries) {
       try {
         buildTripMiniMap(holder, entry, tripCities);
       } catch (err) {
-        console.warn('мини-карта', err);
+        logError('мини-карта поездки', err);
       }
   };
   // карты создаём, только когда блок доходит до экрана: в длинной поездке их десятки

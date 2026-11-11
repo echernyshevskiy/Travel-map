@@ -29,3 +29,74 @@ function renderHomeRegion() {
     )
     .on('click', L.DomEvent.stopPropagation);
 }
+
+// ---------- настройка «Дом» (B6) ----------
+// Город выбирается из встроенного справочника (без сети); страна и часовой пояс
+// берутся из него же. Хранится на этом устройстве (travel-map-home). После
+// выбора приложение перезапускается: дом влияет на статистику, карточки стран,
+// глобус, квиз и импорт — проще пересчитать всё с нуля, чем каждое по отдельности.
+function saveHomeSetting(home) {
+  if (home) prefSet(HOME_SETTING_KEY, JSON.stringify(home));
+  else prefRemove(HOME_SETTING_KEY);
+  location.reload();
+}
+(function setupHomeSection() {
+  const cur = document.getElementById('homeCurrent');
+  const statHome = document.getElementById('statHomeF');
+  if (statHome) statHome.textContent = HOME_LOCATION.name;
+  const section = document.getElementById('homeSection');
+  if (!cur || !section) return;
+  // у друзей дом не настраивается: там всегда точка по умолчанию
+  if (READ_ONLY) {
+    section.remove();
+    return;
+  }
+  cur.textContent = HOME_LOCATION.name;
+  const btn = document.getElementById('homeChangeBtn'),
+    editor = document.getElementById('homeEditor'),
+    input = document.getElementById('homeSearch'),
+    box = document.getElementById('homeSuggest'),
+    reset = document.getElementById('homeResetBtn');
+  const isDefault = HOME_SETTING === HOME_DEFAULT;
+  reset.hidden = isDefault;
+  let found = [];
+  btn.addEventListener('click', () => {
+    editor.hidden = !editor.hidden;
+    btn.setAttribute('aria-expanded', String(!editor.hidden));
+    if (!editor.hidden) input.focus();
+  });
+  btn.setAttribute('aria-expanded', 'false');
+  btn.setAttribute('aria-controls', 'homeEditor');
+  input.addEventListener('input', () => {
+    found = localCitySearch(input.value, 8, [HOME_LOCATION.lat, HOME_LOCATION.lng]).filter(c => c.countryKey && COUNTRY_RU[c.countryKey]);
+    if (!found.length) {
+      box.style.display = 'none';
+      box.innerHTML = '';
+      return;
+    }
+    box.innerHTML = found
+      .map(
+        (c, i) =>
+          `<div class="suggest-item" role="option" tabindex="-1" data-home-i="${i}">${countryFlag(c.countryKey) || '📍'} ${escapeHtml(c.name)}<span class="ws-sub">${escapeHtml([c.region, COUNTRY_RU[c.countryKey]].filter(Boolean).join(', '))}</span></div>`
+      )
+      .join('');
+    box.style.display = 'block';
+  });
+  const pick = i => {
+    const c = found[i];
+    if (!c) return;
+    const name = `${c.name}, ${COUNTRY_RU[c.countryKey]}`;
+    saveHomeSetting({ name, lat: c.lat, lng: c.lng, countryKey: c.countryKey });
+  };
+  box.addEventListener('click', ev => {
+    const it = ev.target.closest('[data-home-i]');
+    if (it) pick(+it.dataset.homeI);
+  });
+  input.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter' && found.length) {
+      ev.preventDefault();
+      pick(0);
+    }
+  });
+  reset.addEventListener('click', () => saveHomeSetting(null));
+})();

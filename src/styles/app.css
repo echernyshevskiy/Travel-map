@@ -533,6 +533,10 @@ textarea {
   border-radius: 4px;
   cursor: pointer;
   border: 1px solid transparent;
+  /* строки за пределами экрана браузер не раскладывает и не рисует (B8);
+     высота-заглушка — типичная строка, потом браузер запоминает настоящую */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 58px;
 }
 .entry-row:hover {
   background: var(--panel-raised);
@@ -6209,4 +6213,13 @@ body.stabs.stab-list #sidebar > #entryList {
   width: 32px;
   height: 32px;
   font-size: var(--fs-2);
+}
+
+/* настройка «Дом» */
+.home-current {
+  font-size: var(--fs-3);
+  margin-bottom: 4px;
+}
+.home-editor {
+  margin-top: 8px;
 }

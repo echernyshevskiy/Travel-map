@@ -57,3 +57,24 @@ function prefRemove(key) {
     /* нет доступа к хранилищу — удалять нечего */
   }
 }
+
+// Замеры по шагам (B7): perfStep('rebuild') → T('шаг') после каждого шага,
+// T.end() в конце. В «Производительности» браузера — отметки tm:rebuild:шаг;
+// window.__tmPerf хранит последние длительности шагов (мс) для тестов и отладки.
+function perfStep(group) {
+  let last = performance.now();
+  const steps = {};
+  const T = name => {
+    const now = performance.now();
+    steps[name] = (steps[name] || 0) + (now - last);
+    last = now;
+  };
+  T.end = () => {
+    try {
+      (window.__tmPerf = window.__tmPerf || {})[group] = steps;
+    } catch (e) {
+      /* только для замеров */
+    }
+  };
+  return T;
+}

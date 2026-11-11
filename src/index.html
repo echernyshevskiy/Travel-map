@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.76
+  Версия: v2.77
   Дата сборки: 2026-10-12
   История версий смотрите в переписке с Claude.
 -->
@@ -502,6 +502,22 @@ window.addEventListener('unhandledrejection', function(e){
       <div class="hint" id="backupHint">Отметки хранятся только в этом браузере на этом устройстве. Файл — подстраховка на случай очистки данных или смены телефона: храните его у себя.</div>
     </div>
 
+    <div class="section u-flex0" id="homeSection" data-mtab="more">
+      <p class="section-title">Дом</p>
+      <div class="home-current"><span aria-hidden="true">🏠</span> <b id="homeCurrent"></b></div>
+      <div class="hint">Точка отсчёта: «самая дальняя точка», разница во времени и розетки в карточке страны, визиты домой не считаются поездками. Хранится на этом устройстве.</div>
+      <button class="cancel-edit" id="homeChangeBtn" type="button">Изменить дом</button>
+      <div id="homeEditor" class="home-editor" hidden>
+        <label for="homeSearch" class="trip-sublabel">Город</label>
+        <div class="search-wrap">
+          <input type="text" id="homeSearch" placeholder="Начните вводить название…" autocomplete="off" aria-describedby="homeHint">
+          <div class="suggest-box" id="homeSuggest" style="display:none;" role="listbox" aria-label="Подходящие города"></div>
+        </div>
+        <div class="hint" id="homeHint">Справочник городов встроен — работает и без сети. После выбора приложение перезапустится.</div>
+        <button class="cancel-edit" id="homeResetBtn" type="button">Вернуть по умолчанию (Москва)</button>
+      </div>
+    </div>
+
     <div id="listSwitch" data-mtab="list" role="tablist" aria-label="Что показать">
       <button type="button" role="tab" data-lsw="entries" aria-selected="true">Записи <span id="listSwitchCount"></span></button>
       <button type="button" role="tab" data-lsw="stats" aria-selected="false">Статистика</button>
@@ -527,7 +543,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div class="stat-row"><span>Проехано маршрутов</span><b id="statRoadtripF">0</b></div>
         <div class="stat-row"><span>Суммарный набор высоты</span><b id="statElevationF">0 м</b></div>
         <div class="stat-row"><span>Самый длинный маршрут</span><b id="statLongestF">—</b></div>
-        <div class="stat-row"><span>Дом</span><b id="statHomeF">Москва</b></div>
+        <div class="stat-row"><span>Дом</span><b id="statHomeF"></b></div>
         <div class="stat-row"><span>Самая дальняя точка</span><b id="statFarthestF">—</b></div>
       </div>
 
@@ -600,7 +616,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
         <div class="legend-credits">флаги: <a class="u-inherit-color" href="https://github.com/twitter/twemoji" target="_blank" rel="noopener">Twemoji</a>, CC BY 4.0 · города: Natural Earth, <a class="u-inherit-color" href="https://github.com/hflabs/city" target="_blank" rel="noopener">hflabs/city</a>, CC BY-SA 4.0 · границы: Natural Earth, регионы: © <a class="u-inherit-color" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL)</div>
-        <div style="margin-top:2px;font-size:var(--fs-1);opacity:0.55;" id="legendVersion">v2.76</div>
+        <div style="margin-top:2px;font-size:var(--fs-1);opacity:0.55;" id="legendVersion">v2.77</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
