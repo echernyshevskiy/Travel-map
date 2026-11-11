@@ -244,7 +244,7 @@ function renderTable() {
           .join(' · ') || '—'
       }</td>
       <td class="table-actions"><div class="table-actions-inner">
-        ${!READ_ONLY && entry.status === 'wishlist' ? `<button title="Отметить как посещённое" aria-label="Отметить как посещённое" data-act="visit" style="color:var(--amber);">✓</button>` : ''}
+        ${!READ_ONLY && entry.status === 'wishlist' ? `<button style="color:var(--amber);" title="Отметить как посещённое" aria-label="Отметить как посещённое" data-act="visit">✓</button>` : ''}
         ${
           READ_ONLY
             ? ''

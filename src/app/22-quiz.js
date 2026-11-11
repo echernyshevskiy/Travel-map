@@ -385,7 +385,7 @@ function quizAnswer(i) {
   const trip = quizTravelNote(k);
   document.getElementById('quizFeedback').innerHTML =
     `<b>${ok ? '✓ Верно' : '✗ Неверно'}</b> · ${escapeHtml(facts[0])}` +
-    (facts[1] ? `<br><span style="color:var(--text-dim);">${escapeHtml(facts[1])}</span>` : '') +
+    (facts[1] ? `<br><span class="u-dim">${escapeHtml(facts[1])}</span>` : '') +
     (trip ? `<br><span class="quiz-trip">${escapeHtml(trip)}</span>` : '');
   const last = q.i + 1 >= q.queue.length || (q.format === 'marathon' && !ok);
   const next = document.getElementById('quizNext');
@@ -437,7 +437,7 @@ function quizFinish() {
               m =>
                 `${quizFlag(m.key)} <b>${escapeHtml(quizName(m.key))}</b>${q.mode === 'flag' || isMapMode(q.mode) ? '' : ' — ' + escapeHtml(quizCapital(m.key))}` +
                 (m.chosen
-                  ? ` <span style="color:var(--text-dim);">(вы ${isMapMode(q.mode) ? 'попали' : 'ответили'}: ${escapeHtml(isMapMode(q.mode) ? m.chosen : label(m.chosen))})</span>`
+                  ? ` <span class="u-dim">(вы ${isMapMode(q.mode) ? 'попали' : 'ответили'}: ${escapeHtml(isMapMode(q.mode) ? m.chosen : label(m.chosen))})</span>`
                   : '')
             )
             .join('<br>')}</div>`

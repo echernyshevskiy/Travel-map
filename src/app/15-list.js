@@ -96,8 +96,8 @@ function renderList(precomputedVisible) {
         <div class="entry-meta mono">${meta}</div>
       </div>
       <div class="entry-actions">
-        ${!READ_ONLY && heart !== null ? `<button title="${heart ? 'Убрать из любимых' : 'В любимые'}" aria-label="${heart ? 'Убрать из любимых' : 'В любимые'}" data-act="fav" style="color:${heart ? '#d9704f' : 'var(--text-dim)'};">${heart ? '❤' : '♡'}</button>` : ''}
-        ${!READ_ONLY && entry.status === 'wishlist' ? `<button title="Отметить как посещённое" aria-label="Отметить как посещённое" data-act="visit" style="color:var(--amber);">✓</button>` : ''}
+        ${!READ_ONLY && heart !== null ? `<button title="${heart ? 'Убрать из любимых' : 'В любимые'}" aria-label="${heart ? 'Убрать из любимых' : 'В любимые'}" data-act="fav" style="color:${heart ? 'var(--heart)' : 'var(--text-dim)'};">${heart ? '❤' : '♡'}</button>` : ''}
+        ${!READ_ONLY && entry.status === 'wishlist' ? `<button style="color:var(--amber);" title="Отметить как посещённое" aria-label="Отметить как посещённое" data-act="visit">✓</button>` : ''}
         ${entry.photos && entry.photos.length ? `<a href="${escapeAttr(safeUrl(entry.photos[0]))}" target="_blank" rel="noopener" title="Фото${entry.photos.length > 1 ? ' (' + entry.photos.length + ')' : ''}" aria-label="Открыть фото">🖼</a>` : ''}
         ${entry.instagramUrl ? `<a href="${escapeAttr(safeUrl(entry.instagramUrl))}" target="_blank" rel="noopener" title="Instagram" aria-label="Instagram">📷</a>` : ''}
         ${entry.mapLinkUrl ? `<a href="${escapeAttr(safeUrl(entry.mapLinkUrl))}" target="_blank" rel="noopener" title="Место на карте" aria-label="Место на карте">🗺️</a>` : ''}

@@ -92,7 +92,7 @@ function buildErrorLogSection() {
     .slice()
     .reverse()
     .map(
-      x => `<div class="diag-row errlog-row" style="cursor:default;">
+      x => `<div class="diag-row errlog-row u-cur-default">
       <span class="errlog-where">${escapeHtml(x.where)}</span>${x.n > 1 ? ` <span class="errlog-n">×${+x.n}</span>` : ''}
       <div class="diag-row-meta">${escapeHtml(new Date(x.t).toLocaleString('ru-RU'))} · ${escapeHtml(x.msg)}</div>
     </div>`
@@ -580,8 +580,8 @@ function renderDiagnostics() {
     'Координаты записи на самом деле попадают в границы другой страны, чем сохранено — обычно значит, что при поиске подтянулся не тот город (например, одноимённый в другой стране).',
     countryMismatches,
     'У всех записей сохранённая страна совпадает с той, где реально находятся координаты.',
-    (m, i) => `<div class="diag-row" style="cursor:default;">
-      <span data-diag-id="${m.entry.id}" style="cursor:pointer;">${escapeHtml(m.label)}</span>
+    (m, i) => `<div class="diag-row u-cur-default">
+      <span class="u-cur-pointer" data-diag-id="${m.entry.id}">${escapeHtml(m.label)}</span>
       <div class="diag-row-meta">записано: ${escapeHtml(m.saved)} · по факту: ${escapeHtml(m.actual)}</div>
       <div class="diag-merge">
         <button data-fixcountry-idx="${i}">Исправить на «${escapeHtml(m.actual)}»</button>
@@ -592,7 +592,7 @@ function renderDiagnostics() {
     // все находки этой секции обычно относятся к одной причине (сместившаяся
     // граница, неверно выбранный город), поэтому чинить их по одной утомительно
     html += `<div style="padding:0 20px 14px;margin-top:-8px;">
-      <button class="cancel-edit" id="fixAllCountriesBtn" style="margin-top:0;">Исправить все ${countryMismatches.length} на фактическую страну</button>
+      <button class="cancel-edit u-mt0" id="fixAllCountriesBtn">Исправить все ${countryMismatches.length} на фактическую страну</button>
     </div>`;
   }
   html += buildDiagSection(
@@ -600,10 +600,7 @@ function renderDiagnostics() {
     'Одноимённый город из справочника той же страны — далеко от точки записи. Обычно геокодер вернул центр области или штата вместо самого города: на карте точка не на месте, а коллекции (например, столицы) и моря такой город не засчитывают.',
     offCenter,
     'Все города стоят там же, где одноимённые города справочника.',
-    (
-      o,
-      i
-    ) => `<div class="diag-row" style="cursor:default;"><span data-diag-id="${o.entry.id}" style="cursor:pointer;">${escapeHtml(cleanPlaceName(o.name))}</span>
+    (o, i) => `<div class="diag-row u-cur-default"><span class="u-cur-pointer" data-diag-id="${o.entry.id}">${escapeHtml(cleanPlaceName(o.name))}</span>
       <div class="diag-row-meta">${o.i == null ? 'город' : 'остановка маршрута «' + escapeHtml(o.entry.name) + '»'} · ${Math.round(o.km)} км от центра города ${escapeHtml(o.ref.name)}${o.ref.region ? ' (' + escapeHtml(o.ref.region) + ')' : ''}</div>
       ${!READ_ONLY ? `<div class="diag-merge"><button data-fixcenter="${i}">Перенести в центр города</button><button data-findplace="center:${i}">Выбрать место заново…</button><button data-keepcenter="${i}" title="Точка стоит там, где нужно — больше не показывать">Так и задумано</button></div><div class="diag-find" hidden></div>` : ''}</div>`
   );
@@ -623,7 +620,7 @@ function renderDiagnostics() {
     (
       o,
       i
-    ) => `<div class="diag-row" style="cursor:default;"><span data-diag-id="${o.entry.id}" style="cursor:pointer;">${escapeHtml(cleanPlaceName(o.name))}</span><div class="diag-row-meta">${escapeHtml(o.entry.name)} · ${Math.round(o.km).toLocaleString('ru-RU')} км от трека</div>
+    ) => `<div class="diag-row u-cur-default"><span class="u-cur-pointer" data-diag-id="${o.entry.id}">${escapeHtml(cleanPlaceName(o.name))}</span><div class="diag-row-meta">${escapeHtml(o.entry.name)} · ${Math.round(o.km).toLocaleString('ru-RU')} км от трека</div>
       ${!READ_ONLY ? `<div class="diag-merge"><button data-findplace="far:${i}">Выбрать место заново…</button></div><div class="diag-find" hidden></div>` : ''}</div>`
   );
   html += buildDiagSection(
@@ -631,7 +628,7 @@ function renderDiagnostics() {
     'Геокодер записал административную единицу — район, муниципалитет, сельсовет. Где из названия понятно место, его можно сократить одной кнопкой; остальные лучше выбрать заново через поиск.',
     adminNames,
     'Все названия — населённые пункты.',
-    (o, i) => `<div class="diag-row" style="cursor:default;"><span data-diag-id="${o.entry.id}" style="cursor:pointer;">${escapeHtml(o.name)}</span>
+    (o, i) => `<div class="diag-row u-cur-default"><span class="u-cur-pointer" data-diag-id="${o.entry.id}">${escapeHtml(o.name)}</span>
       <div class="diag-row-meta">${o.i == null ? 'город' : 'остановка маршрута «' + escapeHtml(o.entry.name) + '»'}</div>
       ${!READ_ONLY ? `<div class="diag-merge">${o.clean && o.clean !== o.name ? `<button data-fixadmin-idx="${i}">Сократить до «${escapeHtml(o.clean)}»</button>` : ''}<button data-findplace="admin:${i}">Найти населённый пункт…</button></div><div class="diag-find" hidden></div>` : ''}</div>`
   );
@@ -648,7 +645,7 @@ function renderDiagnostics() {
     'Возможные опечатки — один и тот же город под разными написаниями считается как два разных места.',
     similarPairs,
     'Явных похожих написаний не найдено.',
-    ([a, b]) => `<div class="diag-row" style="cursor:default;">${escapeHtml(a)} ↔ ${escapeHtml(b)}
+    ([a, b]) => `<div class="diag-row u-cur-default">${escapeHtml(a)} ↔ ${escapeHtml(b)}
       ${READ_ONLY ? '' : `<button class="diag-dismiss" data-dismiss-a="${escapeAttr(a)}" data-dismiss-b="${escapeAttr(b)}">это разные места</button>`}
     </div>`
   );
@@ -657,7 +654,7 @@ function renderDiagnostics() {
     'Возможные опечатки — одна и та же поездка под разными написаниями тега считается как две разные в списке поездок.',
     similarTripPairs,
     'Явных похожих написаний тегов поездок не найдено.',
-    ([a, b]) => `<div class="diag-row" style="cursor:default;">${escapeHtml(a)} ↔ ${escapeHtml(b)}
+    ([a, b]) => `<div class="diag-row u-cur-default">${escapeHtml(a)} ↔ ${escapeHtml(b)}
       ${READ_ONLY ? '' : `<button class="diag-dismiss" data-dismiss-a="${escapeAttr(a)}" data-dismiss-b="${escapeAttr(b)}">это разные поездки</button>`}
     </div>`
   );
@@ -702,7 +699,7 @@ function renderDiagnostics() {
     'Визиты стран считаются по годам, поэтому такой пропуск занижает топ стран, «новых стран в год» и выдачу при фильтре по году.',
     missingCountryYears,
     'Для каждого года, где есть города, отмечена и страна.',
-    (m, i) => `<div class="diag-row" style="cursor:default;">
+    (m, i) => `<div class="diag-row u-cur-default">
       ${countryFlag(m.countryKey) ? countryFlag(m.countryKey) + ' ' : ''}${escapeHtml(COUNTRY_RU[m.countryKey] || m.countryKey)} · ${m.year}
       <div class="diag-row-meta">${escapeHtml(m.places.join(', '))}${m.places.length >= 6 ? ' …' : ''}</div>
       <div class="diag-merge">
@@ -715,7 +712,7 @@ function renderDiagnostics() {
     'Такие точки не дают флага, не попадают в паспорт, в список поездок страны и не находятся поиском по стране. Обновление заново находит города по их названиям.',
     routesNoWpCountry,
     'У всех маршрутов с точками страны определены.',
-    (e, i) => `<div class="diag-row" style="cursor:default;">
+    (e, i) => `<div class="diag-row u-cur-default">
       ${escapeHtml(e.name)}
       <div class="diag-row-meta">${e.year || ''} · точек: ${e.waypointNames.length} — ${escapeHtml(e.waypointNames.slice(0, 4).join(', '))}${e.waypointNames.length > 4 ? ' …' : ''}</div>
     </div>`
@@ -723,14 +720,14 @@ function renderDiagnostics() {
   if (routesNoWpCountry.length && !READ_ONLY) {
     const totalPts = routesNoWpCountry.reduce((s, e) => s + e.waypointNames.length, 0);
     html += `<div style="padding:0 20px 14px;margin-top:-8px;">
-      <button class="cancel-edit" id="fixWpCountriesBtn" style="margin-top:0;">Определить страны для ${routesNoWpCountry.length} ${routesNoWpCountry.length === 1 ? 'маршрута' : 'маршрутов'}</button>
+      <button class="cancel-edit u-mt0" id="fixWpCountriesBtn">Определить страны для ${routesNoWpCountry.length} ${routesNoWpCountry.length === 1 ? 'маршрута' : 'маршрутов'}</button>
       <div class="hint">Точек всего ${totalPts}. Поиск идёт по одной точке в секунду — займёт около ${Math.ceil((totalPts * 1.1) / 60)} мин. Окно можно не закрывать.</div>
     </div>`;
   }
   const dismissedCount = readDismissedPairs().size;
   if (dismissedCount && !READ_ONLY) {
-    html += `<div style="padding:0 20px 12px;">
-      <button class="cancel-edit" id="restorePairsBtn" style="margin-top:0;">Показать скрытое (${dismissedCount})</button>
+    html += `<div class="u-pad-modal-sm">
+      <button class="cancel-edit u-mt0" id="restorePairsBtn">Показать скрытое (${dismissedCount})</button>
     </div>`;
   }
   html += buildDiagSection(
@@ -738,7 +735,7 @@ function renderDiagnostics() {
     'Записи одного месяца, расположенные рядом друг с другом и пока не собранные в поездку. Название можно изменить перед объединением.',
     tripSuggestions,
     'Все записи либо уже собраны в поездки, либо не похожи на одну.',
-    (s, i) => `<div class="diag-row" style="cursor:default;">
+    (s, i) => `<div class="diag-row u-cur-default">
       ${s.entries.map(e => escapeHtml(e.name)).join(' · ')}
       <div class="diag-row-meta">${monthLabel(s.month) || s.month} ${s.year} · записей: ${s.entries.length}</div>
       <div class="diag-merge">
@@ -832,7 +829,7 @@ function renderDiagnostics() {
               ? found
                   .map(
                     (m, j) =>
-                      `<div class="suggest-item" data-place-pick="${j}">${escapeHtml(m.full)}${here ? ` <small style="color:var(--text-dim);">· ${Math.round(haversine(here, [m.lat, m.lng]))} км</small>` : ''}</div>`
+                      `<div class="suggest-item" data-place-pick="${j}">${escapeHtml(m.full)}${here ? ` <small class="u-dim">· ${Math.round(haversine(here, [m.lat, m.lng]))} км</small>` : ''}</div>`
                   )
                   .join('') + note
               : note || '<div class="suggest-empty">Ничего не найдено — попробуйте другое написание</div>';

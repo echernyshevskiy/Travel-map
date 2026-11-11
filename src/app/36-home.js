@@ -25,7 +25,7 @@ function renderHomeRegion() {
   L.marker([HOME_LOCATION.lat, HOME_LOCATION.lng], { icon: homeIcon, zIndexOffset: -1000 })
     .addTo(map)
     .bindPopup(
-      `<div style="font-family:'Twemoji Country Flags','EB Garamond',serif;"><b>🏠 ${escapeHtml(HOME_LOCATION.name)}</b><br><span style="color:var(--text-dim);">Точка отсчёта для «самой дальней точки» в статистике.</span></div>`
+      `<div style="font-family:'Twemoji Country Flags','EB Garamond',serif;"><b>🏠 ${escapeHtml(HOME_LOCATION.name)}</b><br><span class="u-dim">Точка отсчёта для «самой дальней точки» в статистике.</span></div>`
     )
     .on('click', L.DomEvent.stopPropagation);
 }

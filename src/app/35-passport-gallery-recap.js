@@ -125,7 +125,7 @@ function renderPassport() {
   next.disabled = passportSpread >= totalSpreads - 1;
 
   if (passportSearchQuery && stamps.length === 0) {
-    book.innerHTML = `<div class="hint" style="padding:20px;">Ничего не найдено по запросу «${escapeHtml(passportSearchQuery)}».</div>`;
+    book.innerHTML = `<div class="hint u-pad20">Ничего не найдено по запросу «${escapeHtml(passportSearchQuery)}».</div>`;
     pos.textContent = '';
     prev.disabled = next.disabled = true;
   }
@@ -167,7 +167,7 @@ function renderGallery() {
       : `Записей с фото: ${items.length}` + (withCover ? ` · с обложкой: ${withCover}` : '') + (onlyAlbums ? ` · только ссылки на альбом: ${onlyAlbums}` : '');
 
   if (items.length === 0) {
-    body.innerHTML = `<div class="hint" style="padding:20px;">${
+    body.innerHTML = `<div class="hint u-pad20">${
       allEntries.some(e => (e.photos || []).length)
         ? 'Под текущие фильтры не попало ни одной записи с фото.'
         : 'Добавьте ссылку на фото в любую отметку — она появится здесь.'

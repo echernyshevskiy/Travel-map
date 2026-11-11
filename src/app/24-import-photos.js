@@ -63,7 +63,7 @@ async function handlePhotoFiles(files) {
 
   if (clusters.length === 0) {
     setPhotoProgress(null);
-    results.innerHTML = `<div class="hint" style="padding:0 20px 20px;">Не удалось определить дату ни у одного снимка. Обычно так бывает с пересланными через мессенджеры файлами.</div>`;
+    results.innerHTML = `<div class="hint u-pad-modal">Не удалось определить дату ни у одного снимка. Обычно так бывает с пересланными через мессенджеры файлами.</div>`;
     return;
   }
   renderPhotoClusters();
@@ -222,7 +222,7 @@ function renderPhotoClusters() {
       )
       .join('') +
     `<div style="padding:10px 20px 20px;">
-      <button class="cancel-edit" id="photoApplyBtn" style="margin-top:0;">Добавить отмеченные</button>
+      <button class="cancel-edit u-mt0" id="photoApplyBtn">Добавить отмеченные</button>
       <div class="hint">${dupes ? `Похоже, уже занесено: ${dupes} — снял отметки, но добавить всё равно можно. ` : ''}Добавятся как города с указанным месяцем и годом.</div>
     </div>`;
   const apply = document.getElementById('photoApplyBtn');

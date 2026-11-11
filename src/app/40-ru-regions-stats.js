@@ -128,7 +128,7 @@ function updateRuRegions(visibleVisited) {
         pass = ruRegionsState.passed.size;
       list.insertAdjacentHTML(
         'beforeend',
-        `<div class="hint" style="margin-top:6px;">Всего: ${total} из ${RU_REGION_TOTAL}${pass ? ` · проездом ещё ${pass}` : ''} · визиты домой (${escapeHtml(HOME_CITY_NAME)}) не считаются</div>`
+        `<div class="hint u-mt6">Всего: ${total} из ${RU_REGION_TOTAL}${pass ? ` · проездом ещё ${pass}` : ''} · визиты домой (${escapeHtml(HOME_CITY_NAME)}) не считаются</div>`
       );
     } else {
       list.innerHTML = `<div class="hint">Пока нет отметок внутри России</div>`;

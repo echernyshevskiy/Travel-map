@@ -197,7 +197,7 @@ function showSearchPin(c) {
     ${
       READ_ONLY
         ? ''
-        : `<div class="cpop-actions" style="margin-top:8px;">
+        : `<div class="cpop-actions u-mt8">
       <button class="cpop-btn" data-ws-act="add">+ добавить как город</button>
       <button class="cpop-btn" data-ws-act="wish">Хочу посетить</button>
     </div>`

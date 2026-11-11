@@ -192,9 +192,9 @@ try {
       // Значки уменьшены: на общей карте прежние 30-46 px закрывали целые страны.
       // Светлый ореол тоже ужат с 3 до 2 px — он добавлялся к видимому размеру.
       const size = count < 10 ? 22 : count < 50 ? 27 : 32;
-      const fontSize = count < 50 ? 11 : 12; // не мельче 11 px (шкала --fs-*)
+      const cls = count < 10 ? 's' : count < 50 ? 'm' : 'l'; // размер и шрифт — в стилях (.cluster-icon)
       return L.divIcon({
-        html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#3F5240;border:1.5px solid #2B3B2E;display:flex;align-items:center;justify-content:center;color:#F3ECD8;font-family:'Twemoji Country Flags','Courier Prime',monospace;font-weight:700;font-size:${fontSize}px;box-shadow:0 0 0 2px rgba(231,223,199,0.7);">${count}</div>`,
+        html: `<div class="cluster-icon cluster-${cls}">${count}</div>`,
         className: '',
         iconSize: [size, size]
       });

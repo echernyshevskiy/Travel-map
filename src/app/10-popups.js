@@ -79,9 +79,9 @@ function buildPopup(entry) {
   const flag = entry.type === 'country' ? countryFlag(entry.countryKey) : entry.type === 'city' ? countryFlag(entry.countryKey) : '';
   const flagPrefix = flag ? `${flag} ` : '';
   let html = `<div style="font-family:'Twemoji Country Flags','EB Garamond',serif;min-width:170px;">
-    <b>${flagPrefix}${heart}${escapeHtml(entry.name)}</b>${wishTag}<br><span style="color:var(--text-dim);">${escapeHtml(whenLabel(entry))} · ${purposeLabel(entry.purpose)}</span>`;
+    <b>${flagPrefix}${heart}${escapeHtml(entry.name)}</b>${wishTag}<br><span class="u-dim">${escapeHtml(whenLabel(entry))} · ${purposeLabel(entry.purpose)}</span>`;
   if (entry.type === 'city' && entry.countryKey && flag)
-    html += `<br><span style="color:var(--text-dim);">${flag} ${escapeHtml(COUNTRY_RU[entry.countryKey] || entry.countryKey)}</span>`;
+    html += `<br><span class="u-dim">${flag} ${escapeHtml(COUNTRY_RU[entry.countryKey] || entry.countryKey)}</span>`;
   if (entry.type === 'country') html += buildCountryInfoHtml(entry.countryKey) + buildCountryTravelHtml(entry.countryKey);
   if (entry.trip) html += `<br><span style="color:var(--amber);font-style:italic;">${escapeHtml(entry.trip)}</span>`;
   const extras = [
@@ -90,13 +90,13 @@ function buildPopup(entry) {
     communityLabel(entry.community),
     entry.type === 'route' ? activityLabel(entry.activity) : null
   ].filter(Boolean);
-  if (extras.length) html += `<br><span style="color:var(--text-dim);">${extras.join(' · ')}</span>`;
+  if (extras.length) html += `<br><span class="u-dim">${extras.join(' · ')}</span>`;
   if (entry.type === 'route') {
     html += `<br>${entry.distanceKm.toFixed(1)} км${entry.isEstimated ? ' <span style="color:var(--text-dim);font-style:italic;">(по прямой)</span>' : ''}`;
     const statsLine = routeStatsLine(entry);
-    if (statsLine) html += `<br><span style="color:var(--text-dim);">${statsLine}</span>`;
+    if (statsLine) html += `<br><span class="u-dim">${statsLine}</span>`;
     if (entry.waypointNames && entry.waypointNames.length)
-      html += `<br><span style="color:var(--text-dim);">через: ${entry.waypointNames.map(n => escapeHtml(cleanPlaceName(n))).join(' → ')}</span>`;
+      html += `<br><span class="u-dim">через: ${entry.waypointNames.map(n => escapeHtml(cleanPlaceName(n))).join(' → ')}</span>`;
     html += buildSparkline(entry.profile);
   }
   if (entry.notes) html += `<br><span style="font-style:italic;">${escapeHtml(entry.notes)}</span>`;

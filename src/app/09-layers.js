@@ -20,7 +20,7 @@ function cityIcon(color, favorite, isWishlist) {
   }
   return L.divIcon({
     className: '',
-    html: `<div style="width:12px;height:12px;border-radius:50%;background:${c};border:2px solid #2B3B2E;"></div>`,
+    html: `<div style="width:12px;height:12px;border-radius:50%;background:${c};border:2px solid var(--map-ink);"></div>`,
     iconSize: [12, 12],
     iconAnchor: [6, 6]
   });

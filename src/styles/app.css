@@ -52,6 +52,8 @@
   --map-ink: #2b3b2e; /* подписи на мини-картах */
   --map-scale-line: #6e6547;
   --medal-gold: #c9a227;
+  --cluster-fill: #3f5240;
+  --heart: #d9704f; /* «любимый» в списке */
   --cream: #f3ecd8;
   --print-border: #ccc;
   /* паспорт — «настоящая» бумага и обложка, одинаковые в обеих темах */
@@ -72,6 +74,7 @@
   --ink-rgb: 43 59 46;
   --rust-rgb: 166 89 46;
   --cream-rgb: 243 236 216;
+  --halo-rgb: 231 223 199;
   --alert-rgb: 156 59 46;
   --sage-rgb: 63 82 64;
   --pp-sepia-rgb: 90 70 40;
@@ -140,11 +143,12 @@
 .leaflet-popup-tip {
   background: var(--panel);
 }
-.leaflet-popup-close-button {
-  color: var(--text-dim) !important;
+/* точнее правила Leaflet (.leaflet-container a.leaflet-popup-close-button) — без !important */
+.leaflet-container a.leaflet-popup-close-button {
+  color: var(--text-dim);
 }
-.leaflet-popup-close-button:hover {
-  color: var(--text) !important;
+.leaflet-container a.leaflet-popup-close-button:hover {
+  color: var(--text);
 }
 * {
   box-sizing: border-box;
@@ -3644,8 +3648,12 @@ label.gtl-row small {
 .pp-stamps .stamp .stamp-year {
   font-size: var(--fs-1);
 }
-.pp-stamps .stamp div[style*='font-size:var(--fs-7)'] {
-  font-size: var(--fs-5) !important;
+.stamp-flag {
+  font-size: var(--fs-7);
+  margin-bottom: 2px;
+}
+.pp-stamps .stamp .stamp-flag {
+  font-size: var(--fs-5);
 }
 .pp-page-num {
   position: absolute;
@@ -3679,7 +3687,9 @@ label.gtl-row small {
   max-width: 340px;
   min-height: 440px;
   border-radius: 6px;
-  background: radial-gradient(ellipse at 50% 8%, rgb(var(--pp-gold-rgb) / 0.1), transparent 55%), linear-gradient(155deg, var(--pp-cover-1), var(--pp-cover-3) 55%, var(--pp-cover-2));
+  background:
+    radial-gradient(ellipse at 50% 8%, rgb(var(--pp-gold-rgb) / 0.1), transparent 55%),
+    linear-gradient(155deg, var(--pp-cover-1), var(--pp-cover-3) 55%, var(--pp-cover-2));
   box-shadow:
     0 10px 30px rgb(var(--pp-cover-shade-rgb) / 0.4),
     inset 0 0 0 1px rgb(var(--pp-gold-light-rgb) / 0.3),
@@ -4000,8 +4010,8 @@ label.gtl-row small {
   .pp-stamps .stamp .stamp-year {
     font-size: var(--fs-1);
   }
-  .pp-stamps .stamp div[style*='font-size:var(--fs-7)'] {
-    font-size: var(--fs-5) !important;
+  .pp-stamps .stamp .stamp-flag {
+    font-size: var(--fs-5);
   }
 }
 @media print {
@@ -4790,8 +4800,8 @@ body.map-full #mapWrap {
   color: var(--text-dim);
 }
 .leaflet-control-attribution svg {
-  width: 7px !important;
-  height: 5px !important;
+  width: 7px;
+  height: 5px;
 }
 /* ---------- квиз ---------- */
 .photo-progress {
@@ -6115,4 +6125,88 @@ body.stabs.stab-list #sidebar > #entryList {
 .home-marker {
   font-size: 18px; /* fs-ok: значок */
   line-height: 18px;
+}
+
+/* Мелкие служебные классы вместо одинаковых встроенных style="…" (B5).
+   Стоят последними, чтобы перекрывать обычные правила так же, как раньше
+   перекрывал атрибут style. */
+.u-mt0 {
+  margin-top: 0;
+}
+.u-mt6 {
+  margin-top: 6px;
+}
+.u-mt8 {
+  margin-top: 8px;
+}
+.u-mt16 {
+  margin-top: 16px;
+}
+.u-mt18 {
+  margin-top: 18px;
+}
+.u-pad20 {
+  padding: 20px;
+}
+.u-pad-modal {
+  padding: 0 20px 20px;
+}
+.u-pad-modal-sm {
+  padding: 0 20px 12px;
+}
+.u-pad-modal-top {
+  padding: 4px 20px 20px;
+}
+.u-flex0 {
+  flex: 0;
+}
+.u-cur-default {
+  cursor: default;
+}
+.u-cur-pointer {
+  cursor: pointer;
+}
+.u-dim {
+  color: var(--text-dim);
+}
+.u-dim-italic {
+  font-style: italic;
+  color: var(--text-dim);
+}
+.u-dim-plain {
+  font-style: italic;
+  color: var(--text-dim);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.u-inherit-color {
+  color: inherit;
+}
+
+/* значок группы отметок на карте (одинаковый в обеих темах) */
+.cluster-icon {
+  border-radius: 50%;
+  background: var(--cluster-fill);
+  border: 1.5px solid var(--map-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cream);
+  font-family: 'Twemoji Country Flags', 'Courier Prime', monospace;
+  font-weight: 700;
+  font-size: var(--fs-1);
+  box-shadow: 0 0 0 2px rgb(var(--halo-rgb) / 0.7);
+}
+.cluster-s {
+  width: 22px;
+  height: 22px;
+}
+.cluster-m {
+  width: 27px;
+  height: 27px;
+}
+.cluster-l {
+  width: 32px;
+  height: 32px;
+  font-size: var(--fs-2);
 }

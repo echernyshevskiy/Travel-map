@@ -196,7 +196,7 @@ function renderTripCard(tripName) {
       <h3>${escapeHtml(tripName)}</h3>
       <div class="trip-years">${yearsLabel}</div>
       <button id="openTripPageBtn" class="cancel-edit" style="margin-top:8px;border-color:var(--amber-dim);color:var(--amber);">Страница поездки</button>
-      <button id="openStoryBtn" class="cancel-edit" style="margin-top:6px;">📖 История (слайды)</button>
+      <button id="openStoryBtn" class="cancel-edit u-mt6">📖 История (слайды)</button>
       ${
         !READ_ONLY && availablePhotos.length > 1
           ? `
@@ -219,7 +219,7 @@ function renderTripCard(tripName) {
           : `
         <label class="trip-sublabel">О поездке</label>
         <textarea id="tripNarrativeInput" placeholder="Пара слов о том, какой была эта поездка…">${escapeHtml(meta.narrative || '')}</textarea>
-        <button id="tripNarrativeSave" class="cancel-edit" style="margin-top:6px;">Сохранить описание</button>
+        <button id="tripNarrativeSave" class="cancel-edit u-mt6">Сохранить описание</button>
       `
       }
       ${

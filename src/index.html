@@ -41,7 +41,7 @@ function showFatalErrorBanner(message){
   var boot = document.getElementById('bootOverlay');
   if(boot && boot.parentNode) boot.parentNode.removeChild(boot);
   var banner = document.createElement('div');
-  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#9C3B2E;color:#fff;padding:10px 40px 10px 14px;font-family:sans-serif;font-size:12px;z-index:99999;line-height:1.5;'; // fs-ok: аварийный баннер не зависит от стилей приложения
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#9C3B2E;color:#fff;padding:10px 40px 10px 14px;font-family:sans-serif;font-size:12px;z-index:99999;line-height:1.5;'; // fs-ok, style-ok: аварийный баннер не зависит от стилей приложения
   banner.textContent = message + ' Если приложение продолжает работать нормально — можно закрыть это сообщение. Если что-то не работает — сфотографируйте это сообщение и отправьте Claude.';
   var closeBtn = document.createElement('button');
   closeBtn.textContent = '✕';
@@ -220,7 +220,7 @@ window.addEventListener('unhandledrejection', function(e){
         </select>
 
         <div id="terrainField" style="display:none;">
-          <label>Покрытие <span style="font-style:italic;color:var(--text-dim);">(определяется по набору высоты, можно исправить)</span></label>
+          <label>Покрытие <span class="u-dim-italic">(определяется по набору высоты, можно исправить)</span></label>
           <select id="fieldTerrain">
             <option value="road">Шоссе</option>
             <option value="trail">Трейл</option>
@@ -228,7 +228,7 @@ window.addEventListener('unhandledrejection', function(e){
         </div>
 
         <div id="hikingDaysField" style="display:none;">
-          <label>Число дней в пути <span style="font-style:italic;color:var(--text-dim);">(если в файле нет меток времени по дням — определите сами)</span></label>
+          <label>Число дней в пути <span class="u-dim-italic">(если в файле нет меток времени по дням — определите сами)</span></label>
           <input type="number" id="fieldTrackDays" min="1" max="365" step="1">
         </div>
 
@@ -243,7 +243,7 @@ window.addEventListener('unhandledrejection', function(e){
         </div>
 
         <div id="refreshWaypointsField" style="display:none;">
-          <button type="button" class="cancel-edit" id="refreshWaypointsBtn" style="margin-top:0;">Обновить координаты точек маршрута</button>
+          <button type="button" class="cancel-edit u-mt0" id="refreshWaypointsBtn">Обновить координаты точек маршрута</button>
           <div class="hint">Заново найдёт сохранённые названия городов и подставит координаты — нужно, чтобы эти города учитывались в статистике и на PNG-снимке.</div>
         </div>
 
@@ -283,7 +283,7 @@ window.addEventListener('unhandledrejection', function(e){
       <label>Год</label>
       <input type="number" id="fieldYear" min="1990" max="2100">
 
-      <label>Месяц <span style="font-style:italic;color:var(--text-dim);">(необязательно)</span></label>
+      <label>Месяц <span class="u-dim-italic">(необязательно)</span></label>
       <select id="fieldMonth">
         <option value="">Не указан</option>
         <option value="1">Январь</option>
@@ -302,7 +302,7 @@ window.addEventListener('unhandledrejection', function(e){
       <!-- точные даты — по желанию: год и месяц остаются главными -->
       <button type="button" class="link-btn" id="exactDatesToggle" aria-expanded="false">+ точные даты</button>
       <div id="exactDatesFields" style="display:none;">
-        <label>Точные даты <span style="font-style:italic;color:var(--text-dim);">(необязательно)</span></label>
+        <label>Точные даты <span class="u-dim-italic">(необязательно)</span></label>
         <div class="date-range">
           <input type="date" id="fieldDateFrom" aria-label="Первый день">
           <span>—</span>
@@ -358,7 +358,7 @@ window.addEventListener('unhandledrejection', function(e){
         <option value="autumn">Осень</option>
       </select>
 
-      <label>Поездка <span style="font-style:italic;color:var(--text-dim);">(необязательно)</span></label>
+      <label>Поездка <span class="u-dim-italic">(необязательно)</span></label>
       <input type="text" id="fieldTrip" list="tripDatalist" placeholder="например, Армения, май 2026">
       <datalist id="tripDatalist"></datalist>
 
@@ -372,14 +372,14 @@ window.addEventListener('unhandledrejection', function(e){
       <label>Ссылки на фото/видео (облако, каждая с новой строки)</label>
       <textarea id="fieldPhoto" placeholder="https://...&#10;https://... (например, фото и отдельно дрон-съёмка)" style="min-height:60px;"></textarea>
 
-      <label>Ссылка на пост в Instagram <span style="font-style:italic;color:var(--text-dim);">(необязательно)</span></label>
+      <label>Ссылка на пост в Instagram <span class="u-dim-italic">(необязательно)</span></label>
       <input type="text" id="fieldInstagram" placeholder="https://www.instagram.com/p/...">
       <div class="hint">Если также указать хотя бы одно фото выше — первое станет обложкой мини-карточки со ссылкой на пост.</div>
 
-      <label>Ссылка на карту / место <span style="font-style:italic;color:var(--text-dim);">(необязательно)</span></label>
+      <label>Ссылка на карту / место <span class="u-dim-italic">(необязательно)</span></label>
       <input type="text" id="fieldMapLink" placeholder="https://maps.google.com/... — ресторан, точка, место">
 
-      <label>Ссылка на документ <span style="font-style:italic;color:var(--text-dim);">(необязательно)</span></label>
+      <label>Ссылка на документ <span class="u-dim-italic">(необязательно)</span></label>
       <input type="text" id="fieldDocLink" placeholder="https://docs.google.com/... — план, заметки, бронь">
 
       <label>Заметка</label>
@@ -445,7 +445,7 @@ window.addEventListener('unhandledrejection', function(e){
       <div id="tripCard"></div>
     </div>
 
-    <div class="section" data-mtab="filters" style="flex:0;">
+    <div class="section u-flex0" data-mtab="filters">
       <p class="section-title">Показывать</p>
       <div class="chips">
         <div class="chip active" data-layer="country">Страны</div>
@@ -456,7 +456,7 @@ window.addEventListener('unhandledrejection', function(e){
       </div>
     </div>
 
-    <div class="section" id="syncSection" data-mtab="more" style="flex:0;">
+    <div class="section u-flex0" id="syncSection" data-mtab="more">
       <p class="section-title">Синхронизация</p>
       <div id="syncStatus" class="sync-status">Не подключено — данные только на этом устройстве</div>
       <div id="syncConnectForm">
@@ -481,16 +481,16 @@ window.addEventListener('unhandledrejection', function(e){
         </details>
       </div>
       <div id="syncConnected" style="display:none;">
-        <button class="cancel-edit" id="syncNowBtn" style="margin-top:8px;">Синхронизировать сейчас</button>
+        <button class="cancel-edit u-mt8" id="syncNowBtn">Синхронизировать сейчас</button>
         <button class="cancel-edit" id="syncHistoryBtn">История версий на GitHub</button>
         <button class="cancel-edit" id="syncReplaceTokenBtn">Заменить токен</button>
         <button class="cancel-edit" id="syncDisconnectBtn">Отключить на этом устройстве</button>
       </div>
     </div>
 
-    <div class="section" data-mtab="more" style="flex:0;">
+    <div class="section u-flex0" data-mtab="more">
       <p class="section-title">Резервная копия</p>
-      <button class="cancel-edit" id="exportBtn" style="margin-top:0;">Скачать данные (JSON)</button>
+      <button class="cancel-edit u-mt0" id="exportBtn">Скачать данные (JSON)</button>
       <button class="cancel-edit" id="exportCsvBtn">Скачать таблицу (CSV)</button>
       <button class="cancel-edit" id="exportXlsxBtn">Скачать таблицу (XLSX)</button>
       <button class="cancel-edit" id="exportGpxBtn">Скачать карту (GPX)</button>
@@ -531,28 +531,28 @@ window.addEventListener('unhandledrejection', function(e){
         <div class="stat-row"><span>Самая дальняя точка</span><b id="statFarthestF">—</b></div>
       </div>
 
-      <p class="section-title" style="margin-top:16px;">По годам</p>
+      <p class="section-title u-mt16">По годам</p>
       <div class="year-chart" id="yearChart"></div>
 
-      <p class="section-title" style="margin-top:16px;">Новых стран в год <span style="font-style:italic;color:var(--text-dim);text-transform:none;letter-spacing:0;">(по всем данным, фильтры не влияют)</span></p>
+      <p class="section-title u-mt16">Новых стран в год <span class="u-dim-plain">(по всем данным, фильтры не влияют)</span></p>
       <div class="year-chart" id="newCountriesChart"></div>
       <div class="hint" id="newCountriesHint"></div>
 
-      <p class="section-title" style="margin-top:16px;">Сезонность <span style="font-style:italic;color:var(--text-dim);text-transform:none;letter-spacing:0;">(за все годы вместе)</span></p>
+      <p class="section-title u-mt16">Сезонность <span class="u-dim-plain">(за все годы вместе)</span></p>
       <div class="season-chart" id="seasonChart"></div>
 
-      <p class="section-title" style="margin-top:16px;">По частям света</p>
+      <p class="section-title u-mt16">По частям света</p>
       <div class="continent-list" id="continentStats"></div>
 
-      <p class="section-title" style="margin-top:16px;">Топ-5 стран по визитам</p>
+      <p class="section-title u-mt16">Топ-5 стран по визитам</p>
       <div class="top-list" id="topCountriesList"></div>
 
-      <p class="section-title" style="margin-top:16px;">Топ-5 городов по визитам</p>
+      <p class="section-title u-mt16">Топ-5 городов по визитам</p>
       <div class="top-list" id="topCitiesList"></div>
-      <p class="section-title" style="margin-top:16px;" id="ruRegionsTitle">Топ-5 регионов России по визитам</p>
+      <p class="section-title u-mt16" id="ruRegionsTitle">Топ-5 регионов России по визитам</p>
       <div id="ruRegionsList" class="top-list"></div>
 
-      <p class="section-title" style="margin-top:16px;">Моря и океаны</p>
+      <p class="section-title u-mt16">Моря и океаны</p>
       <div id="seaStats"></div>
     </div>
 
@@ -599,7 +599,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;" id="legendRuRegions">регионы России: заливка — были, штрих — проездом</div>
         <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
-        <div class="legend-credits">флаги: <a href="https://github.com/twitter/twemoji" target="_blank" rel="noopener" style="color:inherit;">Twemoji</a>, CC BY 4.0 · города: Natural Earth, <a href="https://github.com/hflabs/city" target="_blank" rel="noopener" style="color:inherit;">hflabs/city</a>, CC BY-SA 4.0 · границы: Natural Earth, регионы: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:inherit;">OpenStreetMap</a> (ODbL)</div>
+        <div class="legend-credits">флаги: <a class="u-inherit-color" href="https://github.com/twitter/twemoji" target="_blank" rel="noopener">Twemoji</a>, CC BY 4.0 · города: Natural Earth, <a class="u-inherit-color" href="https://github.com/hflabs/city" target="_blank" rel="noopener">hflabs/city</a>, CC BY-SA 4.0 · границы: Natural Earth, регионы: © <a class="u-inherit-color" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL)</div>
         <div style="margin-top:2px;font-size:var(--fs-1);opacity:0.55;" id="legendVersion">v2.76</div>
       </div>
     </div>
@@ -628,7 +628,7 @@ window.addEventListener('unhandledrejection', function(e){
       <button id="closeTableModal" title="Закрыть" aria-label="Закрыть">✕</button>
     </div>
     <div class="modal-sub" id="modalCount"></div>
-    <div style="padding:0 20px 12px;">
+    <div class="u-pad-modal-sm">
       <input type="text" id="tableSearchInput" placeholder="Поиск по названию, поездке, заметке…" style="max-width:320px;">
     </div>
     <div class="bulk-bar" id="bulkBar" style="display:none;">
@@ -639,14 +639,14 @@ window.addEventListener('unhandledrejection', function(e){
         <option value="summer">Лето</option>
         <option value="autumn">Осень</option>
       </select>
-      <button id="bulkApplySeason" class="cancel-edit" style="margin-top:0;">Сезон</button>
+      <button id="bulkApplySeason" class="cancel-edit u-mt0">Сезон</button>
       <select id="bulkPurposeValue">
         <option value="tourism">Туризм</option>
         <option value="transit">Транзит</option>
         <option value="sport">Спорт</option>
         <option value="business">Бизнес</option>
       </select>
-      <button id="bulkApplyPurpose" class="cancel-edit" style="margin-top:0;">Цель</button>
+      <button id="bulkApplyPurpose" class="cancel-edit u-mt0">Цель</button>
       <select id="bulkCompanyValue">
         <option value="alone">Один</option>
         <option value="couple">С парой</option>
@@ -654,13 +654,13 @@ window.addEventListener('unhandledrejection', function(e){
         <option value="friends">Друзья</option>
         <option value="parents">Родители</option>
       </select>
-      <button id="bulkApplyCompany" class="cancel-edit" style="margin-top:0;">Компания</button>
+      <button id="bulkApplyCompany" class="cancel-edit u-mt0">Компания</button>
       <input type="text" id="bulkTripValue" list="tripDatalist" placeholder="Название поездки" style="width:150px;">
-      <button id="bulkApplyTrip" class="cancel-edit" style="margin-top:0;">Поездка</button>
+      <button id="bulkApplyTrip" class="cancel-edit u-mt0">Поездка</button>
       <button id="bulkApplyVisited" class="cancel-edit" style="margin-top:0;color:var(--amber);border-color:var(--amber-dim);">✓ Отметить посещёнными</button>
-      <button id="bulkToggleHidden" class="cancel-edit" style="margin-top:0;">🔒 Скрыть от друзей / показать</button>
+      <button id="bulkToggleHidden" class="cancel-edit u-mt0">🔒 Скрыть от друзей / показать</button>
       <button id="bulkDelete" class="cancel-edit" style="margin-top:0;color:var(--danger);border-color:var(--danger);">Удалить выбранные</button>
-      <button id="bulkClear" class="cancel-edit" style="margin-top:0;">Снять выделение</button>
+      <button id="bulkClear" class="cancel-edit u-mt0">Снять выделение</button>
     </div>
     <div class="table-wrap">
       <table id="entriesTable">
@@ -696,7 +696,7 @@ window.addEventListener('unhandledrejection', function(e){
       </div>
     </div>
     <div class="modal-sub" id="passportCount"></div>
-    <div style="padding:0 20px 12px;">
+    <div class="u-pad-modal-sm">
       <input type="text" id="passportSearchInput" placeholder="Поиск по названию страны…" style="max-width:320px;">
     </div>
     <div class="table-wrap">
@@ -767,7 +767,7 @@ window.addEventListener('unhandledrejection', function(e){
       <button id="closeCollectionsModal" title="Закрыть" aria-label="Закрыть">✕</button>
     </div>
     <div class="modal-sub" id="collectionsSub">Чек-листы мест: что уже есть в ваших отметках и что осталось</div>
-    <div class="table-wrap"><div id="collectionsBody" style="padding:4px 20px 20px;"></div></div>
+    <div class="table-wrap"><div class="u-pad-modal-top" id="collectionsBody"></div></div>
   </div>
 </div>
 
@@ -783,7 +783,7 @@ window.addEventListener('unhandledrejection', function(e){
     <div class="table-wrap">
       <div id="recapBody"></div>
       <div style="padding:4px 20px 18px;">
-        <button class="cancel-edit" id="recapDownload" style="margin-top:0;">Скачать картинкой</button>
+        <button class="cancel-edit u-mt0" id="recapDownload">Скачать картинкой</button>
         <div class="hint">Картинка вертикальная, подходит для сторис.</div>
       </div>
     </div>
@@ -801,7 +801,7 @@ window.addEventListener('unhandledrejection', function(e){
       <span style="font-family:'Twemoji Country Flags','Courier Prime',monospace;font-size:var(--fs-1);color:var(--text-dim);">против</span>
       <select id="compareYearB" aria-label="Второй год" style="width:auto;min-width:96px;margin:0;"></select>
     </div>
-    <div class="table-wrap"><div id="compareBody" style="padding:0 20px 20px;"></div></div>
+    <div class="table-wrap"><div class="u-pad-modal" id="compareBody"></div></div>
   </div>
 </div>
 
@@ -812,7 +812,7 @@ window.addEventListener('unhandledrejection', function(e){
       <button id="closeChangelogModal" title="Закрыть" aria-label="Закрыть">✕</button>
     </div>
     <div class="modal-sub" id="changelogSummary"></div>
-    <div class="table-wrap"><div id="changelogBody" style="padding:0 20px 20px;"></div></div>
+    <div class="table-wrap"><div class="u-pad-modal" id="changelogBody"></div></div>
   </div>
 </div>
 
@@ -842,7 +842,7 @@ window.addEventListener('unhandledrejection', function(e){
       <h2>Тип путешественника</h2>
       <button id="closeTravelerModal" title="Закрыть" aria-label="Закрыть">✕</button>
     </div>
-    <div class="table-wrap"><div id="travelerBody" style="padding:4px 20px 20px;"></div></div>
+    <div class="table-wrap"><div class="u-pad-modal-top" id="travelerBody"></div></div>
   </div>
 </div>
 <div class="modal-overlay" id="milestonesModal" style="display:none;">
@@ -852,7 +852,7 @@ window.addEventListener('unhandledrejection', function(e){
       <button id="closeMilestonesModal" title="Закрыть" aria-label="Закрыть">✕</button>
     </div>
     <div class="modal-sub" id="milestonesSummary"></div>
-    <div class="table-wrap"><div id="milestonesBody" style="padding:0 20px 20px;"></div></div>
+    <div class="table-wrap"><div class="u-pad-modal" id="milestonesBody"></div></div>
   </div>
 </div>
 
@@ -863,10 +863,10 @@ window.addEventListener('unhandledrejection', function(e){
       <button id="closeDiaryModal" title="Закрыть" aria-label="Закрыть">✕</button>
     </div>
     <div class="modal-sub" id="diarySummary"></div>
-    <div style="padding:0 20px 12px;">
+    <div class="u-pad-modal-sm">
       <input type="text" id="diarySearchInput" placeholder="Поиск по тексту заметок…" style="max-width:340px;">
     </div>
-    <div class="table-wrap"><div id="diaryBody" style="padding:0 20px 20px;"></div></div>
+    <div class="table-wrap"><div class="u-pad-modal" id="diaryBody"></div></div>
   </div>
 </div>
 
@@ -897,16 +897,16 @@ window.addEventListener('unhandledrejection', function(e){
         <p class="run-h">Календарь пробежек</p>
         <div id="runCalendar"></div>
 
-        <p class="section-title" style="margin-top:18px;">Лучший темп по дистанциям <span style="font-style:italic;color:var(--text-dim);text-transform:none;letter-spacing:0;">(включая трейлы и треки)</span></p>
+        <p class="section-title u-mt18">Лучший темп по дистанциям <span class="u-dim-plain">(включая трейлы и треки)</span></p>
         <div class="stat-grid" id="bestPaceList"></div>
 
-        <p class="section-title" style="margin-top:18px;">Предстоящие старты</p>
+        <p class="section-title u-mt18">Предстоящие старты</p>
         <div id="upcomingBlock"></div>
 
-        <p class="section-title" style="margin-top:18px;">Официальные старты</p>
+        <p class="section-title u-mt18">Официальные старты</p>
         <div id="racesBlock"></div>
 
-        <p class="section-title" style="margin-top:18px;">Забеги из маршрутов</p>
+        <p class="section-title u-mt18">Забеги из маршрутов</p>
         <div id="runList"></div>
       </div>
     </div>
