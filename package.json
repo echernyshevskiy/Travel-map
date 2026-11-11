@@ -9,7 +9,9 @@
     "build:friends": "node scripts/build-friends.mjs",
     "test": "playwright test",
     "test:unit": "vitest run",
-    "lint": "node scripts/lint.mjs"
+    "lint": "node scripts/lint.mjs",
+    "format": "prettier --write \"src/**/*.{js,css}\" \"scripts/*.mjs\" \"tests/**/*.js\" \"unit/**/*.js\" sw.js \"*.config.{js,mjs}\"",
+    "format:check": "prettier --check \"src/**/*.{js,css}\" \"scripts/*.mjs\" \"tests/**/*.js\" \"unit/**/*.js\" sw.js \"*.config.{js,mjs}\""
   },
   "dependencies": {
     "d3-geo": "^3.1.1",
@@ -25,6 +27,7 @@
     "axe-core": "4.10.2",
     "eslint": "9.39.5",
     "globals": "15.11.0",
+    "prettier": "3.9.10",
     "vite": "8.3.6",
     "vite-plugin-singlefile": "2.3.4",
     "vitest": "5.1.0"
