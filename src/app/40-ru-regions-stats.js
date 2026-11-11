@@ -112,11 +112,12 @@ function updateRuRegions(visibleVisited){
   if(chip) chip.classList.toggle('active', ruRegionsOn);
   const leg = document.getElementById('legendRuRegions');
   if(leg) leg.style.display = ruRegionsOn ? '' : 'none';
-  try{ globeRedraw(); }catch(e){} // на шаре регионы рисуются по тому же состоянию (до запуска шара — пропускаем)
+  // на шаре регионы рисуются по тому же состоянию
+  try{ globeRedraw(); }catch(e){ /* шар ещё не запускался — пропускаем */ }
 }
 document.getElementById('ruRegionsChip').addEventListener('click', ()=>{
   ruRegionsOn = !ruRegionsOn;
-  try{ localStorage.setItem('travel-map-ru-regions', ruRegionsOn ? '1' : '0'); }catch(e){}
+  prefSet('travel-map-ru-regions', ruRegionsOn ? '1' : '0');
   updateRuRegions(allEntries.filter(passesFilter).filter(e => e.status !== 'wishlist'));
 });
 // Строка о регионе для попапа России: где кликнули и что там было

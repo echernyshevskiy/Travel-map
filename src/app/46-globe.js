@@ -488,7 +488,7 @@ function globeDrawArcs(ctx, d, center, s, cx, cy, k, C){
 }
 function globeSetArcs(on){
   globeArcsOn = on;
-  try{ localStorage.setItem('travel-map-globe-arcs', on ? '1' : '0'); }catch(e){}
+  prefSet('travel-map-globe-arcs', on ? '1' : '0');
   const b = document.getElementById('globeArcsBtn');
   if(b){ b.classList.toggle('active', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); }
   globeRedraw();
@@ -851,7 +851,7 @@ function globeEnter(opts){
   if(fromMap > globeFitScale() * 1.3 && !opts.noFlyOut) globe.flyOutTimer = setTimeout(() => globeFlyTo([c.lng, Math.max(-70, Math.min(70, c.lat))], globeFitScale() * 1.15, 700), 30);
   globe.dataDirty = true; globe.colors = null;
   globeUpdateButton();
-  try{ localStorage.setItem('travel-map-view', 'globe'); }catch(e){}
+  prefSet('travel-map-view', 'globe');
   const hint = document.getElementById('globeHint');
   if(hint){ hint.classList.remove('gone'); clearTimeout(globe.hintTimer); globe.hintTimer = setTimeout(() => hint.classList.add('gone'), 3500); }
   globeRedraw();
@@ -869,7 +869,7 @@ function globeExit(opts){
   globe.active = false;
   document.body.classList.remove('globe-mode');
   globeUpdateButton();
-  try{ localStorage.setItem('travel-map-view', 'map'); }catch(e){}
+  prefSet('travel-map-view', 'map');
   map.invalidateSize();
   map.setView([c.lat, c.lng], z, { animate: false });
 }
@@ -931,4 +931,4 @@ globeSetArcs(globeArcsOn);
 new MutationObserver(() => { if(globe.active && document.body.classList.contains('quiz-map')) globeExit(); })
   .observe(document.body, { attributes: true, attributeFilter: ['class'] });
 // режим запоминается: кто привык к шару, открывает приложение на шаре
-try{ if(localStorage.getItem('travel-map-view') === 'globe') setTimeout(globeEnter, 300); }catch(e){}
+if(prefGet('travel-map-view') === 'globe') setTimeout(globeEnter, 300);

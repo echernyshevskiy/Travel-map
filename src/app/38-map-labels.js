@@ -119,7 +119,7 @@ function polysHit(P, Q){
 }
 function seaLabelHtml(lay, deg, visited){
   const st = `font-size:${lay.size}px;font-weight:${visited ? 700 : lay.weight};letter-spacing:${lay.sp.toFixed(1)}px;padding-left:${lay.sp.toFixed(1)}px` + (deg ? `;transform:rotate(${deg.toFixed(1)}deg)` : '');
-  return `<div class="ml-sea-in" style="${st}">${lay.lines.map(escapeHtml).join('<br>')}</div>`;
+  return `<div class="ml-sea-in" style="${st /* html-ok: стиль собран из чисел раскладки */}">${lay.lines.map(escapeHtml).join('<br>')}</div>`;
 }
 // ширину меряем настоящим шрифтом, а не на глаз — иначе подписи на телефоне
 // выходили шире, чем казалось, и налезали на соседей

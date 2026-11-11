@@ -84,7 +84,7 @@ function quizStore(){
   try{ return Object.assign({ mode: 'flag', format: 'round', set: 'world', records: {}, stats: {} }, JSON.parse(localStorage.getItem(QUIZ_KEY) || '{}')); }
   catch(e){ return { mode: 'flag', format: 'round', set: 'world', records: {}, stats: {} }; }
 }
-function quizSave(st){ try{ localStorage.setItem(QUIZ_KEY, JSON.stringify(st)); }catch(e){} }
+function quizSave(st){ prefSet(QUIZ_KEY, JSON.stringify(st)); }
 const quizCountries = () => COUNTRY_LIST.map(c => c.key).filter(k => !QUIZ_EXCLUDE.has(k));
 const quizCapital = k => ((COUNTRY_INFO[k] || {}).capital || '').trim();
 const normQ = s => String(s || '').toLowerCase().replace(/ё/g, 'е').replace(/^эль-/, '');
@@ -192,8 +192,8 @@ function renderQuizSetup(){
     }).join('')}</div>
     <div class="quiz-record">
       ${pool.length ? `В наборе ${st.mode === 'ruregion' ? 'регионов' : 'стран'}: <b>${pool.length}</b>${st.format === 'round' && pool.length < QUIZ_ROUND ? ` — раунд будет короче` : ''}` : 'В этом наборе нет подходящих стран'}<br>
-      ${rec ? (st.format === 'round' ? `Рекорд: <b>${rec.best} из ${rec.total}</b> · ${new Date(rec.at).toLocaleDateString('ru-RU')}` : `Рекорд серии: <b>${rec.best}</b> · ${new Date(rec.at).toLocaleDateString('ru-RU')}`) : 'Рекорда в этой комбинации пока нет'}
-      ${stat && stat.answered ? `<br>Всего ответов в режиме: <b>${stat.answered}</b>, верно <b>${Math.round(stat.correct / stat.answered * 100)}%</b>` : ''}
+      ${rec ? (st.format === 'round' ? `Рекорд: <b>${+rec.best} из ${+rec.total}</b> · ${new Date(rec.at).toLocaleDateString('ru-RU')}` : `Рекорд серии: <b>${+rec.best}</b> · ${new Date(rec.at).toLocaleDateString('ru-RU')}`) : 'Рекорда в этой комбинации пока нет'}
+      ${stat && stat.answered ? `<br>Всего ответов в режиме: <b>${+stat.answered}</b>, верно <b>${Math.round(stat.correct / stat.answered * 100)}%</b>` : ''}
     </div>
     <button class="save-btn quiz-start" id="quizStartBtn"${pool.length ? '' : ' disabled'}>Начать</button>`;
   body.querySelectorAll('[data-qmode]').forEach(b => b.addEventListener('click', ()=>{ const s2 = quizStore(); s2.mode = b.dataset.qmode; quizSave(s2); renderQuizSetup(); }));
@@ -232,7 +232,7 @@ function renderQuizQuestion(){
   else prompt = `<div class="quiz-q">«${escapeHtml(quizCapital(k))}»</div><div class="quiz-hint">Столица какой страны?</div>`;
   const label = o => q.mode === 'capital' ? escapeHtml(quizCapital(o)) : escapeHtml(COUNTRY_RU[o]);
   body.innerHTML = `
-    <div class="quiz-progress"><span>${progress}</span><span>верно: ${q.correct}</span></div>
+    <div class="quiz-progress"><span>${progress /* html-ok: номер вопроса и счёт — числа */}</span><span>верно: ${q.correct /* html-ok: номер вопроса и счёт — числа */}</span></div>
     <div class="quiz-prompt">${prompt}</div>
     <div class="quiz-options">${q.options.map((o, i) => `<button class="quiz-opt" data-qopt="${i}"><kbd>${i+1}</kbd>${label(o)}</button>`).join('')}</div>
     <div class="quiz-feedback" id="quizFeedback"></div>
@@ -291,9 +291,9 @@ function quizFinish(){
   body.innerHTML = `
     <div class="quiz-result">
       <div class="quiz-label">${escapeHtml(QUIZ_MODES[q.mode].title)} · ${escapeHtml(([...QUIZ_SETS, ...QUIZ_REGION_SETS].find(s => s[0] === q.set) || [null, ''])[1])}</div>
-      <div class="quiz-score">${q.format === 'round' ? `${score} из ${q.queue.length}` : score}</div>
+      <div class="quiz-score">${q.format === 'round' ? `${score /* html-ok: счёт — число */} из ${q.queue.length}` : score /* html-ok: счёт — число */}</div>
       <div>${q.format === 'round' ? 'правильных ответов' : (perfect ? 'весь набор без единой ошибки!' : 'правильных ответов подряд')}</div>
-      ${better && score > 0 ? `<div class="quiz-badge">${prev ? 'Новый рекорд!' : 'Первый рекорд'}</div>` : (prev ? `<div class="quiz-record">Рекорд: <b>${prev.best}${q.format === 'round' ? ' из ' + prev.total : ''}</b></div>` : '')}
+      ${better && score > 0 ? `<div class="quiz-badge">${prev ? 'Новый рекорд!' : 'Первый рекорд'}</div>` : (prev ? `<div class="quiz-record">Рекорд: <b>${+prev.best}${q.format === 'round' ? ' из ' + +prev.total : ''}</b></div>` : '')}
     </div>
     ${q.mistakes.length ? `<div class="quiz-label">Ошибки</div><div class="quiz-mistakes">${q.mistakes.map(m =>
       `${quizFlag(m.key)} <b>${escapeHtml(quizName(m.key))}</b>${q.mode === 'flag' || isMapMode(q.mode) ? '' : ' — ' + escapeHtml(quizCapital(m.key))}` +
@@ -377,7 +377,7 @@ function quizMapQuestion(){
   map.fitBounds(quizViewBounds, { padding: [20, 20] });
   const progress = q.format === 'round' ? `${q.i + 1} из ${q.queue.length}` : `марафон · ${q.i + 1}`;
   document.getElementById('quizMapPanel').innerHTML = `
-    <div class="quiz-progress" style="margin:0 0 4px;"><span>${progress}</span><span>верно: ${q.correct}</span></div>
+    <div class="quiz-progress" style="margin:0 0 4px;"><span>${progress /* html-ok: номер вопроса и счёт — числа */}</span><span>верно: ${q.correct /* html-ok: номер вопроса и счёт — числа */}</span></div>
     <div class="quiz-q">Где ${quizFlag(k)} ${escapeHtml(quizName(k))}?</div>
     <div class="quiz-hint">Нажмите на карту${(!quizIsRegion() && quizTolerance(k) > 30) ? ' · маленькая страна: засчитывается в радиусе 150 км' : (quizIsRegion() && quizTolerance(k) > 20 ? ' · маленький регион: засчитывается в радиусе 60 км' : '')}</div>
     <div class="quiz-feedback" id="quizMapFeedback"></div>

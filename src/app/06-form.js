@@ -550,7 +550,7 @@ let cpopOpen = (()=>{
   catch(e){ return { info:false, trips:true, add:true }; }
 })();
 function saveCpopSections(){
-  try{ localStorage.setItem(CPOP_SECTIONS_KEY, JSON.stringify(cpopOpen)); }catch(e){}
+  prefSet(CPOP_SECTIONS_KEY, JSON.stringify(cpopOpen));
 }
 function cpopSection(id, title, inner){
   const open = !!cpopOpen[id];

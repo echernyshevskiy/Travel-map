@@ -45,9 +45,9 @@ function renderCompare(){
     const sign = diff > 0 ? '+' : diff < 0 ? '−' : '';
     html += `<div class="cmp-row">
       <div class="cmp-label">${escapeHtml(label)}</div>
-      <div class="cmp-val a">${fmt(va)}</div>
-      <div class="cmp-delta ${cls}">${diff === 0 ? 'без изменений' : sign + fmt(Math.abs(diff))}</div>
-      <div class="cmp-val b">${fmt(vb)}</div>
+      <div class="cmp-val a">${fmt(va) /* html-ok: String/toLocaleString от чисел таблицы выше */}</div>
+      <div class="cmp-delta ${cls}">${diff === 0 ? 'без изменений' : sign + fmt(Math.abs(diff)) /* html-ok: String/toLocaleString от чисел таблицы выше */}</div>
+      <div class="cmp-val b">${fmt(vb) /* html-ok: String/toLocaleString от чисел таблицы выше */}</div>
     </div>`;
   });
 
@@ -206,11 +206,11 @@ function buildStampHtml(s){
   const isRect = h % 2 === 0;
   const arrow = h % 3 === 0 ? '▷' : '◁'; // въезд / выезд — чисто декоративный штрих
   return `<div class="stamp${isRect ? ' stamp-rect' : ''}" style="--stamp-color:${s.color};transform:rotate(${angle}deg);">
-    ${s.count > 1 ? `<div class="stamp-count">×${s.count}</div>` : ''}
+    ${s.count > 1 ? `<div class="stamp-count">×${s.count /* html-ok: число */}</div>` : ''}
     <div class="stamp-arrow">${arrow}</div>
     ${flag ? `<div style="font-size:22px;margin-bottom:2px;">${flag}</div>` : ''}
     <div class="stamp-name">${escapeHtml(s.name)}</div>
-    <div class="stamp-year">${yearsLabel}</div>
+    <div class="stamp-year">${yearsLabel /* html-ok: годы — числа */}</div>
   </div>`;
 }
 

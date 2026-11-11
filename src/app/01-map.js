@@ -26,7 +26,7 @@ function saveMapViewSoon(){
     // в квизе «Где это?» и на глобусе вид карты служебный — не запоминаем
     if(document.body.classList.contains('quiz-map') || document.body.classList.contains('globe-mode')) return;
     const c = map.getCenter();
-    try{ localStorage.setItem(MAP_VIEW_KEY, JSON.stringify({ lat: +c.lat.toFixed(5), lng: +c.lng.toFixed(5), z: map.getZoom() })); }catch(e){}
+    prefSet(MAP_VIEW_KEY, JSON.stringify({ lat: +c.lat.toFixed(5), lng: +c.lng.toFixed(5), z: map.getZoom() }));
   }, 600);
 }
 
@@ -92,8 +92,8 @@ function setBasemap(mode){
     btn.title = mode === 'plain' ? 'Карта без подложки — работает без интернета' :
                 mode === 'topo' ? 'Рельефная карта' : 'Переключить на рельефную карту';
   }
-  try{ localStorage.setItem('travel-map-basemap', mode); }catch(e){}
-  try{ if(mode !== 'plain') mapLabelLayer.clearLayers(); scheduleMapLabels(); }catch(e){} // до объявления слоя подписей — просто пропускаем
+  prefSet('travel-map-basemap', mode);
+  try{ if(mode !== 'plain') mapLabelLayer.clearLayers(); scheduleMapLabels(); }catch(e){ /* при запуске слой подписей ещё не объявлен — пропускаем */ }
 }
 
 // Плитки не загрузились — скорее всего подложка недоступна: сеть, блокировка
@@ -149,7 +149,7 @@ function setMapFullscreen(on){
   }
   // Leaflet кэширует размеры контейнера: без пересчёта карта останется
   // прежнего размера и с серыми пустотами по краям
-  setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){} }, 60);
+  setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){ logError('размер карты', e); } }, 60);
 }
 document.getElementById('mapFullBtn').addEventListener('click', ()=>{
   setMapFullscreen(!document.body.classList.contains('map-full'));
@@ -424,7 +424,7 @@ function buildCountryTravelHtml(key){
     if(parts.length) rows.push(['Экстренные', parts.join(' · ')]);
   }
   if(!rows.length) return '';
-  return `<div class="ci">${rows.map(([k, v]) => `<div class="ci-row"><span class="ci-k">${k}</span><span>${v}</span></div>`).join('')}</div>`;
+  return `<div class="ci">${rows.map(([k, v]) => `<div class="ci-row"><span class="ci-k">${k /* html-ok: строки собраны выше из встроенного справочника, номера экранированы */}</span><span>${v /* html-ok: строки собраны выше из встроенного справочника, номера экранированы */}</span></div>`).join('')}</div>`;
 }
 
 function debounce(fn, delay){

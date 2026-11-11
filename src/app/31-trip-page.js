@@ -19,7 +19,7 @@ function openTripPage(tripName){
 let tripMiniMaps = [];
 let tripMiniObserver = null;
 function destroyTripMiniMaps(){
-  tripMiniMaps.forEach(m => { try{ m.remove(); }catch(e){} });
+  tripMiniMaps.forEach(m => { try{ m.remove(); }catch(e){ /* карта уже удалена вместе со страницей */ } });
   tripMiniMaps = [];
   if(tripMiniObserver){ tripMiniObserver.disconnect(); tripMiniObserver = null; }
 }
@@ -219,7 +219,7 @@ function renderTripPage(){
       ${stops.length ? `<button type="button" class="cancel-edit tp-tour-btn" data-tour-trip="${escapeAttr(tripName)}">🌍 Облёт на глобусе</button>` : ''}
     </div>
     ${meta.narrative ? `<div class="tp-intro">${escapeHtml(meta.narrative)}</div>` : ''}
-    ${stats.length ? `<div class="tp-stats">${stats.map(([v,l]) => `<div class="tp-stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div>` : ''}
+    ${stats.length ? `<div class="tp-stats">${stats.map(([v,l]) => `<div class="tp-stat"><b>${v /* html-ok: числа и подписи сводки поездки */}</b><span>${l /* html-ok: числа и подписи сводки поездки */}</span></div>`).join('')}</div>` : ''}
     ${stops.length ? `<div class="tp-section">Маршрут · ${stops.length} ${stops.length === 1 ? 'остановка' : (stops.length < 5 ? 'остановки' : 'остановок')}</div>${stopsHtml}` : ''}
   `;
 
@@ -309,7 +309,7 @@ function renderChangelog(){
     if(day !== lastDay){ lastDay = day; html += `<div class="cl-day">${escapeHtml(day)}</div>`; }
     const fields = (ev.fields || []).map(f => LOG_FIELD_RU[f] || f).join(', ');
     html += `<div class="cl-row">
-      <span class="cl-act ${ev.act}">${actRu[ev.act] || ev.act}</span>
+      <span class="cl-act ${escapeAttr(ev.act)}">${escapeHtml(actRu[ev.act] || ev.act)}</span>
       <span class="cl-name">${escapeHtml(ev.name || '—')}
         <em>${escapeHtml(typeRu[ev.type] || ev.type || '')}${fields ? ' · ' + escapeHtml(fields) : ''}</em>
       </span>

@@ -84,7 +84,7 @@ function geoCacheGet(key){
     if(!geoCacheMem) geoCacheMem = JSON.parse(localStorage.getItem(GEO_CACHE_KEY) || '{}');
     const hit = geoCacheMem[key];
     if(hit && Date.now() - hit.t < GEO_CACHE_TTL) return hit.v;
-  }catch(e){}
+  }catch(e){ /* нет доступа к хранилищу или кэш испорчен — спросим геокодер заново */ }
   return undefined;
 }
 function geoCachePut(key, value){
@@ -96,7 +96,7 @@ function geoCachePut(key, value){
       keys.sort((a, b) => geoCacheMem[a].t - geoCacheMem[b].t).slice(0, keys.length - GEO_CACHE_MAX).forEach(k => delete geoCacheMem[k]);
     }
     localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(geoCacheMem));
-  }catch(e){}
+  }catch(e){ /* кэш не записался — останется в памяти до перезагрузки */ }
 }
 // ближайший город из встроенного справочника — для фото без сети
 function nearestLocalCity(lat, lng, maxKm){
@@ -173,9 +173,9 @@ function renderPhotoClusters(){
     <div class="diag-row" style="cursor:default;${c.existing ? 'opacity:0.72;' : ''}">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
         <input type="checkbox" data-photo-pick="${i}" ${(c.lat !== null && !c.existing) ? 'checked' : ''}>
-        <b style="font-weight:600;">${fmtPhotoRange(c)}</b>
+        <b style="font-weight:600;">${fmtPhotoRange(c) /* html-ok: даты снимков — числа и названия месяцев */}</b>
       </label>
-      <div class="diag-row-meta">снимков: ${c.photos.length}${c.geoCount ? ` · с координатами: ${c.geoCount}` : ' · координат нет'}</div>
+      <div class="diag-row-meta">снимков: ${c.photos.length}${c.geoCount ? ` · с координатами: ${c.geoCount /* html-ok: число */}` : ' · координат нет'}</div>
       ${c.existing ? `<div class="diag-row-meta" style="color:var(--amber);">уже есть: «${escapeHtml(c.existing.name)}» ${monthLabel(c.existing.month) || ''} ${c.existing.year}</div>` : ''}
       <div class="diag-merge" style="flex-direction:column;align-items:stretch;">
         <div class="search-wrap" style="width:100%;">

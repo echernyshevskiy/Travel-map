@@ -56,7 +56,8 @@ function levenshtein(a, b){
 // Разделы без находок не занимают место: их названия собираются в одну
 // строку «Без замечаний» внизу окна (diagCleanSummary).
 let diagCleanTitles = [];
-function buildDiagSection(title, hint, items, emptyText, renderRow){
+// html-ok-params: title, hint и emptyText — наши постоянные строки; rowHtml собирает строку сам (её подстановки проверяются там, где её пишут)
+function buildDiagSection(title, hint, items, emptyText, rowHtml){
   if(!items.length){
     diagCleanTitles.push({ title, emptyText });
     return '';
@@ -64,7 +65,7 @@ function buildDiagSection(title, hint, items, emptyText, renderRow){
   return `<div class="diag-section">
     <p class="diag-section-title">${title} <span class="diag-count-badge">${items.length}</span></p>
     ${hint ? `<div class="diag-section-hint">${hint}</div>` : ''}
-    <div class="diag-list">${items.map(renderRow).join('')}</div>
+    <div class="diag-list">${items.map(rowHtml).join('')}</div>
   </div>`;
 }
 function diagCleanSummary(anyFindings){
@@ -80,6 +81,50 @@ function diagCleanSummary(anyFindings){
   </div>`;
 }
 
+// Раздел «Ошибки приложения» — журнал сбоев (src/app/00a-errlog.js). Пуст —
+// раздела нет. Только в основной версии: у друзей свой браузер и свой журнал.
+function buildErrorLogSection(){
+  const list = READ_ONLY ? [] : errorLog.list();
+  if(!list.length) return '';
+  const rows = list.slice().reverse().map(x => `<div class="diag-row errlog-row" style="cursor:default;">
+      <span class="errlog-where">${escapeHtml(x.where)}</span>${x.n > 1 ? ` <span class="errlog-n">×${+x.n}</span>` : ''}
+      <div class="diag-row-meta">${escapeHtml(new Date(x.t).toLocaleString('ru-RU'))} · ${escapeHtml(x.msg)}</div>
+    </div>`).join('');
+  return `<div class="diag-section" id="errorLogSection">
+    <p class="diag-section-title">Ошибки приложения <span class="diag-count-badge">${list.length}</span></p>
+    <div class="diag-section-hint">Сбои, которые не помешали работе, но могли что-то не показать или не сохранить. Если что-то работает не так — скопируйте список и отправьте Claude. Содержимое записей сюда не попадает.</div>
+    <div class="diag-list">${rows}</div>
+    <div class="diag-merge errlog-actions"><button type="button" id="errorLogCopyBtn">Скопировать</button><button type="button" id="errorLogClearBtn">Очистить</button></div>
+  </div>`;
+}
+function wireErrorLogSection(container){
+  const copyBtn = container.querySelector('#errorLogCopyBtn');
+  const clearBtn = container.querySelector('#errorLogClearBtn');
+  if(copyBtn) copyBtn.addEventListener('click', async () => {
+    const text = 'Карта путешествий ' + appVersionLabel() + '\n' + navigator.userAgent + '\n\n' + formatErrorLog(errorLog.list(), t => new Date(t).toLocaleString('ru-RU'));
+    let ok = false;
+    try{ await navigator.clipboard.writeText(text); ok = true; }
+    catch(e){
+      // буфер обмена недоступен (файл с диска, старый браузер) — через выделение
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0;';
+      document.body.appendChild(ta); ta.select();
+      try{ ok = document.execCommand('copy'); }catch(e2){ ok = false; }
+      ta.remove();
+    }
+    toast(ok ? 'Список ошибок скопирован' : 'Не удалось скопировать — выделите текст вручную');
+  });
+  if(clearBtn) clearBtn.addEventListener('click', () => {
+    errorLog.clear();
+    renderDiagnostics();
+    toast('Журнал ошибок очищен');
+  });
+}
+function appVersionLabel(){
+  const el = document.getElementById('legendVersion');
+  return el ? el.textContent.trim() : '';
+}
+
 // Отклонённые пары похожих названий: список хранится отдельно от данных,
 // чтобы не попадать в экспорт и не путать при переносе на другое устройство.
 const DISMISSED_PAIRS_KEY = 'travel-map-dismissed-pairs';
@@ -93,10 +138,10 @@ function readDismissedPairs(){
 function dismissPair(a, b){
   const s = readDismissedPairs();
   s.add(pairKey(a, b));
-  try{ localStorage.setItem(DISMISSED_PAIRS_KEY, JSON.stringify([...s])); }catch(e){}
+  prefSet(DISMISSED_PAIRS_KEY, JSON.stringify([...s]));
 }
 function restoreDismissedPairs(){
-  try{ localStorage.removeItem(DISMISSED_PAIRS_KEY); }catch(e){}
+  prefRemove(DISMISSED_PAIRS_KEY);
 }
 
 // справочник городов по «название|страна» — строится один раз
@@ -372,7 +417,7 @@ function countDiagnosticsIssues(){
            d.brokenLinks.length + d.nonImagePhotos.length + d.duplicateGroups.length + d.noCountry.length +
            d.missingCountryYears.length + d.routesNoWpCountry.length;
   }catch(err){
-    console.error('countDiagnosticsIssues failed', err);
+    logError('подсчёт замечаний проверки', err);
     return 0;
   }
 }
@@ -455,7 +500,7 @@ function renderDiagnostics(){
     'Записи без месяца',
     'Не учитываются в статистике «Пропутешествовано месяцев», «Месяцев подряд» и в Календаре.',
     noMonth, 'У всех посещённых записей с годом указан и месяц.',
-    e => `<div class="diag-row" data-diag-id="${e.id}">${escapeHtml(e.name)}<div class="diag-row-meta">${e.year} · ${typeLabel(e)}</div></div>`
+    e => `<div class="diag-row" data-diag-id="${e.id}">${escapeHtml(e.name)}<div class="diag-row-meta">${e.year} · ${typeLabel(e) /* html-ok: typeLabel — постоянные подписи типа */}</div></div>`
   );
   html += buildDiagSection(
     'Похожие названия городов',
@@ -495,7 +540,7 @@ function renderDiagnostics(){
     'Возможные дубли записей',
     'Одинаковый тип, название, год и месяц (если указан) — вероятно, добавлено случайно дважды. Один и тот же город в разные месяцы не считается дублем.',
     duplicateGroups, 'Явных дублей не найдено.',
-    group => `<div class="diag-row" data-diag-id="${group[0].id}">${escapeHtml(group[0].name)}<div class="diag-row-meta">${monthLabel(group[0].month) ? monthLabel(group[0].month) + ' ' : ''}${group[0].year} · ${typeLabel(group[0])} · ${group.length} записи</div></div>`
+    group => `<div class="diag-row" data-diag-id="${group[0].id}">${escapeHtml(group[0].name)}<div class="diag-row-meta">${monthLabel(group[0].month) ? monthLabel(group[0].month) + ' ' : ''}${group[0].year} · ${typeLabel(group[0]) /* html-ok: typeLabel — постоянные подписи типа */} · ${group.length} записи</div></div>`
   );
   html += buildDiagSection(
     'Города без определённой страны',
@@ -550,9 +595,12 @@ function renderDiagnostics(){
       </div>
     </div>`
   );
-  html += diagCleanSummary(/class="diag-section"/.test(html));
+  const anyFindings = /class="diag-section"/.test(html);
+  html += buildErrorLogSection();
+  html += diagCleanSummary(anyFindings);
 
   container.innerHTML = html;
+  wireErrorLogSection(container);
   container.querySelectorAll('[data-diag-id]').forEach(row=>{
     row.addEventListener('click', ()=>{
       const entry = allEntries.find(e => e.id === row.dataset.diagId);

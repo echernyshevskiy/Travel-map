@@ -2463,3 +2463,9 @@ body.stabs.stab-data #sidebar > [data-mtab="more"]:not(#moreSection),
 body.stabs.stab-stats #sidebar > #mnavStatsSection,
 body.stabs.stab-list #sidebar > #entryList{display:block;}
 @media (max-width:900px){ #sideTabs [data-stab]{font-size:12.5px;padding:9px 4px 8px;} body.stabs #sideHead{padding:10px 12px 0;} }
+
+/* «Ошибки приложения» в проверке данных */
+.errlog-where{font-weight:700;}
+.errlog-n{color:var(--text-dim);font-size:11.5px;}
+.errlog-row .diag-row-meta{word-break:break-word;}
+.errlog-actions{margin-top:10px;}

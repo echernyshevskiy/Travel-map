@@ -150,7 +150,7 @@ function readBackupState(){
   catch(e){ return {}; }
 }
 function writeBackupState(s){
-  try{ localStorage.setItem(BACKUP_STATE_KEY, JSON.stringify(s)); }catch(e){}
+  prefSet(BACKUP_STATE_KEY, JSON.stringify(s));
 }
 // Просим браузер не удалять данные сайта при нехватке места. Без этого
 // хранилище «временное»: Chrome на телефоне вправе очистить его сам. Chrome
@@ -166,8 +166,8 @@ function requestPersistentStorage(){
     navigator.storage.persisted().then(already => {
       if(already) return true;
       return navigator.storage.persist();
-    }).then(granted => { storagePersisted = !!granted; renderBackupReminder(); }).catch(()=>{});
-  }catch(e){}
+    }).then(granted => { storagePersisted = !!granted; renderBackupReminder(); }).catch(()=>{ /* браузер отказал в ответе — остаётся «неизвестно» */ });
+  }catch(e){ /* браузер не поддерживает постоянное хранилище — ничего не просим */ }
 }
 function noteDataChanged(){
   if(READ_ONLY) return;
@@ -188,7 +188,7 @@ function renderBackupReminder(){
   const syncCfg = (typeof readSyncConfig === 'function') ? readSyncConfig() : null;
   if(syncCfg && syncCfg.lastSyncAt && Date.now() - syncCfg.lastSyncAt < 14 * 86400000){ el.style.display = 'none'; return; }
   const s = readBackupState();
-  const changes = s.changes || 0;
+  const changes = +s.changes || 0; // число из хранилища браузера
   const days = s.lastAt ? Math.floor((Date.now() - new Date(s.lastAt).getTime()) / 86400000) : null;
   const manyChanges = changes >= BACKUP_REMIND_CHANGES;
   const longAgo = s.lastAt && days >= BACKUP_REMIND_DAYS && changes > 0;
@@ -220,7 +220,7 @@ function readChangelog(){
   try{ return JSON.parse(localStorage.getItem(CHANGELOG_KEY) || '[]') || []; }catch(e){ return []; }
 }
 function writeChangelog(list){
-  try{ localStorage.setItem(CHANGELOG_KEY, JSON.stringify(list.slice(0, CHANGELOG_MAX))); }catch(e){}
+  prefSet(CHANGELOG_KEY, JSON.stringify(list.slice(0, CHANGELOG_MAX)));
 }
 const LOG_FIELD_RU = { name:'название', type:'тип', year:'год', month:'месяц',
   status:'статус', trip:'поездка', notes:'заметка', photos:'фото' };

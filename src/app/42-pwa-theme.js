@@ -37,6 +37,6 @@ document.getElementById('themeToggleBtn').addEventListener('click', ()=>{
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const next = isDark ? 'light' : 'dark';
   applyTheme(next);
-  try{ localStorage.setItem(THEME_STORAGE_KEY, next); }catch(e){}
+  prefSet(THEME_STORAGE_KEY, next);
 });
 

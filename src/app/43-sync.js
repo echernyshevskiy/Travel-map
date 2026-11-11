@@ -18,7 +18,7 @@ function readSyncConfig(){
   catch(e){ return null; }
 }
 function writeSyncConfig(c){
-  try{ if(c) localStorage.setItem(SYNC_KEY, JSON.stringify(c)); else localStorage.removeItem(SYNC_KEY); }catch(e){}
+  if(c) prefSet(SYNC_KEY, JSON.stringify(c)); else prefRemove(SYNC_KEY);
 }
 function syncPatch(fields){ const c = readSyncConfig(); if(c){ Object.assign(c, fields); writeSyncConfig(c); } }
 
@@ -48,7 +48,7 @@ function stampSyncChanges(){
         // на двух устройствах сложились, а не одна затёрла другую
         if(before){
           let old = null;
-          try{ old = JSON.parse(before); }catch(e){}
+          try{ old = JSON.parse(before); }catch(e){ logError('синхронизация: прежняя версия записи', e); }
           if(old){
             if(!obj.fieldTimes) obj.ftBase = obj.updatedAt || 0;
             const ft = Object.assign({}, obj.fieldTimes || {});
@@ -320,7 +320,7 @@ function renderSyncStatus(){
     if(dot) dot.classList.remove('on');
     return;
   }
-  const pending = cfg.pending || 0;
+  const pending = +cfg.pending || 0;
   let main, cls;
   if(syncState === 'running'){ main = 'Синхронизация…'; cls = ''; }
   else if(syncState === 'error'){ main = '⚠ ' + escapeHtml(cfg.lastError || 'Синхронизация не удалась'); cls = 'err'; }
@@ -366,7 +366,7 @@ async function connectSync(){
     const remote = await fetchRemote(cfg);
     // первая встреча двух непустых наборов — на всякий случай сохраняем свой
     if(remote.data && remote.data.entries.length && allEntries.length){
-      try{ downloadBackup('-до-синхронизации', true); }catch(e){}
+      try{ downloadBackup('-до-синхронизации', true); }catch(e){ logError('копия перед первой синхронизацией', e); }
     }
     const prev = readSyncConfig();
     // срок из заголовка GitHub (если браузеру он доступен) точнее введённого вручную

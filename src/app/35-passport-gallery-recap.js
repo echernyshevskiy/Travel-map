@@ -29,7 +29,7 @@ function buildBioSpreadHtml(allStamps){
     <div class="pp-page-head"><span>особые отметки</span><span>1</span></div>
     ${badges.length ? `<div class="pp-badges">${badges.map(b => `
       <div class="pp-badge">
-        <span class="pp-badge-mark">${b.mark}</span>
+        <span class="pp-badge-mark">${b.mark /* html-ok: значки — наши постоянные символы */}</span>
         <span class="pp-badge-body"><b>${escapeHtml(b.title)}</b><em>${escapeHtml(b.note)}</em></span>
       </div>`).join('')}</div>`
      : `<div style="display:flex;align-items:center;justify-content:center;padding:48px 0;">
@@ -325,7 +325,7 @@ function renderRecap(){
     <div class="recap-grid">
       ${cards.map(([n,l]) => `<div class="recap-card"><div class="recap-num">${n}</div><div class="recap-label">${l}</div></div>`).join('')}
     </div>
-    ${hi.length ? `<div class="recap-hi stat-grid">${hi.map(([l,v]) => `<div class="stat-row"><span>${l}</span><b>${v}</b></div>`).join('')}</div>` : ''}
+    ${hi.length ? `<div class="recap-hi stat-grid">${hi.map(([l,v]) => `<div class="stat-row"><span>${l /* html-ok: подписи наши, значения собраны выше с экранированием */}</span><b>${v /* html-ok: подписи наши, значения собраны выше с экранированием */}</b></div>`).join('')}</div>` : ''}
   `;
 }
 
