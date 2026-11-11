@@ -9,6 +9,24 @@
   --fs-6: 20px; /* заголовки окон */
   --fs-7: 24px; /* крупные числа */
 
+  /* Слои (z-index, B5): снизу вверх. Внутри одного блока можно 1–9 числом. */
+  --z-map-ui: 500; /* легенда, сводка, роза ветров, лента лет */
+  --z-map-chip: 520; /* коллекция на карте */
+  --z-scroll-top: 600;
+  --z-globe: 800;
+  --z-dropdown: 900; /* подсказки поиска */
+  --z-map-controls: 1001; /* над масштабом Leaflet (1000) */
+  --z-quiz-panel: 1100;
+  --z-header-menu: 1200;
+  --z-sheet: 1500; /* панель-шторка на телефоне */
+  --z-mnav: 1600; /* нижние вкладки */
+  --z-modal: 2000;
+  --z-menu-backdrop: 2400;
+  --z-menu-phone: 2500;
+  --z-story: 2600;
+  --z-toast: 3000;
+  --z-boot: 5000; /* заставка при запуске */
+
   --bg: #ded4b6;
   --panel: #e7dfc7;
   --panel-raised: #d2c6a0;
@@ -26,6 +44,48 @@
   --radius: 4px;
   /* фон плашек поверх карты: таймлайн, легенда, кнопки карты */
   --overlay: rgba(231, 223, 199, 0.95);
+
+  /* Цвета, которые не зависят от темы (B5). В правилах ниже — только var(…);
+     цвет с прозрачностью — rgb(var(--…-rgb) / 0.25). Проверка — scripts/style-check.mjs. */
+  --map-sea: #cfe0dc; /* вода на контурной подложке (в тёмной теме — своя) */
+  --map-sea-day: #cfe0dc; /* вода под светлой подложкой мини-карт */
+  --map-ink: #2b3b2e; /* подписи на мини-картах */
+  --map-scale-line: #6e6547;
+  --medal-gold: #c9a227;
+  --cream: #f3ecd8;
+  --print-border: #ccc;
+  /* паспорт — «настоящая» бумага и обложка, одинаковые в обеих темах */
+  --pp-paper-1: #f3ecd7;
+  --pp-paper-2: #ece3ca;
+  --pp-bio-1: #f5eedd;
+  --pp-bio-2: #ede2ce;
+  --pp-cover-1: #7a1620;
+  --pp-cover-2: #5e1420;
+  --pp-cover-3: #4a0e18;
+  --pp-gold: #d8b978;
+  --pp-ink: #3a2a1a;
+  /* каналы цвета для полупрозрачных теней и тонов */
+  --black-rgb: 0 0 0;
+  --white-rgb: 255 255 255;
+  --shade-rgb: 24 18 10;
+  --shade-soft-rgb: 40 30 15;
+  --ink-rgb: 43 59 46;
+  --rust-rgb: 166 89 46;
+  --cream-rgb: 243 236 216;
+  --alert-rgb: 156 59 46;
+  --sage-rgb: 63 82 64;
+  --pp-sepia-rgb: 90 70 40;
+  --pp-sepia-light-rgb: 140 115 70;
+  --pp-shadow-rgb: 70 50 20;
+  --pp-mrz-rgb: 70 50 30;
+  --pp-gold-rgb: 216 185 120;
+  --pp-gold-light-rgb: 214 178 102;
+  --pp-stamp-rgb: 160 60 50;
+  --pp-fiber-rgb: 160 140 95;
+  --pp-oval-rgb: 120 20 25;
+  --pp-chip-rgb: 120 25 25;
+  --pp-badge-rgb: 140 35 35;
+  --pp-cover-shade-rgb: 30 20 15;
 }
 [data-theme='dark'] {
   --bg: #14150f;
@@ -41,14 +101,15 @@
   --danger: #c1543e;
   --on-accent: #14150f;
   --overlay: rgba(28, 29, 21, 0.93);
+  --map-sea: #18201e;
+  --plain-land-fill: #2a2b20;
+  --plain-land-stroke: #4a4936;
 }
-/* Контурная подложка в тёмной теме тоже тёмная — раньше оставалась светлой */
-[data-theme='dark'] #map.plain-base {
-  background: #18201e;
-}
+/* Контурная подложка в тёмной теме тоже тёмная — раньше оставалась светлой
+   (цвет воды --map-sea меняется вместе с темой) */
 [data-theme='dark'] .plain-land {
-  fill: #2a2b20;
-  stroke: #4a4936;
+  fill: var(--plain-land-fill);
+  stroke: var(--plain-land-stroke);
 }
 /* кнопки масштаба Leaflet — в цветах приложения, а не белые */
 .leaflet-bar a,
@@ -74,7 +135,7 @@
 .leaflet-popup-content-wrapper {
   background: var(--panel);
   color: var(--text);
-  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 3px 14px rgb(var(--black-rgb) / 0.35);
 }
 .leaflet-popup-tip {
   background: var(--panel);
@@ -110,7 +171,7 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: repeating-linear-gradient(100deg, transparent 0 38px, rgba(166, 89, 46, 0.07) 38px 39px), var(--panel);
+  background: repeating-linear-gradient(100deg, transparent 0 38px, rgb(var(--rust-rgb) / 0.07) 38px 39px), var(--panel);
   flex-shrink: 0;
 }
 header h1 {
@@ -174,8 +235,8 @@ header h1 span {
   display: none;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(43, 59, 46, 0.18);
-  z-index: 600;
+  box-shadow: 0 2px 8px rgb(var(--ink-rgb) / 0.18);
+  z-index: var(--z-scroll-top);
 }
 #scrollTopBtn:hover {
   color: var(--text);
@@ -184,7 +245,7 @@ header h1 span {
 #bootOverlay {
   position: fixed;
   inset: 0;
-  z-index: 5000;
+  z-index: var(--z-boot);
   background: var(--bg);
   display: flex;
   align-items: center;
@@ -579,7 +640,7 @@ textarea {
   padding: 10px 12px;
   font-size: var(--fs-1);
   color: var(--text-dim);
-  z-index: 500;
+  z-index: var(--z-map-ui);
   font-family: 'Twemoji Country Flags', 'Courier Prime', monospace;
   /* не даём легенде вылезать за карту */
   max-width: min(280px, calc(100% - 32px));
@@ -660,7 +721,7 @@ textarea {
   position: absolute;
   bottom: 76px;
   left: 16px;
-  z-index: 500;
+  z-index: var(--z-map-ui);
   background: var(--overlay);
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -887,7 +948,7 @@ details.sea-all > summary {
   display: flex;
   flex-direction: column;
   padding: 3px 0 3px 10px;
-  border-left: 2px solid var(--sea-text, #3f6378);
+  border-left: 2px solid var(--sea-text);
   margin-bottom: 3px;
 }
 .sea-row .sea-name {
@@ -920,7 +981,7 @@ details.sea-all > summary {
   border-radius: 20px;
   font-size: var(--fs-3);
   font-family: 'Twemoji Country Flags', 'EB Garamond', serif;
-  z-index: 3000;
+  z-index: var(--z-toast);
   display: none;
   max-width: 80%;
   text-align: center;
@@ -945,7 +1006,7 @@ details.sea-all > summary {
   border-radius: 0 0 3px 3px;
   max-height: 220px;
   overflow-y: auto;
-  z-index: 900;
+  z-index: var(--z-dropdown);
 }
 .suggest-item {
   padding: 8px 10px;
@@ -1004,8 +1065,8 @@ details.sea-all > summary {
   height: 16px;
   border-radius: 50%;
   border: 3px solid var(--amber);
-  background: rgba(255, 255, 255, 0.7);
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25);
+  background: rgb(var(--white-rgb) / 0.7);
+  box-shadow: 0 0 0 2px rgb(var(--black-rgb) / 0.25);
 }
 .selected-tag {
   margin-top: 8px;
@@ -1134,8 +1195,8 @@ details.sea-all > summary {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 5px;
-  box-shadow: 0 6px 20px rgba(43, 59, 46, 0.22);
-  z-index: 1200;
+  box-shadow: 0 6px 20px rgb(var(--ink-rgb) / 0.22);
+  z-index: var(--z-header-menu);
   min-width: 190px;
   overflow: hidden;
 }
@@ -1177,8 +1238,8 @@ details.sea-all > summary {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(24, 18, 10, 0.72);
-  z-index: 2000;
+  background: rgb(var(--shade-rgb) / 0.72);
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1913,13 +1974,10 @@ details.sea-all > summary {
 .tp-mini-map {
   position: absolute;
   inset: 0;
-  background: #cfe0dc;
+  background: var(--map-sea-day); /* под светлой подложкой — в обеих темах */
 }
 .tp-route-map.plain .tp-mini-map {
-  background: #cfe0dc;
-}
-[data-theme='dark'] .tp-route-map.plain .tp-mini-map {
-  background: #18201e;
+  background: var(--map-sea);
 }
 /* рельеф чуть приглушаем в тон бумаге */
 .tp-mini-map .leaflet-tile-pane {
@@ -1932,17 +1990,17 @@ details.sea-all > summary {
   font-size: var(--fs-1);
   line-height: 1.2;
   padding: 0 4px;
-  background: rgba(243, 236, 216, 0.75);
+  background: rgb(var(--cream-rgb) / 0.75);
 }
 .tp-map-label {
-  background: rgba(243, 236, 216, 0.88);
+  background: rgb(var(--cream-rgb) / 0.88);
   border: none;
   box-shadow: none;
   padding: 0 4px;
   border-radius: 2px;
   font-family: 'EB Garamond', Georgia, serif;
   font-size: var(--fs-2);
-  color: #2b3b2e;
+  color: var(--map-ink);
 }
 .tp-map-label::before {
   display: none;
@@ -1954,9 +2012,9 @@ details.sea-all > summary {
   font-size: var(--fs-1);
   line-height: 1.3;
   padding: 0 4px;
-  background: rgba(243, 236, 216, 0.75);
-  border-color: #6e6547;
-  color: #2b3b2e;
+  background: rgb(var(--cream-rgb) / 0.75);
+  border-color: var(--map-scale-line);
+  color: var(--map-ink);
 }
 .route-spark {
   display: block;
@@ -2062,7 +2120,7 @@ details.sea-all > summary {
 }
 /* режим без подложки: фон карты — «вода», контуры стран рисуются поверх */
 #map.plain-base {
-  background: #cfe0dc;
+  background: var(--map-sea);
 }
 .cpop {
   font-family: 'Twemoji Country Flags', 'EB Garamond', serif;
@@ -2629,7 +2687,7 @@ label.gtl-row small {
   top: 10px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 520;
+  z-index: var(--z-map-chip);
   background: var(--overlay);
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -2638,7 +2696,7 @@ label.gtl-row small {
   display: flex;
   gap: 8px;
   align-items: center;
-  box-shadow: 0 2px 8px rgba(40, 30, 15, 0.18);
+  box-shadow: 0 2px 8px rgb(var(--shade-soft-rgb) / 0.18);
   max-width: calc(100% - 130px);
 }
 .collection-chip b {
@@ -2698,7 +2756,7 @@ label.gtl-row small {
   padding: 12px 14px;
   border: 1px solid var(--amber-dim);
   border-radius: 6px;
-  background: linear-gradient(135deg, rgba(166, 89, 46, 0.12), rgba(166, 89, 46, 0.03));
+  background: linear-gradient(135deg, rgb(var(--rust-rgb) / 0.12), rgb(var(--rust-rgb) / 0.03));
   display: flex;
   gap: 14px;
   align-items: center;
@@ -2831,7 +2889,7 @@ label.gtl-row small {
   height: 84px;
   display: block;
   margin: 0 auto;
-  filter: drop-shadow(0 2px 2px rgba(40, 30, 15, 0.25));
+  filter: drop-shadow(0 2px 2px rgb(var(--shade-soft-rgb) / 0.25));
 }
 .medal-name {
   font-size: var(--fs-3);
@@ -2942,7 +3000,7 @@ label.gtl-row small {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #c9a227;
+  background: var(--medal-gold);
   border: 1px solid var(--panel);
 }
 .run-cal .rc-t {
@@ -3087,7 +3145,7 @@ label.gtl-row small {
   0%,
   30% {
     border-color: var(--amber);
-    box-shadow: 0 0 0 3px rgba(166, 89, 46, 0.25);
+    box-shadow: 0 0 0 3px rgb(var(--rust-rgb) / 0.25);
   }
   100% {
     border-color: var(--line);
@@ -3524,7 +3582,7 @@ label.gtl-row small {
   width: 100%;
   max-width: 720px;
   border-radius: 5px;
-  box-shadow: 0 6px 22px rgba(43, 59, 46, 0.2);
+  box-shadow: 0 6px 22px rgb(var(--ink-rgb) / 0.2);
   /* overflow:hidden обрезал содержимое страницы: скругление переносим на сами
        страницы, а разворот больше ничего не прячет */
 }
@@ -3538,25 +3596,25 @@ label.gtl-row small {
   flex: 1;
   min-width: 0;
   background:
-    repeating-linear-gradient(115deg, rgba(160, 140, 95, 0.05) 0 2px, transparent 2px 9px),
-    repeating-linear-gradient(65deg, rgba(160, 140, 95, 0.05) 0 2px, transparent 2px 9px), linear-gradient(#f3ecd7, #ece3ca);
+    repeating-linear-gradient(115deg, rgb(var(--pp-fiber-rgb) / 0.05) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(65deg, rgb(var(--pp-fiber-rgb) / 0.05) 0 2px, transparent 2px 9px), linear-gradient(var(--pp-paper-1), var(--pp-paper-2));
   padding: 16px 14px 26px;
   position: relative;
   min-height: 340px;
 }
 .pp-page.left {
-  box-shadow: inset -14px 0 18px -14px rgba(70, 50, 20, 0.45);
+  box-shadow: inset -14px 0 18px -14px rgb(var(--pp-shadow-rgb) / 0.45);
 }
 .pp-page.right {
-  box-shadow: inset 14px 0 18px -14px rgba(70, 50, 20, 0.45);
+  box-shadow: inset 14px 0 18px -14px rgb(var(--pp-shadow-rgb) / 0.45);
 }
 .pp-page-head {
   font-family: 'Twemoji Country Flags', 'Courier Prime', monospace;
   font-size: var(--fs-1);
   letter-spacing: 1.6px;
   text-transform: uppercase;
-  color: rgba(90, 70, 40, 0.5);
-  border-bottom: 1px solid rgba(140, 115, 70, 0.25);
+  color: rgb(var(--pp-sepia-rgb) / 0.5);
+  border-bottom: 1px solid rgb(var(--pp-sepia-light-rgb) / 0.25);
   padding-bottom: 5px;
   margin-bottom: 10px;
   display: flex;
@@ -3597,7 +3655,7 @@ label.gtl-row small {
   text-align: center;
   font-family: 'Twemoji Country Flags', 'Courier Prime', monospace;
   font-size: var(--fs-1);
-  color: rgba(90, 70, 40, 0.45);
+  color: rgb(var(--pp-sepia-rgb) / 0.45);
 }
 .pp-empty-page {
   display: flex;
@@ -3608,7 +3666,7 @@ label.gtl-row small {
   font-family: 'Twemoji Country Flags', 'EB Garamond', serif;
   font-style: italic;
   font-size: var(--fs-2);
-  color: rgba(90, 70, 40, 0.4);
+  color: rgb(var(--pp-sepia-rgb) / 0.4);
   text-align: center;
   padding: 0 12px;
 }
@@ -3621,25 +3679,25 @@ label.gtl-row small {
   max-width: 340px;
   min-height: 440px;
   border-radius: 6px;
-  background: radial-gradient(ellipse at 50% 8%, rgba(216, 185, 120, 0.1), transparent 55%), linear-gradient(155deg, #7a1620, #4a0e18 55%, #5e1420);
+  background: radial-gradient(ellipse at 50% 8%, rgb(var(--pp-gold-rgb) / 0.1), transparent 55%), linear-gradient(155deg, var(--pp-cover-1), var(--pp-cover-3) 55%, var(--pp-cover-2));
   box-shadow:
-    0 10px 30px rgba(30, 20, 15, 0.4),
-    inset 0 0 0 1px rgba(214, 178, 102, 0.3),
-    inset 0 0 40px rgba(0, 0, 0, 0.25);
+    0 10px 30px rgb(var(--pp-cover-shade-rgb) / 0.4),
+    inset 0 0 0 1px rgb(var(--pp-gold-light-rgb) / 0.3),
+    inset 0 0 40px rgb(var(--black-rgb) / 0.25);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
   padding: 34px 22px 24px;
   text-align: center;
-  color: #d8b978;
+  color: var(--pp-gold);
   position: relative;
 }
 .pp-cover::before {
   content: '';
   position: absolute;
   inset: 10px;
-  border: 1px solid rgba(216, 185, 120, 0.35);
+  border: 1px solid rgb(var(--pp-gold-rgb) / 0.35);
   border-radius: 3px;
   pointer-events: none;
 }
@@ -3653,7 +3711,7 @@ label.gtl-row small {
   width: 74px;
   height: 74px;
   margin-bottom: 6px;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 1px 1px rgb(var(--black-rgb) / 0.35));
 }
 .pp-cover-country {
   font-family: 'Twemoji Country Flags', 'EB Garamond', serif;
@@ -3684,7 +3742,7 @@ label.gtl-row small {
 .pp-cover-line {
   width: 56px;
   height: 1px;
-  background: rgba(216, 185, 120, 0.5);
+  background: rgb(var(--pp-gold-rgb) / 0.5);
   margin: 8px 0;
 }
 .pp-cover-bottom {
@@ -3697,15 +3755,15 @@ label.gtl-row small {
   width: 30px;
   height: 22px;
   border-radius: 3px;
-  background: linear-gradient(135deg, rgba(216, 185, 120, 0.55), rgba(216, 185, 120, 0.2));
-  border: 1px solid rgba(216, 185, 120, 0.6);
+  background: linear-gradient(135deg, rgb(var(--pp-gold-rgb) / 0.55), rgb(var(--pp-gold-rgb) / 0.2));
+  border: 1px solid rgb(var(--pp-gold-rgb) / 0.6);
   position: relative;
 }
 .pp-cover-chip::before {
   content: '';
   position: absolute;
   inset: 4px;
-  border: 1px solid rgba(120, 25, 25, 0.5);
+  border: 1px solid rgb(var(--pp-chip-rgb) / 0.5);
   border-radius: 1px;
 }
 .pp-cover-count {
@@ -3718,8 +3776,8 @@ label.gtl-row small {
      личных сведений подставлена сводная статистика */
 .pp-bio-page {
   background:
-    repeating-linear-gradient(120deg, rgba(160, 60, 50, 0.05) 0 3px, transparent 3px 11px),
-    repeating-linear-gradient(60deg, rgba(160, 60, 50, 0.05) 0 3px, transparent 3px 11px), linear-gradient(#f5eedd, #ede2ce);
+    repeating-linear-gradient(120deg, rgb(var(--pp-stamp-rgb) / 0.05) 0 3px, transparent 3px 11px),
+    repeating-linear-gradient(60deg, rgb(var(--pp-stamp-rgb) / 0.05) 0 3px, transparent 3px 11px), linear-gradient(var(--pp-bio-1), var(--pp-bio-2));
 }
 .pp-badges {
   display: flex;
@@ -3737,7 +3795,7 @@ label.gtl-row small {
   width: 20px;
   text-align: center;
   font-size: var(--fs-3);
-  color: rgba(140, 35, 35, 0.6);
+  color: rgb(var(--pp-badge-rgb) / 0.6);
   line-height: 1.3;
 }
 .pp-badge-body {
@@ -3749,7 +3807,7 @@ label.gtl-row small {
   font-family: 'Twemoji Country Flags', 'EB Garamond', serif;
   font-size: var(--fs-3);
   font-weight: 600;
-  color: #3a2a1a;
+  color: var(--pp-ink);
   line-height: 1.25;
 }
 .pp-badge-body em {
@@ -3757,7 +3815,7 @@ label.gtl-row small {
   font-family: 'Twemoji Country Flags', 'Courier Prime', monospace;
   font-style: normal;
   font-size: var(--fs-1);
-  color: rgba(90, 70, 40, 0.65);
+  color: rgb(var(--pp-sepia-rgb) / 0.65);
   margin-top: 1px;
   line-height: 1.35;
 }
@@ -3765,8 +3823,8 @@ label.gtl-row small {
   width: 78px;
   height: 96px;
   flex-shrink: 0;
-  border: 1px solid rgba(90, 70, 40, 0.4);
-  background: rgba(160, 60, 50, 0.06);
+  border: 1px solid rgb(var(--pp-sepia-rgb) / 0.4);
+  background: rgb(var(--pp-stamp-rgb) / 0.06);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3776,13 +3834,13 @@ label.gtl-row small {
 .pp-bio-photo b {
   font-family: 'Twemoji Country Flags', 'Playfair Display', serif;
   font-size: 26px;
-  color: #7a1620;
+  color: var(--pp-cover-1);
   line-height: 1;
 }
 .pp-bio-photo span {
   font-family: 'Twemoji Country Flags', 'Courier Prime', monospace;
   font-size: var(--fs-1);
-  color: rgba(90, 70, 40, 0.6);
+  color: rgb(var(--pp-sepia-rgb) / 0.6);
   text-align: center;
   letter-spacing: 0.5px;
   padding: 0 4px;
@@ -3805,12 +3863,12 @@ label.gtl-row small {
   font-size: var(--fs-1);
   letter-spacing: 0.8px;
   text-transform: uppercase;
-  color: rgba(90, 70, 40, 0.55);
+  color: rgb(var(--pp-sepia-rgb) / 0.55);
 }
 .pp-bio-field div {
   font-family: 'Twemoji Country Flags', 'EB Garamond', serif;
   font-size: var(--fs-3);
-  color: #3a2a1a;
+  color: var(--pp-ink);
   font-weight: 600;
   line-height: 1.25;
 }
@@ -3818,14 +3876,14 @@ label.gtl-row small {
   width: 40px;
   height: 26px;
   border-radius: 50%;
-  border: 1.5px solid rgba(120, 20, 25, 0.45);
+  border: 1.5px solid rgb(var(--pp-oval-rgb) / 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: 'Twemoji Country Flags', 'Playfair Display', serif;
   font-weight: 700;
   font-size: var(--fs-1);
-  color: rgba(120, 20, 25, 0.55);
+  color: rgb(var(--pp-oval-rgb) / 0.55);
   transform: rotate(-8deg);
   position: absolute;
   top: 14px;
@@ -3834,11 +3892,11 @@ label.gtl-row small {
 .pp-mrz {
   margin-top: 10px;
   padding-top: 8px;
-  border-top: 1px solid rgba(140, 115, 70, 0.3);
+  border-top: 1px solid rgb(var(--pp-sepia-light-rgb) / 0.3);
   font-family: 'Twemoji Country Flags', 'Courier Prime', monospace;
   font-size: var(--fs-1);
   letter-spacing: 1.5px;
-  color: rgba(70, 50, 30, 0.55);
+  color: rgb(var(--pp-mrz-rgb) / 0.55);
   line-height: 1.7;
   white-space: nowrap;
   overflow: hidden;
@@ -3905,7 +3963,7 @@ label.gtl-row small {
     box-shadow: none;
   }
   .pp-page.left {
-    border-bottom: 1px dashed rgba(140, 115, 70, 0.4);
+    border-bottom: 1px dashed rgb(var(--pp-sepia-light-rgb) / 0.4);
   }
   .pp-cover {
     min-height: 320px;
@@ -3995,7 +4053,7 @@ label.gtl-row small {
   }
   .pp-spread {
     box-shadow: none;
-    border: 1px solid #ccc;
+    border: 1px solid var(--print-border);
     max-width: 100% !important;
   }
   .pp-cover {
@@ -4160,7 +4218,7 @@ label.gtl-row small {
 .story-overlay {
   position: fixed;
   inset: 0;
-  z-index: 2600;
+  z-index: var(--z-story);
   background: var(--bg);
   display: flex;
   flex-direction: column;
@@ -4313,7 +4371,7 @@ label.gtl-row small {
   border: 1.5px solid var(--text);
   border-radius: 50%;
   opacity: 0.6;
-  z-index: 500;
+  z-index: var(--z-map-ui);
   pointer-events: none;
 }
 .compass-rose::before,
@@ -4352,9 +4410,9 @@ label.gtl-row small {
   top: 16px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 500;
-  background: rgba(156, 59, 46, 0.94);
-  color: #f3ecd8;
+  z-index: var(--z-map-ui);
+  background: rgb(var(--alert-rgb) / 0.94);
+  color: var(--cream);
   font-family: 'Twemoji Country Flags', 'EB Garamond', serif;
   font-size: var(--fs-3);
   padding: 7px 14px;
@@ -4368,7 +4426,7 @@ label.gtl-row small {
   position: absolute;
   top: 16px;
   right: 16px;
-  z-index: 1001;
+  z-index: var(--z-map-controls);
   display: flex;
   gap: 8px;
   align-items: flex-start;
@@ -4414,7 +4472,7 @@ body.map-full #mapWrap {
   left: 16px;
   right: 16px;
   bottom: 16px;
-  z-index: 500;
+  z-index: var(--z-map-ui);
   background: var(--overlay);
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -4593,8 +4651,8 @@ body.map-full #mapWrap {
     top: auto;
     min-width: 0;
     border-radius: 8px;
-    box-shadow: 0 -6px 28px rgba(24, 18, 10, 0.35);
-    z-index: 2500;
+    box-shadow: 0 -6px 28px rgb(var(--shade-rgb) / 0.35);
+    z-index: var(--z-menu-phone);
   }
   .header-menu-item {
     padding: 14px 16px;
@@ -4603,8 +4661,8 @@ body.map-full #mapWrap {
   .header-menu-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(24, 18, 10, 0.45);
-    z-index: 2400;
+    background: rgb(var(--shade-rgb) / 0.45);
+    z-index: var(--z-menu-backdrop);
   }
   /* полоса прокрутки скрыта — без этой подсказки не видно, что справа есть ещё кнопки */
   header {
@@ -4973,12 +5031,12 @@ body.quiz-map .compass-rose {
   top: 12px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 1100;
+  z-index: var(--z-quiz-panel);
   width: min(440px, calc(100% - 24px));
   background: var(--overlay);
   border: 1px solid var(--line);
   border-radius: 8px;
-  box-shadow: 0 4px 18px rgba(24, 18, 10, 0.25);
+  box-shadow: 0 4px 18px rgb(var(--shade-rgb) / 0.25);
   padding: 10px 14px;
   text-align: center;
   color: var(--text);
@@ -5045,11 +5103,11 @@ body.quiz-map .compass-rose {
     height: min(74vh, calc(100% - 120px));
     max-height: none;
     width: auto;
-    z-index: 1500;
+    z-index: var(--z-sheet);
     border: 1px solid var(--line);
     border-bottom: none;
     border-radius: 14px 14px 0 0;
-    box-shadow: 0 -10px 30px rgba(24, 18, 10, 0.28);
+    box-shadow: 0 -10px 30px rgb(var(--shade-rgb) / 0.28);
     transform: translateY(calc(100% + 70px));
     visibility: hidden;
     transition:
@@ -5291,12 +5349,12 @@ body.quiz-map .compass-rose {
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 1600;
+    z-index: var(--z-mnav);
     height: calc(58px + env(safe-area-inset-bottom, 0px));
     padding-bottom: env(safe-area-inset-bottom, 0px);
     background: var(--panel);
     border-top: 1px solid var(--line);
-    box-shadow: 0 -2px 12px rgba(24, 18, 10, 0.1);
+    box-shadow: 0 -2px 12px rgb(var(--shade-rgb) / 0.1);
   }
   body.mnav #mnavBar {
     display: flex;
@@ -5357,7 +5415,7 @@ body.quiz-map .compass-rose {
 .globe-wrap {
   position: absolute;
   inset: 0;
-  z-index: 800;
+  z-index: var(--z-globe);
   display: none;
   touch-action: none;
   background: radial-gradient(ellipse at 50% 45%, var(--panel) 0%, var(--bg) 70%);
@@ -5382,7 +5440,7 @@ body.globe-mode .legend,
 body.globe-mode .map-glance,
 body.globe-mode .timeline-bar,
 body.globe-mode .service-status {
-  z-index: 900;
+  z-index: var(--z-dropdown);
 }
 .globe-tip {
   position: absolute;
@@ -5396,7 +5454,7 @@ body.globe-mode .service-status {
   font-size: var(--fs-3);
   color: var(--text);
   line-height: 1.35;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 12px rgb(var(--black-rgb) / 0.2);
   min-width: 170px;
   max-width: 270px;
   pointer-events: auto;
@@ -5549,7 +5607,7 @@ body.globe-mode .service-status {
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 8px 10px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 2px 12px rgb(var(--black-rgb) / 0.18);
   font-family: 'Twemoji Country Flags', 'EB Garamond', serif;
 }
 .globe-tour button {
@@ -5635,7 +5693,7 @@ body.globe-mode .globe-only {
   font-size: var(--fs-3);
   color: var(--text);
   white-space: nowrap;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 6px rgb(var(--black-rgb) / 0.15);
 }
 
 /* точные даты в форме */
@@ -5908,7 +5966,7 @@ body.globe-mode .globe-only {
   padding: 10px 0 calc(12px + env(safe-area-inset-bottom, 0px));
   background: var(--panel);
   border-top: 1px solid var(--line);
-  box-shadow: 0 -6px 12px -8px rgba(24, 18, 10, 0.25);
+  box-shadow: 0 -6px 12px -8px rgb(var(--shade-rgb) / 0.25);
 }
 .form-actions .save-btn {
   margin-top: 0;
