@@ -181,8 +181,21 @@ function sameCoords(a, b) {
   return eq(flat[0], b[0]) && eq(flat[flat.length - 1], b[b.length - 1]);
 }
 
+// Всё, от чего зависит вид слоя записи на карте. Если подпись не изменилась с
+// прошлого перестроения, слой не трогаем (B9): правка заметки, оценки, даты или
+// поездки одной записи раньше переустанавливала стили, значки и обработчики
+// всех сотен слоёв — 0,1–0,2 с на каждое сохранение при замедленном процессоре.
+function layerSignature(entry) {
+  const base = [entry.type, entry.color, entry.status, entry.favorite ? 1 : 0, entry.name || ''];
+  if (entry.type === 'city') base.push(entry.lat, entry.lng);
+  else if (entry.type === 'route') base.push(entry.isEstimated ? 1 : 0, entry.coordsEncoded ? entryGeomKey(entry) : JSON.stringify(getEntryCoords(entry)));
+  else base.push(entry.countryKey, countryFillOpacity(entry.countryKey));
+  return base.join('\u0001');
+}
+
 function syncLayers() {
   const currentIds = new Set(allEntries.map(e => e.id));
+  let changed = false;
 
   // drop layers for entries that no longer exist
   Object.keys(layers).forEach(id => {
@@ -191,6 +204,7 @@ function syncLayers() {
       if (orphan instanceof L.Marker) cityCluster.removeLayer(orphan);
       else map.removeLayer(orphan);
       delete layers[id];
+      changed = true;
     }
   });
 
@@ -228,6 +242,10 @@ function syncLayers() {
         layer = null;
       }
     }
+
+    const sig = layerSignature(entry);
+    if (layer && layer.__sig === sig) return; // на карте ничего не меняется
+    changed = true;
 
     if (!layer) {
       if (entry.type === 'route') {
@@ -289,6 +307,7 @@ function syncLayers() {
         );
       }
     }
+    layer.__sig = sig;
     // У страны собственный слой перехватывал клик, и попап с поездками и
     // действиями до неё не доходил: показывалась только карточка записи.
     // Теперь клик по стране всегда открывает общий попап страны.
@@ -320,7 +339,9 @@ function syncLayers() {
     }
   });
   // Линии маршрутов тонкие, а заливки стран занимают всю площадь — без подъёма
-  // наверх попасть в маршрут внутри страны почти невозможно.
+  // наверх попасть в маршрут внутри страны почти невозможно. Если слои не
+  // менялись, порядок уже правильный.
+  if (!changed) return;
   allEntries.forEach(e => {
     if (e.type !== 'route') return;
     const l = layers[e.id];
