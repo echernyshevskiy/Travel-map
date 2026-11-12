@@ -13,7 +13,8 @@ import { fileURLToPath } from 'node:url';
 export const CSP_CONNECT = [
   'https://nominatim.openstreetmap.org', // поиск мест
   'https://router.project-osrm.org', // маршрут по дорогам
-  'https://api.github.com' // синхронизация
+  'https://api.github.com', // синхронизация
+  'https://tiles.openfreemap.org' // подложка «Подробная»: стиль, плитки, шрифты подписей
 ];
 const XLSX_CDN = 'https://cdnjs.cloudflare.com'; // запасной источник модуля Excel (с проверкой целостности)
 

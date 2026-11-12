@@ -4,6 +4,11 @@
 // блокируется — так результат не зависит от сети.
 const { defineConfig, devices } = require('@playwright/test');
 
+// Запросы сервис-воркера (tests/offline-sw.spec.js) Playwright перехватывает
+// только с этим флагом — иначе «Подробная» карта в тесте без сети ходила бы
+// в настоящую сеть мимо подмены. Остальные тесты сервис-воркер отключают.
+process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS = '1';
+
 module.exports = defineConfig({
   testDir: './tests',
   timeout: 45_000,

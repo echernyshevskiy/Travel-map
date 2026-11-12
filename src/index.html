@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.78
+  Версия: v2.79
   Дата сборки: 2026-10-12
   История версий смотрите в переписке с Claude.
 -->
@@ -518,6 +518,14 @@ window.addEventListener('unhandledrejection', function(e){
       </div>
     </div>
 
+    <div class="section u-flex0" id="offlineMapSection" data-mtab="more">
+      <p class="section-title">Карта без сети</p>
+      <div class="hint" id="offlineMapHint">Подробную карту (кнопка подложки → «🧭 Подробная») можно скачать для района заранее — тогда она откроется и без интернета. За раз — до 3000 плиток и 50 МБ: город с окрестностями во всех подробностях или регион покрупнее.</div>
+      <div class="offline-map-status" id="offlineMapStatus" aria-live="polite"></div>
+      <button class="cancel-edit" id="offlineMapDownloadBtn" type="button">Скачать видимый район</button>
+      <button class="cancel-edit" id="offlineMapClearBtn" type="button" hidden>Удалить скачанное</button>
+    </div>
+
     <div id="listSwitch" data-mtab="list" role="tablist" aria-label="Что показать">
       <button type="button" role="tab" data-lsw="entries" aria-selected="true">Записи <span id="listSwitchCount"></span></button>
       <button type="button" role="tab" data-lsw="stats" aria-selected="false">Статистика</button>
@@ -594,7 +602,7 @@ window.addEventListener('unhandledrejection', function(e){
       <button id="mapFullBtn" class="topo-toggle-btn map-full-btn" title="Развернуть карту на весь экран" aria-label="Развернуть карту на весь экран">⤢</button>
       <button id="globeArcsBtn" class="topo-toggle-btn globe-only" title="Дуги из дома к посещённым странам" aria-pressed="true">✈ Дуги</button>
       <button id="globeToggleBtn" class="topo-toggle-btn" title="Показать Землю шаром" aria-pressed="false">🌍 Глобус</button>
-      <button id="topoToggleBtn" class="topo-toggle-btn" title="Переключить на рельефную карту" aria-label="Переключить на рельефную карту">🏔 Рельеф</button>
+      <button id="topoToggleBtn" class="topo-toggle-btn" title="Обычная карта OpenStreetMap — нажмите, чтобы переключить" aria-label="Обычная карта OpenStreetMap — нажмите, чтобы переключить">🗺 Обычная</button>
     </div>
     <div class="collection-chip" id="collectionChip" style="display:none;"></div>
     <div class="map-glance" id="mapGlance" role="button" tabindex="0" aria-expanded="true" title="Свернуть сводку" style="display:none;">
@@ -616,7 +624,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
         <div class="legend-credits">флаги: <a class="u-inherit-color" href="https://github.com/twitter/twemoji" target="_blank" rel="noopener">Twemoji</a>, CC BY 4.0 · города: Natural Earth, <a class="u-inherit-color" href="https://github.com/hflabs/city" target="_blank" rel="noopener">hflabs/city</a>, CC BY-SA 4.0 · границы: Natural Earth, регионы: © <a class="u-inherit-color" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL)</div>
-        <div style="margin-top:2px;font-size:var(--fs-1);opacity:0.55;" id="legendVersion">v2.78</div>
+        <div style="margin-top:2px;font-size:var(--fs-1);opacity:0.55;" id="legendVersion">v2.79</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>

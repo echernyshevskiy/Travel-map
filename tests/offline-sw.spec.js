@@ -7,6 +7,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { ROOT, sampleEntries, sampleRaces } = require('./helpers');
+const { openFreeMapMock, requests: ofmRequests, setVersion, VERSION } = require('./fixtures/openfreemap');
 
 test.use({ serviceWorkers: 'allow' });
 
@@ -15,6 +16,8 @@ const TYPES = {
   '.js': 'text/javascript',
   '.json': 'application/json',
   '.png': 'image/png',
+  '.mjs': 'text/javascript',
+  '.css': 'text/css',
   '.webmanifest': 'application/manifest+json'
 };
 let server, base;
@@ -224,4 +227,70 @@ test('фрагменты карты: давно не открытые вытес
     return (await cache.keys()).map(r => (r.url.match(/\/19\/(\d)\/7777\.png/) || [])[1]).filter(Boolean);
   });
   expect(order).toEqual(['2', '3', '1']);
+});
+
+test('без сети: «Подробная» карта из кэша, и после недельного обновления карты тоже', async ({ context, page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
+  test.setTimeout(120_000);
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  const failed = [];
+  page.on('requestfailed', r => failed.push(r.url() + ' ' + (r.failure() || {}).errorText));
+  const ofm = r => r.fulfill(openFreeMapMock(r.request().url()));
+  await context.route(
+    url => !String(url).startsWith(base) && !String(url).startsWith('https://tiles.openfreemap.org/'),
+    r => r.abort()
+  );
+  await context.route('https://tiles.openfreemap.org/**', ofm);
+  await context.addInitScript(
+    ({ entries, races }) => {
+      if (!localStorage.getItem('travel-map-data')) {
+        localStorage.setItem('travel-map-data', JSON.stringify({ entries, races, tripMeta: {} }));
+        localStorage.setItem('travel-map-basemap', 'vector');
+        localStorage.setItem('travel-map-mapview', JSON.stringify({ lat: 55.75, lng: 37.62, z: 7 }));
+      }
+    },
+    { entries: sampleEntries(), races: sampleRaces() }
+  );
+  const vectorReady = () =>
+    page.waitForFunction(
+      () => {
+        if (typeof basemapMode === 'undefined' || basemapMode !== 'vector' || !vectorLayer || !map.hasLayer(vectorLayer)) return false;
+        const ml = vectorLayer.getMaplibreMap();
+        return !!ml && ml.isStyleLoaded() && ml.areTilesLoaded();
+      },
+      null,
+      { timeout: 30_000 }
+    );
+  await page.goto(base);
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await page.reload(); // теперь страницей управляет сервис-воркер
+  await vectorReady();
+  // плитки прошли через сервис-воркер и лежат без номера сборки
+  const keys = await page.evaluate(async () => {
+    for (const k of await caches.keys()) if (/vector-edit/.test(k)) return (await (await caches.open(k)).keys()).map(r => r.url);
+    return [];
+  });
+  expect(keys.some(k => k.includes('/planet/_/'))).toBe(true);
+  // при запуске с «Подробной» обычная подложка не грузится вовсе
+  expect(failed.filter(u => u.includes('tile.openstreetmap.org'))).toEqual([]);
+  expect(keys.some(k => k.includes(VERSION))).toBe(false);
+  // на сервере вышла новая недельная сборка карты: описание источника — с новым номером
+  setVersion('20261112_001001_pt');
+  await page.reload();
+  await vectorReady();
+  // без сети: стиль, описание, плитки, шрифты — из кэша; на контуры не переключились
+  await context.unroute('https://tiles.openfreemap.org/**', ofm);
+  await context.route('https://tiles.openfreemap.org/**', r => r.abort());
+  await context.setOffline(true);
+  const before = ofmRequests.length;
+  await page.reload();
+  await vectorReady();
+  expect(await page.evaluate(() => basemapMode)).toBe('vector');
+  expect(ofmRequests.length).toBe(before);
+  await context.setOffline(false);
+  setVersion(VERSION);
+  expect(errors).toEqual([]);
 });

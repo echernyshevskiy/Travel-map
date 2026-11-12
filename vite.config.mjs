@@ -214,6 +214,11 @@ function debugHook() {
   };
 }
 
+function copyVendor(fromDir, toDir, files, rename) {
+  fs.mkdirSync(path.join(ROOT, toDir), { recursive: true });
+  for (const f of files) fs.copyFileSync(path.join(ROOT, fromDir, f), path.join(ROOT, toDir, rename || f));
+}
+
 // готовый файл — в корень репозитория (вариант A: Pages отдаёт его из ветки)
 function copyToRoot() {
   return {
@@ -234,6 +239,13 @@ function copyToRoot() {
         keep.add(f.name);
       }
       for (const f of fs.readdirSync(path.join(ROOT, 'fonts'))) if (!keep.has(f)) fs.rmSync(path.join(ROOT, 'fonts', f));
+      // «Подробная» карта: MapLibre GL и мост к Leaflet — в vendor/, грузятся только
+      // при выборе этой подложки (src/app/01a-vector-map.js). Версия — в имени
+      // папки: обновили пакет — поменяйте её и в 01a-vector-map.js.
+      copyVendor('node_modules/maplibre-gl/dist', 'vendor/maplibre-gl-6.16.0', ['maplibre-gl.mjs', 'maplibre-gl-worker.mjs', 'maplibre-gl.css']);
+      fs.copyFileSync(path.join(ROOT, 'node_modules/maplibre-gl/LICENSE.txt'), path.join(ROOT, 'vendor/maplibre-gl-6.16.0/LICENSE.txt'));
+      copyVendor('node_modules/@maplibre/maplibre-gl-leaflet', 'vendor', ['leaflet-maplibre-gl.js'], 'leaflet-maplibre-gl-0.1.4.js');
+      fs.copyFileSync(path.join(ROOT, 'node_modules/@maplibre/maplibre-gl-leaflet/LICENSE'), path.join(ROOT, 'vendor/leaflet-maplibre-gl-LICENSE'));
     }
   };
 }
