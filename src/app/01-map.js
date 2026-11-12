@@ -6,7 +6,9 @@ const WORLD_VIEW_BOUNDS = [
   [78, 170]
 ];
 // Карта открывается там, где её оставили: центр и масштаб запоминаются после
-// каждого сдвига (с задержкой). Нет сохранённого — весь мир, как раньше.
+// каждого сдвига (с задержкой). Нет сохранённого — весь мир; на узком
+// вертикальном экране (телефон) — так, чтобы карта заполняла его целиком
+// (см. phoneStartView ниже). Отдалить до всего мира можно как обычно.
 const MAP_VIEW_KEY = 'travel-map-mapview';
 function readSavedMapView() {
   try {
@@ -19,22 +21,73 @@ function readSavedMapView() {
   }
 }
 const savedMapView = readSavedMapView();
+// Весь мир на вертикальном экране занимает треть высоты, сверху и снизу —
+// пустые поля. Поэтому на телефоне по умолчанию: наименьший масштаб, при
+// котором карта по высоте заполняет экран; верхний край — у 82° с. ш.
+// (Шпицберген, Земля Франца-Иосифа), низ — сколько поместится: южнее
+// посещают реже; по долготе — середина отметок (медиана), а пока их нет — дом.
+const START_TOP_LAT = 82;
+function phoneStartView() {
+  const size = map.getSize();
+  if (!size.x || size.y < size.x * 1.15) return null; // не вертикальный экран — весь мир
+  const z = Math.max(1, Math.ceil(Math.log2(size.y / 256)));
+  let lng = null;
+  try {
+    const lngs = allEntries
+      // города — по координатам; страны — по середине контура
+      .map(e => {
+        if (e.type === 'city') return e.lng;
+        if (e.type !== 'country') return null;
+        const b = countryBounds(e.countryKey);
+        return b ? b.getCenter().lng : null;
+      })
+      .filter(v => isFinite(v))
+      .sort((a, b) => a - b);
+    if (lngs.length) lng = lngs[Math.floor(lngs.length / 2)];
+  } catch (e) {
+    /* данные ещё не загружены — ниже возьмём дом */
+  }
+  if (lng === null) {
+    try {
+      lng = HOME_LOCATION.lng;
+    } catch (e) {
+      lng = 40; // самый первый кадр, дом ещё не прочитан
+    }
+  }
+  const top = map.project([START_TOP_LAT, lng], z);
+  const center = map.unproject(top.add([0, size.y / 2]), z);
+  return { center: [center.lat, lng], zoom: z };
+}
 function applyStartView() {
+  // размер контейнера мог измениться с прошлого раза (вёрстка телефона
+  // достраивается после запуска) — пересчитываем, иначе масштаб будет по старому
+  map.invalidateSize({ pan: false });
   if (savedMapView) map.setView([savedMapView.lat, savedMapView.lng], savedMapView.z, { animate: false });
-  else map.fitBounds(WORLD_VIEW_BOUNDS);
-}
-function mapViewKey() {
+  else {
+    const phone = phoneStartView();
+    if (phone) map.setView(phone.center, phone.zoom, { animate: false });
+    else map.fitBounds(WORLD_VIEW_BOUNDS);
+  }
   const c = map.getCenter();
-  return c.lat.toFixed(5) + ',' + c.lng.toFixed(5) + ',' + map.getZoom();
+  startView = { lat: c.lat, lng: c.lng, z: map.getZoom() };
 }
+// карта всё ещё на стартовом виде (её не двигали ни человек, ни ссылка на
+// поездку); мелкий сдвиг от пересчёта размера экрана не считается
+function atStartView() {
+  if (!startView || map.getZoom() !== startView.z) return false;
+  const z = startView.z;
+  return map.project(map.getCenter(), z).distanceTo(map.project([startView.lat, startView.lng], z)) < 40;
+}
+let startView = null;
 applyStartView();
-const startViewKey = mapViewKey();
 let mapViewSaveTimer = null;
 function saveMapViewSoon() {
   clearTimeout(mapViewSaveTimer);
   mapViewSaveTimer = setTimeout(() => {
     // в квизе «Где это?» и на глобусе вид карты служебный — не запоминаем
     if (document.body.classList.contains('quiz-map') || document.body.classList.contains('globe-mode')) return;
+    // стартовый вид не запоминаем: карту двигало само приложение, а не человек
+    if (atStartView()) return;
     const c = map.getCenter();
     prefSet(MAP_VIEW_KEY, JSON.stringify({ lat: +c.lat.toFixed(5), lng: +c.lng.toFixed(5), z: map.getZoom() }));
   }, 600);
@@ -168,9 +221,8 @@ let tileFallbackDone = false;
 setTimeout(() => {
   // если карту за это время уже повели (ссылка на поездку, «показать на карте»),
   // не возвращаем её на стартовый вид
-  const untouched = mapViewKey() === startViewKey;
-  map.invalidateSize();
-  if (untouched) applyStartView();
+  if (atStartView()) applyStartView();
+  else map.invalidateSize();
   map.on('moveend', saveMapViewSoon);
 }, 150);
 window.addEventListener('resize', () => map.invalidateSize());

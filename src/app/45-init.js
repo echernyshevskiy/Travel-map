@@ -363,6 +363,9 @@ const STATS_NAV = [
     tripMeta = {};
   }
   T('loadData');
+  // данные загружены — стартовый вид на телефоне можно навести на середину отметок
+  // (если карту ещё никто не двигал и сохранённого вида нет)
+  if (!savedMapView && atStartView()) applyStartView();
   try {
     rebuildAll();
   } catch (err) {
