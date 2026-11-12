@@ -31,6 +31,16 @@ const MAP_LABEL_SHORT = {
   'United States of America': 'США',
   'United Kingdom': 'Великобритания'
 };
+// Точка подписи внутри контура (polylabel) считается не сразу для всех стран и
+// регионов, а при первом обращении: на мелком масштабе нужны только крупные
+// страны, а расчёт для всех занимал ~0,2 с при запуске (B7).
+function lazyLabelPoint(c) {
+  let at = null;
+  const point = () => at || (at = polyLabelPoint(c.ring));
+  Object.defineProperty(c, 'lat', { get: () => point()[0], enumerable: true });
+  Object.defineProperty(c, 'lng', { get: () => point()[1], enumerable: true });
+  return c;
+}
 function buildMapLabelCands() {
   const out = [];
   COUNTRIES_GEOJSON.features.forEach(f => {
@@ -38,24 +48,23 @@ function buildMapLabelCands() {
       ru = MAP_LABEL_SHORT[k] || COUNTRY_RU[k];
     if (!ru || !f.geometry) return;
     const a = geomAreaKm2(f.geometry),
-      ring = mainRing(f.geometry),
-      at = polyLabelPoint(ring);
-    out.push({
-      kind: 'country',
-      big: a >= 2e6,
-      text: ru,
-      lat: at[0],
-      lng: at[1],
-      box: ringBounds(ring),
-      minZoom: a >= 2e6 ? 2 : a >= 4e5 ? 3 : a >= 6e4 ? 4 : a >= 8e3 ? 5 : 6,
-      prio: 3e9 + a
-    });
+      ring = mainRing(f.geometry);
+    out.push(
+      lazyLabelPoint({
+        kind: 'country',
+        big: a >= 2e6,
+        text: ru,
+        ring,
+        box: ringBounds(ring),
+        minZoom: a >= 2e6 ? 2 : a >= 4e5 ? 3 : a >= 6e4 ? 4 : a >= 8e3 ? 5 : 6,
+        prio: 3e9 + a
+      })
+    );
   });
   RU_REGIONS.forEach(r => {
     const ring = mainRing(r.geometry),
-      at = polyLabelPoint(ring),
       a = geomAreaKm2(r.geometry);
-    out.push({ kind: 'region', text: r.name, lat: at[0], lng: at[1], box: ringBounds(ring), minZoom: a >= 1.5e5 ? 5 : a >= 3e4 ? 6 : 7, prio: 1e9 + a });
+    out.push(lazyLabelPoint({ kind: 'region', text: r.name, ring, box: ringBounds(ring), minZoom: a >= 1.5e5 ? 5 : a >= 3e4 ? 6 : 7, prio: 1e9 + a }));
   });
   getWorldCities().forEach(c => {
     const big = c.capital || c.pop >= 1000;
@@ -277,6 +286,8 @@ function renderMapLabels() {
   for (const c of mapLabelCands) {
     if (c.minZoom > z) continue;
     // у моря центр может быть за краем экрана, а сама вода — на нём (ниже)
+    // сначала дешёвая проверка по рамке контура — точку подписи считаем, только если она может быть на экране
+    if (c.box && !view.intersects(c.box)) continue;
     if (c.kind !== 'sea' && !view.contains([c.lat, c.lng])) continue;
     const pt = map.latLngToContainerPoint([c.lat, c.lng]);
     if (c.kind !== 'sea' && (pt.x < -200 || pt.y < -40 || pt.x > size.x + 200 || pt.y > size.y + 40)) continue;

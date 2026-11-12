@@ -33,14 +33,113 @@ function resetAllFilters() {
   rebuildAll();
 }
 
+// Список рисуется порциями (B8): сначала LIST_FIRST строк, остальные —
+// по LIST_PAGE, когда до конца списка остаётся меньше экрана (и по кнопке
+// «Показать ещё» — с клавиатуры). Новая порция дописывается в конец, а не
+// перерисовывает весь список. Строки вне экрана браузер не раскладывает
+// (content-visibility в стилях).
+const LIST_FIRST = 40;
 const LIST_PAGE = 100;
-let listLimit = LIST_PAGE;
+let listLimit = LIST_FIRST;
+// текущий отсортированный набор и сколько из него уже нарисовано
+let listVisible = [];
+let listShown = 0;
+let listLastYear = null;
+let listYearCounts = new Map();
+let listMoreObserver = null;
+
+function entryRowHtml(entry) {
+  const extras = [
+    seasonLabel(entry.season),
+    companyLabel(entry.company),
+    communityLabel(entry.community),
+    entry.type === 'route' ? activityLabel(entry.activity) : null
+  ].filter(Boolean);
+  let meta = `${escapeHtml(whenLabel(entry))} · ${purposeLabel(entry.purpose)}`;
+  if (entry.type === 'route') {
+    meta += ` · ${entry.distanceKm.toFixed(1)} км${entry.isEstimated ? ' (по прямой)' : ''}`;
+    if (entry.elevationGain !== null && entry.elevationGain !== undefined) meta += ` · +${Math.round(entry.elevationGain)}м`;
+  }
+  if (extras.length) meta += ` · ${extras.join(' · ')}`;
+  if (entry.trip) meta += ` · ${escapeHtml(entry.trip)}`;
+  if (entry.status === 'wishlist') meta += ` · план`;
+  if (entry.hidden && !READ_ONLY) meta += ` · 🔒`;
+  const heart = entry.type === 'city' ? entry.favorite : null;
+  return `<div class="entry-row" data-entry-id="${escapeAttr(entry.id)}">
+    <div class="dot ${entry.type}" style="background:${entry.color};"></div>
+    <div class="entry-main">
+      <div class="entry-name" style="${entry.status === 'wishlist' ? 'font-style:italic;' : ''}">${(entry.type === 'country' || entry.type === 'city') && countryFlag(entry.countryKey) ? countryFlag(entry.countryKey) + ' ' : ''}${escapeHtml(entry.name)}</div>
+      <div class="entry-meta mono">${meta}</div>
+    </div>
+    <div class="entry-actions">
+      ${!READ_ONLY && heart !== null ? `<button title="${heart ? 'Убрать из любимых' : 'В любимые'}" aria-label="${heart ? 'Убрать из любимых' : 'В любимые'}" data-act="fav" style="color:${heart ? 'var(--heart)' : 'var(--text-dim)'};">${heart ? '❤' : '♡'}</button>` : ''}
+      ${!READ_ONLY && entry.status === 'wishlist' ? `<button style="color:var(--amber);" title="Отметить как посещённое" aria-label="Отметить как посещённое" data-act="visit">✓</button>` : ''}
+      ${entry.photos && entry.photos.length ? `<a href="${escapeAttr(safeUrl(entry.photos[0]))}" target="_blank" rel="noopener" title="Фото${entry.photos.length > 1 ? ' (' + entry.photos.length + ')' : ''}" aria-label="Открыть фото">🖼</a>` : ''}
+      ${entry.instagramUrl ? `<a href="${escapeAttr(safeUrl(entry.instagramUrl))}" target="_blank" rel="noopener" title="Instagram" aria-label="Instagram">📷</a>` : ''}
+      ${entry.mapLinkUrl ? `<a href="${escapeAttr(safeUrl(entry.mapLinkUrl))}" target="_blank" rel="noopener" title="Место на карте" aria-label="Место на карте">🗺️</a>` : ''}
+      ${entry.docLinkUrl ? `<a href="${escapeAttr(safeUrl(entry.docLinkUrl))}" target="_blank" rel="noopener" title="Документ" aria-label="Документ">📄</a>` : ''}
+      ${
+        READ_ONLY
+          ? ''
+          : `<button title="Редактировать" aria-label="Редактировать" data-act="edit">✎</button>
+      <button title="Удалить" aria-label="Удалить" data-act="del">✕</button>`
+      }
+    </div>
+  </div>`;
+}
+
+// дописать строки до listLimit
+function appendListRows(container) {
+  const upto = Math.min(listLimit, listVisible.length);
+  const parts = [];
+  for (; listShown < upto; listShown++) {
+    const entry = listVisible[listShown];
+    if (entry.year !== listLastYear) {
+      listLastYear = entry.year;
+      parts.push(`<div class="entry-year-head">${entry.year}<span>${listYearCounts.get(entry.year) || 0}</span></div>`);
+    }
+    parts.push(entryRowHtml(entry));
+  }
+  const old = document.getElementById('showMoreEntriesBtn');
+  if (old) old.remove();
+  container.insertAdjacentHTML('beforeend', parts.join(''));
+  const rest = listVisible.length - listShown;
+  if (rest > 0) {
+    container.insertAdjacentHTML(
+      'beforeend',
+      `<button class="cancel-edit" id="showMoreEntriesBtn" style="margin-top:10px;">Показать ещё ${Math.min(rest, LIST_PAGE)} из ${rest}</button>`
+    );
+    const more = document.getElementById('showMoreEntriesBtn');
+    more.addEventListener('click', () => showMoreEntries(container));
+    // кнопка подъезжает к экрану — дорисовываем сами, не дожидаясь нажатия
+    if (typeof IntersectionObserver === 'function') {
+      if (!listMoreObserver)
+        listMoreObserver = new IntersectionObserver(
+          es => {
+            if (es.some(e => e.isIntersecting)) showMoreEntries(document.getElementById('entryList'));
+          },
+          { rootMargin: '600px 0px' }
+        );
+      listMoreObserver.disconnect();
+      listMoreObserver.observe(more);
+    }
+  } else if (listMoreObserver) listMoreObserver.disconnect();
+}
+function showMoreEntries(container) {
+  if (!container || listShown >= listVisible.length) return;
+  listLimit = listShown + LIST_PAGE;
+  appendListRows(container);
+}
 
 function renderList(precomputedVisible) {
   const container = document.getElementById('entryList');
   const visible = (precomputedVisible || allEntries.filter(passesFilter)).slice().sort((a, b) => b.year - a.year || a.name.localeCompare(b.name));
   const lc = document.getElementById('listSwitchCount');
   if (lc) lc.textContent = visible.length ? String(visible.length) : '';
+  listVisible = [];
+  listShown = 0;
+  listLastYear = null;
+  if (listMoreObserver) listMoreObserver.disconnect();
   if (visible.length === 0) {
     // «данных нет вообще» и «фильтры всё отсеяли» — разные ситуации,
     // и подсказка нужна разная: во втором случае с кнопкой сброса
@@ -55,76 +154,14 @@ function renderList(precomputedVisible) {
     }
     return;
   }
-  // Собираем весь список одной строкой и вставляем за один раз: раньше на каждую
-  // запись приходился отдельный разбор HTML и по четыре обработчика событий
-  // (при 400 записях — 400 разборов и ~1600 обработчиков). Клики теперь
-  // обрабатываются делегированием на самом контейнере.
-  // Показываем список порциями: при нескольких сотнях записей отрисовка всех
-  // строк разом заметно тормозит, а прокрутить их всё равно невозможно
-  const shown = visible.slice(0, listLimit);
-  // счётчик по годам одним проходом: раньше на каждый заголовок года заново
-  // пересматривался весь список видимых записей
-  const yearCounts = new Map();
-  visible.forEach(e => yearCounts.set(e.year, (yearCounts.get(e.year) || 0) + 1));
-  const parts = [];
-  let lastYear = null;
-  shown.forEach(entry => {
-    if (entry.year !== lastYear) {
-      lastYear = entry.year;
-      parts.push(`<div class="entry-year-head">${entry.year}<span>${yearCounts.get(entry.year) || 0}</span></div>`);
-    }
-    const extras = [
-      seasonLabel(entry.season),
-      companyLabel(entry.company),
-      communityLabel(entry.community),
-      entry.type === 'route' ? activityLabel(entry.activity) : null
-    ].filter(Boolean);
-    let meta = `${escapeHtml(whenLabel(entry))} · ${purposeLabel(entry.purpose)}`;
-    if (entry.type === 'route') {
-      meta += ` · ${entry.distanceKm.toFixed(1)} км${entry.isEstimated ? ' (по прямой)' : ''}`;
-      if (entry.elevationGain !== null && entry.elevationGain !== undefined) meta += ` · +${Math.round(entry.elevationGain)}м`;
-    }
-    if (extras.length) meta += ` · ${extras.join(' · ')}`;
-    if (entry.trip) meta += ` · ${escapeHtml(entry.trip)}`;
-    if (entry.status === 'wishlist') meta += ` · план`;
-    if (entry.hidden && !READ_ONLY) meta += ` · 🔒`;
-    const heart = entry.type === 'city' ? entry.favorite : null;
-    parts.push(`<div class="entry-row" data-entry-id="${escapeAttr(entry.id)}">
-      <div class="dot ${entry.type}" style="background:${entry.color};"></div>
-      <div class="entry-main">
-        <div class="entry-name" style="${entry.status === 'wishlist' ? 'font-style:italic;' : ''}">${(entry.type === 'country' || entry.type === 'city') && countryFlag(entry.countryKey) ? countryFlag(entry.countryKey) + ' ' : ''}${escapeHtml(entry.name)}</div>
-        <div class="entry-meta mono">${meta}</div>
-      </div>
-      <div class="entry-actions">
-        ${!READ_ONLY && heart !== null ? `<button title="${heart ? 'Убрать из любимых' : 'В любимые'}" aria-label="${heart ? 'Убрать из любимых' : 'В любимые'}" data-act="fav" style="color:${heart ? '#d9704f' : 'var(--text-dim)'};">${heart ? '❤' : '♡'}</button>` : ''}
-        ${!READ_ONLY && entry.status === 'wishlist' ? `<button title="Отметить как посещённое" aria-label="Отметить как посещённое" data-act="visit" style="color:var(--amber);">✓</button>` : ''}
-        ${entry.photos && entry.photos.length ? `<a href="${escapeAttr(safeUrl(entry.photos[0]))}" target="_blank" rel="noopener" title="Фото${entry.photos.length > 1 ? ' (' + entry.photos.length + ')' : ''}" aria-label="Открыть фото">🖼</a>` : ''}
-        ${entry.instagramUrl ? `<a href="${escapeAttr(safeUrl(entry.instagramUrl))}" target="_blank" rel="noopener" title="Instagram" aria-label="Instagram">📷</a>` : ''}
-        ${entry.mapLinkUrl ? `<a href="${escapeAttr(safeUrl(entry.mapLinkUrl))}" target="_blank" rel="noopener" title="Место на карте" aria-label="Место на карте">🗺️</a>` : ''}
-        ${entry.docLinkUrl ? `<a href="${escapeAttr(safeUrl(entry.docLinkUrl))}" target="_blank" rel="noopener" title="Документ" aria-label="Документ">📄</a>` : ''}
-        ${
-          READ_ONLY
-            ? ''
-            : `<button title="Редактировать" aria-label="Редактировать" data-act="edit">✎</button>
-        <button title="Удалить" aria-label="Удалить" data-act="del">✕</button>`
-        }
-      </div>
-    </div>`);
-  });
-  container.innerHTML = parts.join('');
-  if (visible.length > shown.length) {
-    const rest = visible.length - shown.length;
-    container.insertAdjacentHTML(
-      'beforeend',
-      `<button class="cancel-edit" id="showMoreEntriesBtn" style="margin-top:10px;">Показать ещё ${Math.min(rest, LIST_PAGE)} из ${rest}</button>`
-    );
-    const more = document.getElementById('showMoreEntriesBtn');
-    if (more)
-      more.addEventListener('click', () => {
-        listLimit += LIST_PAGE;
-        renderList();
-      });
-  }
+  // Строки собираются одной строкой и вставляются за раз; клики обрабатываются
+  // делегированием на самом контейнере (ниже), а не обработчиками на каждой строке.
+  listVisible = visible;
+  // счётчик по годам одним проходом
+  listYearCounts = new Map();
+  visible.forEach(e => listYearCounts.set(e.year, (listYearCounts.get(e.year) || 0) + 1));
+  container.innerHTML = '';
+  appendListRows(container);
 }
 
 // один обработчик на весь список вместо четырёх на каждую строку

@@ -192,9 +192,9 @@ try {
       // Значки уменьшены: на общей карте прежние 30-46 px закрывали целые страны.
       // Светлый ореол тоже ужат с 3 до 2 px — он добавлялся к видимому размеру.
       const size = count < 10 ? 22 : count < 50 ? 27 : 32;
-      const fontSize = count < 10 ? 10 : count < 50 ? 11 : 11.5;
+      const cls = count < 10 ? 's' : count < 50 ? 'm' : 'l'; // размер и шрифт — в стилях (.cluster-icon)
       return L.divIcon({
-        html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#3F5240;border:1.5px solid #2B3B2E;display:flex;align-items:center;justify-content:center;color:#F3ECD8;font-family:'Twemoji Country Flags','Courier Prime',monospace;font-weight:700;font-size:${fontSize}px;box-shadow:0 0 0 2px rgba(231,223,199,0.7);">${count}</div>`,
+        html: `<div class="cluster-icon cluster-${cls}">${count}</div>`,
         className: '',
         iconSize: [size, size]
       });
@@ -239,7 +239,35 @@ const COUNTRY_LIST = Object.keys(COUNTRY_RU)
   .map(key => ({ key, ru: COUNTRY_RU[key] }))
   .sort((a, b) => a.ru.localeCompare(b.ru, 'ru'));
 
-const HOME_COUNTRY_KEY = 'Russia';
+// Дом (B6): город, его страна и часовой пояс — настройка на этом устройстве
+// (как тема; в файл данных не пишется и не синхронизируется). По умолчанию —
+// Москва. Задаётся в разделе «Дом» (src/app/36-home.js); после смены
+// приложение перезапускается, чтобы всё пересчиталось с новой точкой отсчёта.
+const HOME_SETTING_KEY = 'travel-map-home';
+const HOME_DEFAULT = { name: 'Москва, Россия', lat: 55.7558, lng: 37.6173, countryKey: 'Russia' };
+function readHomeSetting() {
+  try {
+    const v = JSON.parse(prefGet(HOME_SETTING_KEY) || 'null');
+    if (
+      v &&
+      typeof v.name === 'string' &&
+      v.name.trim() &&
+      isFinite(v.lat) &&
+      isFinite(v.lng) &&
+      Math.abs(v.lat) <= 90 &&
+      Math.abs(v.lng) <= 180 &&
+      COUNTRY_RU[v.countryKey]
+    )
+      return { name: v.name.trim().slice(0, 80), lat: +v.lat, lng: +v.lng, countryKey: v.countryKey };
+  } catch (e) {
+    /* испорченная настройка — дом по умолчанию */
+  }
+  return HOME_DEFAULT;
+}
+const HOME_SETTING = readHomeSetting();
+const HOME_COUNTRY_KEY = HOME_SETTING.countryKey;
+// Регионы России — справочник именно по России: от дома не зависят
+const RU_COUNTRY_KEY = 'Russia';
 const HOME_COLOR = '#6E7A8A';
 const COUNTRY_LIST_SELECTABLE = COUNTRY_LIST.filter(c => c.key !== HOME_COUNTRY_KEY);
 // ISO-код надёжнее сопоставления по переведённому названию: Nominatim иногда
@@ -346,7 +374,7 @@ function renderColorSwatches() {
   const dl = document.getElementById('colorPresets');
   if (dl) dl.innerHTML = [def, ...presets].map(c => `<option value="${c}"></option>`).join('');
 }
-const HOME_LOCATION = { name: 'Москва, Россия', lat: 55.7558, lng: 37.6173 };
+const HOME_LOCATION = { name: HOME_SETTING.name, lat: HOME_SETTING.lat, lng: HOME_SETTING.lng };
 const HOME_CITY_NAME = HOME_LOCATION.name.split(',')[0].trim();
 const CONTINENT_ORDER = ['Европа', 'Азия', 'Африка', 'Северная Америка', 'Южная Америка', 'Австралия и Океания', 'Антарктида'];
 const CONTINENT_TOTALS = (() => {
@@ -422,6 +450,8 @@ const MULTI_TZ = new Set([
   'New Zealand',
   'Greenland'
 ]);
+// пояс дома — по столице его страны (координаты в пояс без сети не перевести);
+// в странах с несколькими поясами разница считается от столицы
 const HOME_TZ = (COUNTRY_INFO[HOME_COUNTRY_KEY] || {}).tz || 'Europe/Moscow';
 const fmtDayMonth = d => d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', timeZone: 'UTC' });
 

@@ -14,7 +14,7 @@ function regionForPoint(lat, lng, countryKey) {
   const key = lat.toFixed(4) + ',' + lng.toFixed(4) + ',' + (countryKey || '');
   if (regionPointCache.has(key)) return regionPointCache.get(key);
   let r = regionAt(lat, lng);
-  if (!r && countryKey === HOME_COUNTRY_KEY) {
+  if (!r && countryKey === RU_COUNTRY_KEY) {
     let best = null,
       bestD = 50;
     const cosLat = Math.cos((lat * Math.PI) / 180);
@@ -61,7 +61,7 @@ function computeRuRegions(visibleVisited) {
   const visits = new Map(); // name -> число визитов (без самого дома — как в топе городов)
   const passed = new Set();
   uniqueCityVisits(getAllCityVisits(visibleVisited)).forEach(v => {
-    if (v.countryKey && v.countryKey !== HOME_COUNTRY_KEY) return;
+    if (v.countryKey && v.countryKey !== RU_COUNTRY_KEY) return;
     const r = regionForPoint(v.lat, v.lng, v.countryKey);
     if (!r) return;
     if (!visited.has(r.name)) visited.set(r.name, new Set());
@@ -128,7 +128,7 @@ function updateRuRegions(visibleVisited) {
         pass = ruRegionsState.passed.size;
       list.insertAdjacentHTML(
         'beforeend',
-        `<div class="hint" style="margin-top:6px;">Всего: ${total} из ${RU_REGION_TOTAL}${pass ? ` · проездом ещё ${pass}` : ''} · визиты домой (${escapeHtml(HOME_CITY_NAME)}) не считаются</div>`
+        `<div class="hint u-mt6">Всего: ${total} из ${RU_REGION_TOTAL}${pass ? ` · проездом ещё ${pass}` : ''} · визиты домой (${escapeHtml(HOME_CITY_NAME)}) не считаются</div>`
       );
     } else {
       list.innerHTML = `<div class="hint">Пока нет отметок внутри России</div>`;

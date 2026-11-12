@@ -17,6 +17,15 @@ test.beforeEach(({}, info) => {
 });
 
 async function openLarge(page) {
+  // длинные задачи главного потока — с самого начала загрузки
+  await page.addInitScript(() => {
+    window.__longTasks = [];
+    try {
+      new PerformanceObserver(l => l.getEntries().forEach(e => window.__longTasks.push(e.duration))).observe({ type: 'longtask', buffered: true });
+    } catch (e) {
+      /* браузер без longtask — замер пропустится */
+    }
+  });
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU });
   const r = await openApp(page, { entries: data.entries, races: data.races, tripMeta: data.tripMeta });
@@ -32,6 +41,15 @@ test('запуск и отклик на большом архиве (CPU ×4)', 
   const { errors } = await openLarge(page);
   // запуск меряется вместе с перехватом всех запросов тестом — поэтому бюджет щедрый
   budget('запуск до карты', await page.evaluate(() => performance.now()), 16000);
+  // Запуск по этапам (v2.77): до первой отрисовки — только данные и точки на
+  // карте; статистика с учётом фильтров и значок проверки данных досчитываются
+  // после (раньше всё шло одной задачей 0,8–1,2 с, теперь ~0,4–0,6 с).
+  await page.waitForFunction(() => document.documentElement.dataset.ready === '1');
+  const boot = await page.evaluate(() => window.__tmPerf);
+  expect(boot.filters['статистика'], 'статистика при запуске должна откладываться').toBeLessThan(5);
+  budget('работа запуска до первой отрисовки', boot.init['loadData'] + boot.init['после rebuildAll'], 1000);
+  // самая длинная задача целиком (вместе с разбором страницы) — для сведения, бюджет с запасом
+  budget('самая длинная задача при запуске', await page.evaluate(() => Math.max(0, ...window.__longTasks)), 2000);
   const m = await page.evaluate(async () => {
     const t = f => {
       const a = performance.now();

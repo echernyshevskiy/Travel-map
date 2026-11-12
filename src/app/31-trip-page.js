@@ -171,7 +171,7 @@ function setupTripMiniMaps(body, tripEntries) {
       try {
         buildTripMiniMap(holder, entry, tripCities);
       } catch (err) {
-        console.warn('мини-карта', err);
+        logError('мини-карта поездки', err);
       }
   };
   // карты создаём, только когда блок доходит до экрана: в длинной поездке их десятки
@@ -202,7 +202,7 @@ function renderTripPage() {
 
   const s = computeTripSummary(tripName);
   if (s.entries.length === 0) {
-    body.innerHTML = `<div class="hint" style="padding:20px;">Записи этой поездки не найдены.</div>`;
+    body.innerHTML = `<div class="hint u-pad20">Записи этой поездки не найдены.</div>`;
     return;
   }
   const meta = tripMeta[tripName] || {};

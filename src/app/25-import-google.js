@@ -170,7 +170,7 @@ function renderGtl() {
   const total = list.length;
   list = list.slice(0, gtlShown);
   if (!total) {
-    box.innerHTML = `<div class="hint" style="padding:0 20px 20px;">${gtlTrips.length ? 'Всё из этой выборки уже есть на карте.' : 'Поездок вне дома не нашлось.'}</div>`;
+    box.innerHTML = `<div class="hint u-pad-modal">${gtlTrips.length ? 'Всё из этой выборки уже есть на карте.' : 'Поездок вне дома не нашлось.'}</div>`;
     return;
   }
   box.innerHTML =
@@ -196,8 +196,8 @@ function renderGtl() {
         <input type="text" data-gtl-tripname="${ti}" value="${escapeAttr(t.tripName || gtlTripTitle(t))}"></label></div>`;
       })
       .join('') +
-    `<div style="padding:4px 20px 20px;">
-      ${total > gtlShown ? `<button class="cancel-edit" id="gtlMore" style="margin-top:0;">Показать ещё ${Math.min(30, total - gtlShown)} из ${total - gtlShown}</button>` : ''}
+    `<div class="u-pad-modal-top">
+      ${total > gtlShown ? `<button class="cancel-edit u-mt0" id="gtlMore">Показать ещё ${Math.min(30, total - gtlShown)} из ${total - gtlShown}</button>` : ''}
       <button class="cancel-edit" id="gtlApply" style="margin-top:8px;border-color:var(--amber-dim);color:var(--amber);">Добавить отмеченное</button>
       <div class="hint">Города добавятся с месяцем и годом визита, отмеченные «поездка» — объединятся в поездку с этим названием. Всё можно отменить.</div></div>`;
   box.querySelectorAll('[data-gtl-name]').forEach(inp =>
@@ -491,7 +491,7 @@ function renderEditWaypoints() {
       return `<div class="waypoint-row${i === editWaypointIndex ? ' wp-editing' : ''}">
       <span class="waypoint-index">${i + 1}</span>
       <span class="waypoint-name">${flag ? flag + ' ' : ''}${escapeHtml(name)}
-        <span style="display:block;font-family:'Twemoji Country Flags','Courier Prime',monospace;font-size:9px;color:var(--text-dim);">${coordText}</span>
+        <span style="display:block;font-family:'Twemoji Country Flags','Courier Prime',monospace;font-size:var(--fs-1);color:var(--text-dim);">${coordText}</span>
       </span>
       <div class="waypoint-actions">
         <button data-wp-edit="${i}" title="Заменить точку" aria-label="Заменить точку">✎</button>

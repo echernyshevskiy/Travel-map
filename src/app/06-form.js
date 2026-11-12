@@ -627,7 +627,7 @@ function handleMapClick(e) {
       return;
     }
     if (feature.properties.name === HOME_COUNTRY_KEY) {
-      toast('Россия — ваш домашний регион, отмечать её как посещённую не нужно. Отмечайте города и маршруты внутри неё.');
+      toast(`${COUNTRY_RU[HOME_COUNTRY_KEY] || HOME_COUNTRY_KEY} — ваш дом, отмечать её как посещённую не нужно. Отмечайте города и маршруты внутри неё.`);
       placingCountry = false;
       document.getElementById('placeCountryBtn').classList.remove('active');
       document.getElementById('map').style.cursor = '';
@@ -742,7 +742,7 @@ function openCountryPopup(key, latlng) {
   // справочник городов в файл нельзя — он весит мегабайты против 200 КБ границ.
   parts.push(`<div class="cpop-place" id="cpopPlace"><button class="cpop-place-btn" data-cpop-act="where">Что здесь?</button></div>`);
   if (cities.length) parts.push(`<div class="cpop-status">Городов отмечено: ${cities.length}</div>`);
-  if (isHome) parts.push(ruRegionPopupHtml(latlng));
+  if (key === RU_COUNTRY_KEY) parts.push(ruRegionPopupHtml(latlng));
 
   const info = buildCountryInfoHtml(key);
   if (info) parts.push(cpopSection('info', 'О стране', info));

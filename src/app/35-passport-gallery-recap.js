@@ -41,7 +41,7 @@ function buildBioSpreadHtml(allStamps) {
             )
             .join('')}</div>`
         : `<div style="display:flex;align-items:center;justify-content:center;padding:48px 0;">
-          <div class="pp-bio-oval" style="position:static;transform:rotate(-6deg);width:60px;height:38px;font-size:12px;">КП</div>
+          <div class="pp-bio-oval" style="position:static;transform:rotate(-6deg);width:60px;height:38px;font-size:var(--fs-2);">КП</div>
         </div>`
     }
     <div class="pp-page-num">— 1 —</div>
@@ -125,7 +125,7 @@ function renderPassport() {
   next.disabled = passportSpread >= totalSpreads - 1;
 
   if (passportSearchQuery && stamps.length === 0) {
-    book.innerHTML = `<div class="hint" style="padding:20px;">Ничего не найдено по запросу «${escapeHtml(passportSearchQuery)}».</div>`;
+    book.innerHTML = `<div class="hint u-pad20">Ничего не найдено по запросу «${escapeHtml(passportSearchQuery)}».</div>`;
     pos.textContent = '';
     prev.disabled = next.disabled = true;
   }
@@ -167,7 +167,7 @@ function renderGallery() {
       : `Записей с фото: ${items.length}` + (withCover ? ` · с обложкой: ${withCover}` : '') + (onlyAlbums ? ` · только ссылки на альбом: ${onlyAlbums}` : '');
 
   if (items.length === 0) {
-    body.innerHTML = `<div class="hint" style="padding:20px;">${
+    body.innerHTML = `<div class="hint u-pad20">${
       allEntries.some(e => (e.photos || []).length)
         ? 'Под текущие фильтры не попало ни одной записи с фото.'
         : 'Добавьте ссылку на фото в любую отметку — она появится здесь.'

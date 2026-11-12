@@ -144,7 +144,7 @@ function renderMilestones() {
       )
       .join('') +
     (pending.length
-      ? `<div class="section-title" style="margin-top:18px;">Впереди</div>` +
+      ? `<div class="section-title u-mt18">Впереди</div>` +
         pending
           .map(
             p => `<div class="milestone pending">

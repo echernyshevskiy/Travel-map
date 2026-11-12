@@ -413,7 +413,7 @@ function renderCollectionDetail(col, idx) {
       .map(([k, list]) => ({ k, name: k ? COUNTRY_RU[k] || k : 'Открытое море', list, got: list.filter(o => o.s.got).length }))
       .sort((a, b) => (b.got > 0) - (a.got > 0) || (a.k === HOME_COUNTRY_KEY ? -1 : b.k === HOME_COUNTRY_KEY ? 1 : 0) || a.name.localeCompare(b.name, 'ru'));
     html +=
-      `<div class="hint" style="margin:0 0 8px;">Объект засчитывается, если рядом есть ваша отметка, остановка или трек. Список и описания — на <a href="https://whc.unesco.org/ru/list/" target="_blank" rel="noopener" style="color:inherit;">whc.unesco.org</a>.</div>
+      `<div class="hint" style="margin:0 0 8px;">Объект засчитывается, если рядом есть ваша отметка, остановка или трек. Список и описания — на <a class="u-inherit-color" href="https://whc.unesco.org/ru/list/" target="_blank" rel="noopener">whc.unesco.org</a>.</div>
       <div class="search-wrap" style="margin-bottom:8px;"><input type="text" id="collSearch" placeholder="Найти объект или страну…" autocomplete="off"></div>
       <div id="collSearchRes"></div><div id="collGroups">` +
       groups

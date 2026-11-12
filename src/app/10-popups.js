@@ -79,9 +79,9 @@ function buildPopup(entry) {
   const flag = entry.type === 'country' ? countryFlag(entry.countryKey) : entry.type === 'city' ? countryFlag(entry.countryKey) : '';
   const flagPrefix = flag ? `${flag} ` : '';
   let html = `<div style="font-family:'Twemoji Country Flags','EB Garamond',serif;min-width:170px;">
-    <b>${flagPrefix}${heart}${escapeHtml(entry.name)}</b>${wishTag}<br><span style="color:var(--text-dim);">${escapeHtml(whenLabel(entry))} · ${purposeLabel(entry.purpose)}</span>`;
+    <b>${flagPrefix}${heart}${escapeHtml(entry.name)}</b>${wishTag}<br><span class="u-dim">${escapeHtml(whenLabel(entry))} · ${purposeLabel(entry.purpose)}</span>`;
   if (entry.type === 'city' && entry.countryKey && flag)
-    html += `<br><span style="color:var(--text-dim);">${flag} ${escapeHtml(COUNTRY_RU[entry.countryKey] || entry.countryKey)}</span>`;
+    html += `<br><span class="u-dim">${flag} ${escapeHtml(COUNTRY_RU[entry.countryKey] || entry.countryKey)}</span>`;
   if (entry.type === 'country') html += buildCountryInfoHtml(entry.countryKey) + buildCountryTravelHtml(entry.countryKey);
   if (entry.trip) html += `<br><span style="color:var(--amber);font-style:italic;">${escapeHtml(entry.trip)}</span>`;
   const extras = [
@@ -90,13 +90,13 @@ function buildPopup(entry) {
     communityLabel(entry.community),
     entry.type === 'route' ? activityLabel(entry.activity) : null
   ].filter(Boolean);
-  if (extras.length) html += `<br><span style="color:var(--text-dim);">${extras.join(' · ')}</span>`;
+  if (extras.length) html += `<br><span class="u-dim">${extras.join(' · ')}</span>`;
   if (entry.type === 'route') {
     html += `<br>${entry.distanceKm.toFixed(1)} км${entry.isEstimated ? ' <span style="color:var(--text-dim);font-style:italic;">(по прямой)</span>' : ''}`;
     const statsLine = routeStatsLine(entry);
-    if (statsLine) html += `<br><span style="color:var(--text-dim);">${statsLine}</span>`;
+    if (statsLine) html += `<br><span class="u-dim">${statsLine}</span>`;
     if (entry.waypointNames && entry.waypointNames.length)
-      html += `<br><span style="color:var(--text-dim);">через: ${entry.waypointNames.map(n => escapeHtml(cleanPlaceName(n))).join(' → ')}</span>`;
+      html += `<br><span class="u-dim">через: ${entry.waypointNames.map(n => escapeHtml(cleanPlaceName(n))).join(' → ')}</span>`;
     html += buildSparkline(entry.profile);
   }
   if (entry.notes) html += `<br><span style="font-style:italic;">${escapeHtml(entry.notes)}</span>`;
@@ -115,7 +115,7 @@ function buildPopup(entry) {
     html += `<br>${albums.map(u => `<a href="${escapeAttr(safeUrl(u))}" target="_blank" rel="noopener">🗂 ${escapeHtml(shortLinkLabel(u))}</a>`).join(' · ')}`;
   }
   if (photos.length > 1 && cover) {
-    html += `<div style="font-family:'Twemoji Country Flags','Courier Prime',monospace;font-size:9px;color:var(--text-dim);margin-top:3px;">фото: ${photos.length}</div>`;
+    html += `<div style="font-family:'Twemoji Country Flags','Courier Prime',monospace;font-size:var(--fs-1);color:var(--text-dim);margin-top:3px;">фото: ${photos.length}</div>`;
   }
   if (entry.instagramUrl) {
     if (cover) {
@@ -134,10 +134,10 @@ function buildPopup(entry) {
   }
   html += `<button type="button" class="popup-inlist-btn" data-popup-act="inlist" data-id="${escapeAttr(entry.id)}">≡ Показать в списке</button>`;
   if (!READ_ONLY && entry.status === 'wishlist') {
-    html += `<button data-popup-act="upgrade" data-id="${escapeAttr(entry.id)}" style="margin-top:9px;width:100%;padding:6px 8px;background:var(--amber);border:none;color:var(--on-accent);border-radius:3px;cursor:pointer;font-size:12px;font-family:'Twemoji Country Flags','EB Garamond',serif;">✓ Отметить как посещённое</button>`;
+    html += `<button data-popup-act="upgrade" data-id="${escapeAttr(entry.id)}" style="margin-top:9px;width:100%;padding:6px 8px;background:var(--amber);border:none;color:var(--on-accent);border-radius:3px;cursor:pointer;font-size:var(--fs-2);font-family:'Twemoji Country Flags','EB Garamond',serif;">✓ Отметить как посещённое</button>`;
   }
   if (!READ_ONLY) {
-    html += `<button data-popup-act="delete" data-id="${escapeAttr(entry.id)}" style="margin-top:9px;width:100%;padding:6px 8px;background:var(--danger);border:none;color:var(--on-accent);border-radius:3px;cursor:pointer;font-size:12px;font-family:'Twemoji Country Flags','EB Garamond',serif;">Удалить отметку</button>`;
+    html += `<button data-popup-act="delete" data-id="${escapeAttr(entry.id)}" style="margin-top:9px;width:100%;padding:6px 8px;background:var(--danger);border:none;color:var(--on-accent);border-radius:3px;cursor:pointer;font-size:var(--fs-2);font-family:'Twemoji Country Flags','EB Garamond',serif;">Удалить отметку</button>`;
   }
   html += `</div>`;
   return html;

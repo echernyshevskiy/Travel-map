@@ -69,7 +69,7 @@ function renderUpcoming() {
             READ_ONLY
               ? ''
               : `<td class="race-actions">
-            <button data-race-finish="${escapeAttr(r.id)}" title="Вписать результат" aria-label="Вписать результат" style="color:var(--amber);">✓</button>
+            <button style="color:var(--amber);" data-race-finish="${escapeAttr(r.id)}" title="Вписать результат" aria-label="Вписать результат">✓</button>
             <button data-race-edit="${escapeAttr(r.id)}" title="Изменить" aria-label="Изменить">✎</button>
             <button data-race-del="${escapeAttr(r.id)}" title="Удалить" aria-label="Удалить">✕</button>
           </td>`
@@ -160,7 +160,7 @@ function renderRaces() {
           <div><label>Всего участников</label><input type="number" id="raceTotal" value="${r && r.participants ? r.participants : ''}" placeholder="4120"></div>`
           }
         </div>
-        ${asUpcoming ? '<div class="hint" style="margin-top:8px;">Результат впишете после старта — тогда он переедет в официальные.</div>' : ''}
+        ${asUpcoming ? '<div class="hint u-mt8">Результат впишете после старта — тогда он переедет в официальные.</div>' : ''}
         <div class="race-form-actions">
           <button class="cancel-edit" id="raceSaveBtn" style="margin-top:0;width:auto;padding:6px 14px;border-color:var(--amber-dim);color:var(--amber);">Сохранить</button>
           <button class="cancel-edit" id="raceCancelBtn" style="margin-top:0;width:auto;padding:6px 14px;">Отмена</button>

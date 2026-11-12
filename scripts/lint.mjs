@@ -11,6 +11,7 @@ import globals from 'globals';
 import fs from 'node:fs';
 import path from 'node:path';
 import escapedHtml from './eslint-html-rule.mjs';
+import { checkStyles } from './style-check.mjs';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const APP = path.join(ROOT, 'src/app');
@@ -80,6 +81,9 @@ for (const r of await eslint.lintFiles(['src/lib/*.js'])) {
     results.push({ file: path.relative(ROOT, r.filePath), line: m.line, col: m.column, sev: m.severity, msg: m.message, rule: m.ruleId })
   );
 }
+
+// оформление: шкала размеров текста (scripts/style-check.mjs)
+results.push(...checkStyles(ROOT));
 
 results.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
 for (const r of results) console.log(`${r.sev === 2 ? 'ошибка' : 'внимание'}  ${r.file}:${r.line}:${r.col}  ${r.msg}  (${r.rule})`);
