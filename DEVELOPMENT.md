@@ -144,12 +144,20 @@ npx playwright install chromium && npm test
   После смены приложение перезапускается. Регионы России от дома не зависят (`RU_COUNTRY_KEY`).
   У друзей настройки нет — там дом по умолчанию.
 
+## Подложка «Подробная» (векторная)
+
+- **Код:** `src/app/01a-vector-map.js` (включение, тема, запасной путь, «Карта без сети») и `src/lib/vector-map.js` (русские подписи, ключ плитки, план скачивания; модульные тесты).
+- **Источник:** OpenFreeMap — `https://tiles.openfreemap.org`, разрешён в политике безопасности (`scripts/csp.mjs`). Стиль берётся с сервера («Liberty», в тёмной теме — «Dark»), подписи с названиями переписываются на `name:ru` → `name:latin` → `name`.
+- **Библиотека:** MapLibre GL и мост `maplibre-gl-leaflet` копируются при сборке из `node_modules` в `vendor/maplibre-gl-<версия>/` и `vendor/leaflet-maplibre-gl-<версия>.js` (`vite.config.mjs`) и грузятся только при выборе подложки. Обновили пакет — поменяйте версию в именах в `vite.config.mjs` и `01a-vector-map.js`.
+- **Без сети:** сервис-воркер кладёт плитки в `travel-map-vector-<вариант>-v1` (до 1500, вытесняются давно не открытые). Скачанные заранее районы лежат в `travel-map-vector-saved-v1` и не вытесняются. Номер недельной сборки карты из адреса плитки в ключе кэша убирается (`vectorTileKey` и его копия в `sw.js`).
+- **Тесты:** настоящий сервис из тестов недоступен. `tests/fixtures/openfreemap.js` подставляет стиль, описание источника и настоящие векторные плитки (собираются `geojson-vt` + `vt-pbf`). WebGL в headless Chromium есть (программный).
+
 ## Локальный прогон тестов
 
 Как в CI: `npm run build`, затем `node scripts/build-friends.mjs --data tests/fixtures/friends-sample.json`
 (версия для друзей на тестовых данных — иначе тесты версии для друзей откроют старую сборку),
 затем `npx playwright test`. Получившиеся `friends/*` не коммитить: их собирает GitHub.
-Если браузер Playwright другой версии, путь к нему можно передать в `CHROMIUM_PATH`.
+Если браузер Playwright другой версии, путь к нему можно передать в `CHROMIUM_PATH`. Запросы сервис-воркера Playwright перехватывает только с флагом `PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS=1` — его ставит `playwright.config.js`.
 
 ## Окно для отладки и тестов
 

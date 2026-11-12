@@ -6224,3 +6224,10 @@ body.stabs.stab-list #sidebar > #entryList {
 .home-editor {
   margin-top: 8px;
 }
+
+/* «Карта без сети» */
+.offline-map-status {
+  font-size: var(--fs-3);
+  color: var(--text-dim);
+  margin: 6px 0 8px;
+}

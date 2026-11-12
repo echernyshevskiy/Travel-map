@@ -17,6 +17,22 @@ const BORDER_CACHE_NAME = `travel-map-borders-${APP_VARIANT}-v1`;
 // свои файлы рядом с приложением: шрифты (fonts/, с ?v=хэш), модуль Excel
 // (vendor/), иконки и манифест — чтобы и без сети всё выглядело и работало как обычно
 const ASSET_CACHE_NAME = `travel-map-assets-${APP_VARIANT}-v1`;
+// «Подробная» карта (OpenFreeMap, векторная): плитки по мере просмотра — в
+// своё хранилище с тем же вытеснением давно не открытых; скачанные заранее
+// районы — в отдельное, которое не вытесняется (его пишет сама страница,
+// раздел «Карта без сети»). Имя скачанного — общее для обеих версий: скачали
+// район в основной — он есть и у версии для друзей на этом устройстве.
+const VECTOR_CACHE_NAME = `travel-map-vector-${APP_VARIANT}-v1`;
+const VECTOR_SAVED_CACHE_NAME = 'travel-map-vector-saved-v1';
+const MAX_CACHED_VECTOR = 1500;
+// Плитки лежат по адресу с номером недельной сборки карты: в кэше — без него,
+// иначе после обновления карты сохранённое не находилось бы без сети
+// (та же функция — vectorTileKey в src/lib/vector-map.js)
+const VECTOR_TILE_RE = /^(https:\/\/tiles\.openfreemap\.org\/planet\/)[^/]+(\/\d+\/\d+\/\d+\.pbf)(?:[?#].*)?$/;
+const vectorKey = url => {
+  const m = url.match(VECTOR_TILE_RE);
+  return m ? m[1] + '_' + m[2] : url;
+};
 // ~2000 тайлов ≈ 30 МБ: хватает на домашний район и несколько поездок на всех
 // масштабах, и это малая доля того, что браузер отдаёт сайту
 const MAX_CACHED_TILES = 2000;
@@ -40,6 +56,7 @@ function scheduleTileTrim() {
     if (trimRunning) return scheduleTileTrim();
     trimRunning = true;
     try {
+      await trimCache(VECTOR_CACHE_NAME, MAX_CACHED_VECTOR);
       const cache = await caches.open(TILE_CACHE_NAME);
       const keys = await cache.keys();
       const excess = keys.length - MAX_CACHED_TILES;
@@ -51,6 +68,46 @@ function scheduleTileTrim() {
       trimRunning = false;
     }
   }, 4000);
+}
+
+async function trimCache(name, max) {
+  const cache = await caches.open(name);
+  const keys = await cache.keys();
+  for (let i = 0; i < keys.length - max; i++) await cache.delete(keys[i]);
+}
+
+// «Подробная» карта. Стиль и описание плиток меняются раз в неделю — сеть в
+// приоритете, без сети — сохранённое. Плитки, шрифты подписей, значки —
+// сохранённое в приоритете (скачанный район, затем просмотренное).
+async function vectorResponse(request) {
+  const url = request.url;
+  const key = vectorKey(url);
+  const saved = await caches.open(VECTOR_SAVED_CACHE_NAME);
+  const cache = await caches.open(VECTOR_CACHE_NAME);
+  const fresh = /\/styles\/|\/planet\/?(\?|$)/.test(url);
+  const fromCache = async () => (await saved.match(key)) || (await cache.match(key));
+  if (!fresh) {
+    const hit = await fromCache();
+    if (hit) {
+      if (!touchedTiles.has(key)) {
+        touchedTiles.add(key);
+        if (!(await saved.match(key))) cache.put(key, hit.clone()).catch(() => {});
+      }
+      return hit;
+    }
+  }
+  try {
+    const response = await fetch(request);
+    if (response && response.ok) {
+      touchedTiles.add(key);
+      cache.put(key, response.clone()).then(scheduleTileTrim, () => {});
+    }
+    return response;
+  } catch (e) {
+    const hit = await fromCache();
+    if (hit) return hit;
+    throw e;
+  }
 }
 
 // заранее — то, что может понадобиться без сети впервые: иконки и модуль Excel
@@ -90,6 +147,7 @@ self.addEventListener('activate', event => {
               n.includes(`-${APP_VARIANT}-`) &&
               n !== SHELL_CACHE_NAME &&
               n !== TILE_CACHE_NAME &&
+              n !== VECTOR_CACHE_NAME &&
               n !== BORDER_CACHE_NAME &&
               n !== ASSET_CACHE_NAME
           )
@@ -103,6 +161,11 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   const url = event.request.url;
+
+  if (url.startsWith('https://tiles.openfreemap.org/')) {
+    event.respondWith(vectorResponse(event.request));
+    return;
+  }
 
   if (isTileRequest(url)) {
     // Тайлы: сохранённый отдаём сразу и в сеть за ним не ходим. Раньше каждый

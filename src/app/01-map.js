@@ -1,4 +1,6 @@
-let map = L.map('map', { worldCopyJump: true });
+// предел масштаба — у самой карты, а не по подложке: подложка при запуске
+// может быть ещё не добавлена (группировке меток он нужен сразу)
+let map = L.map('map', { worldCopyJump: true, maxZoom: 18 });
 const WORLD_VIEW_BOUNDS = [
   [-58, -170],
   [78, 170]
@@ -58,11 +60,15 @@ const streetLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png'
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 });
 const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-  maxZoom: 17,
+  maxZoom: 18,
+  maxNativeZoom: 17, // у OpenTopoMap плитки до 17-го; 18-й — увеличенный 17-й
   referrerPolicy: TILE_REFERRER,
   attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)'
 });
-streetLayer.addTo(map);
+// при запуске сразу ставим ту подложку, что выбрана (раньше всегда сначала
+// грузилась обычная — лишние запросы к OSM, если включены «Подробная» или рельеф)
+const SAVED_BASEMAP = prefGet('travel-map-basemap');
+if (!SAVED_BASEMAP || SAVED_BASEMAP === 'street') streetLayer.addTo(map);
 
 // Подложка грузится с внешних серверов, а они в некоторых странах блокируются —
 // пользователь видит вместо карты плитки с ошибкой. Но вся геометрия стран уже
@@ -70,7 +76,7 @@ streetLayer.addTo(map);
 // бумажном фоне. Это не запасной вариант «на крайний случай», а полноценный
 // режим, работающий вообще без интернета.
 let plainBaseLayer = null;
-let basemapMode = 'street'; // street | topo | plain
+let basemapMode = 'street'; // street | vector | topo | plain
 
 function buildPlainBaseLayer() {
   if (plainBaseLayer) return plainBaseLayer;
@@ -81,13 +87,35 @@ function buildPlainBaseLayer() {
   return plainBaseLayer;
 }
 
+// подписи кнопки подложки: что включено сейчас
+const BASEMAP_LABELS = {
+  street: ['🗺 Обычная', 'Обычная карта OpenStreetMap — нажмите, чтобы переключить'],
+  vector: ['🧭 Подробная', 'Подробная карта с русскими подписями (OpenFreeMap) — нажмите, чтобы переключить'],
+  topo: ['🏔 Рельеф', 'Рельефная карта — нажмите, чтобы переключить'],
+  plain: ['📄 Контуры', 'Карта без подложки — работает без интернета. Нажмите, чтобы переключить']
+};
 function setBasemap(mode) {
+  if (!BASEMAP_LABELS[mode]) mode = 'street';
   [streetLayer, topoLayer].forEach(l => {
     if (map.hasLayer(l)) map.removeLayer(l);
   });
   if (plainBaseLayer && map.hasLayer(plainBaseLayer)) map.removeLayer(plainBaseLayer);
+  hideVectorBasemap();
   basemapMode = mode;
-  if (mode === 'plain') {
+  if (mode === 'vector') {
+    document.getElementById('map').classList.remove('plain-base');
+    showVectorBasemap().catch(err => {
+      logError('подробная карта', err);
+      if (basemapMode !== 'vector') return;
+      // без WebGL или без сети (а стиль ещё не сохранён) — обычная подложка или контуры
+      setBasemap(navigator.onLine === false ? 'plain' : 'street');
+      toast(
+        /WebGL/.test(String(err && err.message))
+          ? 'Подробная карта не поддерживается этим браузером (нет WebGL) — включена обычная'
+          : 'Подробная карта сейчас недоступна — включена ' + (basemapMode === 'plain' ? 'карта контуров' : 'обычная')
+      );
+    });
+  } else if (mode === 'plain') {
     buildPlainBaseLayer().addTo(map);
     if (plainBaseLayer.bringToBack) plainBaseLayer.bringToBack();
     document.getElementById('map').classList.add('plain-base');
@@ -98,9 +126,11 @@ function setBasemap(mode) {
   const btn = document.getElementById('topoToggleBtn');
   if (btn) {
     btn.classList.toggle('active', mode !== 'street');
-    btn.textContent = mode === 'plain' ? '📄 Контуры' : mode === 'topo' ? '🏔 Рельеф' : '🏔 Рельеф';
-    btn.title = mode === 'plain' ? 'Карта без подложки — работает без интернета' : mode === 'topo' ? 'Рельефная карта' : 'Переключить на рельефную карту';
+    btn.textContent = BASEMAP_LABELS[mode][0];
+    btn.title = BASEMAP_LABELS[mode][1];
+    btn.setAttribute('aria-label', BASEMAP_LABELS[mode][1]);
   }
+  renderOfflineMapSection();
   prefSet('travel-map-basemap', mode);
   try {
     if (mode !== 'plain') mapLabelLayer.clearLayers();
@@ -146,8 +176,10 @@ setTimeout(() => {
 window.addEventListener('resize', () => map.invalidateSize());
 
 document.getElementById('topoToggleBtn').addEventListener('click', () => {
-  // по кругу: обычная → рельеф → контуры без подложки
-  const next = basemapMode === 'street' ? 'topo' : basemapMode === 'topo' ? 'plain' : 'street';
+  // по кругу: обычная → подробная → рельеф → контуры без подложки
+  // (подробная — только на сайте: из файла с диска её библиотеку не загрузить)
+  const order = SERVED_OVER_HTTP ? ['street', 'vector', 'topo', 'plain'] : ['street', 'topo', 'plain'];
+  const next = order[(order.indexOf(basemapMode) + 1) % order.length];
   tileErrorCount = 0;
   tileFallbackDone = false;
   setBasemap(next);
