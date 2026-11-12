@@ -12,7 +12,10 @@ test('в собранных файлах есть CSP: скрипты тольк
     const csp = m[1];
     expect(csp).not.toMatch(/script-src[^;]*'unsafe-inline'/);
     expect(csp).not.toMatch(/'unsafe-eval'/);
-    expect(csp).toMatch(/connect-src 'self' https:\/\/nominatim\.openstreetmap\.org https:\/\/router\.project-osrm\.org https:\/\/api\.github\.com;/);
+    // v2.79: + OpenFreeMap для подложки «Подробная» (согласовано с владельцем)
+    expect(csp).toMatch(
+      /connect-src 'self' https:\/\/nominatim\.openstreetmap\.org https:\/\/router\.project-osrm\.org https:\/\/api\.github\.com https:\/\/tiles\.openfreemap\.org;/
+    );
     // CSP стоит до первого скрипта
     expect(html.indexOf('Content-Security-Policy')).toBeLessThan(html.indexOf('<script'));
   }
