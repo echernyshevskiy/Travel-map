@@ -17,13 +17,16 @@ function downloadBackup(suffix, isAuto) {
   if (!isAuto) markBackupDone();
 }
 
+// есть ли что сохранять: пустой список мест ещё не значит пустой архив (старты, коллекции)
+const hasAnyData = () => allEntries.length > 0 || races.length > 0 || Object.keys(tripMeta || {}).length > 0;
+
 document.getElementById('exportBtn').addEventListener('click', () => {
-  if (allEntries.length === 0) {
+  if (!hasAnyData()) {
     toast('Пока нечего экспортировать');
     return;
   }
   downloadBackup();
-  toast(`Сохранено: ${allEntries.length} записей`);
+  toast(`Сохранено: ${allEntries.length} записей${races.length ? `, стартов: ${races.length}` : ''}`);
 });
 
 function entriesToRows() {
@@ -61,7 +64,10 @@ function entriesToRows() {
 function toCSV(rows) {
   const headers = Object.keys(rows[0]);
   const esc = v => {
-    const s = String(v === undefined || v === null ? '' : v);
+    let s = String(v === undefined || v === null ? '' : v);
+    // текст, начинающийся с = + - @ (или табуляции), Excel примет за формулу —
+    // такой текст помечаем апострофом; числа остаются числами
+    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = "'" + s;
     return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   };
   const lines = [headers.map(esc).join(',')];
@@ -194,21 +200,24 @@ document.getElementById('importInput').addEventListener('change', e => {
       }
       // приводим поля к безопасному виду ещё до сохранения, а не только при отрисовке
       valid.forEach(migrateEntry);
-      const replace = confirm(
-        `Найдено записей: ${valid.length}.` +
-          (skipped ? `\nПропущено повреждённых: ${skipped}.` : '') +
-          `\n\n` +
-          `ОК — заменить все текущие отметки импортированными.\n` +
-          `Отмена — добавить к уже существующим (без дублей).\n\n` +
-          `Замена необратима, отменить её нельзя. Перед заменой автоматически скачается копия текущих данных.`
-      );
+      // Раньше был системный confirm, где «Отмена» означала «добавить» — отказаться
+      // от загрузки было нельзя. Теперь три явных действия
+      const have = new Set(allEntries.map(x => x.id));
+      const fresh = valid.filter(x => !have.has(x.id)).length;
+      const mode = await askImportMode({ total: valid.length, fresh, skipped, current: allEntries.length });
+      if (!mode) {
+        toast('Загрузка отменена — данные не изменились');
+        document.getElementById('importInput').value = '';
+        return;
+      }
+      const replace = mode === 'replace';
       const importedMeta = parsed && typeof parsed.tripMeta === 'object' && parsed.tripMeta ? parsed.tripMeta : null;
       if (replace) {
         // единственное необратимое действие во всём приложении: отмены для него нет,
         // поэтому перед заменой сохраняем текущее состояние отдельным файлом
-        if (allEntries.length > 0) {
+        if (hasAnyData()) {
           try {
-            downloadBackup('-до-импорта', true);
+            downloadBackup('-before-import', true);
             toast('Скачана копия текущих данных перед заменой');
           } catch (err) {
             logError('копия перед импортом', err);
@@ -240,3 +249,36 @@ document.getElementById('importInput').addEventListener('change', e => {
   };
   reader.readAsText(file);
 });
+
+// Окно выбора: добавить / заменить / отмена. Возвращает 'add', 'replace' или null.
+function askImportMode({ total, fresh, skipped, current }) {
+  const modal = document.getElementById('importModeModal');
+  const n = k => {
+    const t = k % 10,
+      h = k % 100;
+    return `${k} ${h >= 11 && h <= 14 ? 'записей' : t === 1 ? 'запись' : t >= 2 && t <= 4 ? 'записи' : 'записей'}`;
+  };
+  document.getElementById('importModeSummary').textContent =
+    `В файле ${n(total)}: новых — ${fresh}, уже есть у вас — ${total - fresh}.` +
+    (skipped ? ` Пропущено повреждённых: ${skipped}.` : '') +
+    ` Сейчас у вас ${n(current)}.`;
+  document.getElementById('importModeAdd').textContent = fresh ? `Добавить к своим (${fresh})` : 'Добавить к своим (нового нет)';
+  return new Promise(resolve => {
+    const ids = ['importModeAdd', 'importModeReplace', 'importModeCancel', 'closeImportModeModal'];
+    const finish = v => {
+      ids.forEach(id => (document.getElementById(id).onclick = null));
+      modal.onclick = null;
+      modal.style.display = 'none';
+      resolve(v);
+    };
+    document.getElementById('importModeAdd').onclick = () => finish('add');
+    document.getElementById('importModeReplace').onclick = () => finish('replace');
+    document.getElementById('importModeCancel').onclick = () => finish(null);
+    // крестик, щелчок по фону и системная «Назад» (она нажимает крестик) — отмена
+    document.getElementById('closeImportModeModal').onclick = () => finish(null);
+    modal.onclick = e => {
+      if (e.target === modal) finish(null);
+    };
+    modal.style.display = 'flex';
+  });
+}

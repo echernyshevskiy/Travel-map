@@ -98,7 +98,11 @@ const entries = all
     removedLinks += photos.length - out.photos.length;
     return out;
   });
-if (entries.length === 0) fail('после фильтрации не осталось записей — версию для друзей не перезаписываю');
+// Пустой файл данных — скорее сбой (не тот файл, недочитанный ответ): прежнюю
+// версию не трогаем. А если записи есть, но все скрыты от друзей, — это решение
+// владельца: публикуем пустую карту, иначе старая версия так и висела бы на сайте
+if (all.length === 0) fail('в данных нет ни одной записи — версию для друзей не перезаписываю');
+if (entries.length === 0) console.log('Все записи скрыты от друзей — публикуется пустая карта');
 const trips = new Set(entries.map(e => e.trip).filter(Boolean));
 const tripMeta = {};
 const keptPhotos = new Set(entries.flatMap(e => e.photos));

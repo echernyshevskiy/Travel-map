@@ -15,11 +15,13 @@ function gpxEscape(s) {
   );
 }
 
-// дата нужна не всем читателям, но с ней треки раскладываются по времени
+// Время в GPX — точная отметка. Ставим его, только если известен день
+// (dateFrom); полдень по UTC — чтобы день не съехал из-за часового пояса.
+// Если известны лишь месяц и год, времени нет: раньше здесь выдумывалось
+// «1-е число, 12:00», и читатели принимали это за настоящую дату.
 function gpxTime(entry) {
-  if (!entry.year) return null;
-  const m = String(Math.min(Math.max(entry.month || 1, 1), 12)).padStart(2, '0');
-  return `${entry.year}-${m}-01T12:00:00Z`;
+  const d = typeof entry.dateFrom === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(entry.dateFrom) ? entry.dateFrom : null;
+  return d ? `${d}T12:00:00Z` : null;
 }
 
 function buildGpx() {

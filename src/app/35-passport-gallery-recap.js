@@ -497,7 +497,7 @@ document.getElementById('recapDownload').addEventListener('click', () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `год-${year}.png`;
+    a.download = `travel-map-year-${year}.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

@@ -508,7 +508,7 @@ async function connectSync() {
     // первая встреча двух непустых наборов — на всякий случай сохраняем свой
     if (remote.data && remote.data.entries.length && allEntries.length) {
       try {
-        downloadBackup('-до-синхронизации', true);
+        downloadBackup('-before-sync', true);
       } catch (e) {
         logError('копия перед первой синхронизацией', e);
       }

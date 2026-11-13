@@ -83,8 +83,8 @@ test('скрипт собирает версию для друзей без ли
     dataFile
   ]).toString();
   expect(again).toContain('Без изменений');
-  // пустые данные не затирают версию для друзей
-  fs.writeFileSync(dataFile, JSON.stringify({ entries: [{ ...entries[0], hidden: true }] }));
+  // пустые данные (скорее всего, сбой) не затирают версию для друзей
+  fs.writeFileSync(dataFile, JSON.stringify({ entries: [] }));
   expect(() =>
     execFileSync('node', [path.join(ROOT, 'scripts', 'build-friends.mjs'), '--src', path.join(ROOT, 'index.html'), '--out', out, '--data', dataFile], {
       stdio: 'pipe'
@@ -100,5 +100,38 @@ test('скрипт собирает версию для друзей без ли
   await page.waitForFunction(() => typeof allEntries !== 'undefined' && allEntries.length > 0);
   expect(await page.evaluate(() => allEntries.length)).toBe(entries.length - 1);
   await expect(page.locator('#legendVersion')).toContainText('данные от 1 октября 2026');
+  expect(errors).toEqual([]);
+});
+
+test('все записи скрыты — публикуется пустая карта, прежние данные не остаются', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'friends-'));
+  const dataFile = path.join(tmp, 'data.json');
+  const out = path.join(tmp, 'friends', 'index.html');
+  const build = () =>
+    execFileSync('node', [
+      path.join(ROOT, 'scripts', 'build-friends.mjs'),
+      '--src',
+      path.join(ROOT, 'index.html'),
+      '--out',
+      out,
+      '--data',
+      dataFile
+    ]).toString();
+  fs.writeFileSync(dataFile, JSON.stringify({ entries: sampleEntries() }));
+  build();
+  expect(readBaked(fs.readFileSync(out, 'utf8')).entries.length).toBeGreaterThan(0);
+  fs.writeFileSync(dataFile, JSON.stringify({ entries: sampleEntries().map(e => ({ ...e, hidden: true })) }));
+  expect(build()).toContain('Все записи скрыты');
+  const html = fs.readFileSync(out, 'utf8');
+  expect(readBaked(html).entries).toEqual([]);
+  expect(html).not.toContain('Кавказ 2023');
+  // пустая страница открывается без ошибок
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.route('**/*', r => (r.request().url().startsWith('https://friends.test/') ? r.fulfill({ path: out, contentType: 'text/html' }) : r.abort()));
+  await page.goto('https://friends.test/');
+  await page.waitForFunction(() => document.documentElement.dataset.ready === '1');
+  expect(await page.evaluate(() => allEntries.length)).toBe(0);
   expect(errors).toEqual([]);
 });
