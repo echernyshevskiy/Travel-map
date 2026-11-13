@@ -73,6 +73,15 @@ describe('normalizeEntryShape', () => {
         [1, 120]
       ]
     };
-    expect(normalizeEntryShape(g)).toBe(false);
+    // старые пары [расстояние, высота] переводятся в высоты
+    expect(normalizeEntryShape(g)).toBe(true);
+    expect(g.profile).toEqual([100, 120]);
+    // профиль, который пишет импорт GPX, не трогается (раньше удалялся при каждой загрузке)
+    const h = { type: 'route', name: 'r', profile: [100, 120, 110] };
+    expect(normalizeEntryShape(h)).toBe(false);
+    expect(h.profile).toEqual([100, 120, 110]);
+    const bad = { type: 'route', name: 'r', profile: [100, 'x'] };
+    normalizeEntryShape(bad);
+    expect('profile' in bad).toBe(false);
   });
 });

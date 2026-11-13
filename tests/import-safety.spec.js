@@ -31,8 +31,8 @@ test('вредные значения в полях импорта обезвр�
   fs.writeFileSync(file, JSON.stringify({ entries, races, tripMeta: { 'X': { narrative: P('narrative') } } }));
 
   const { errors } = await openApp(page, { entries: [], races: [] });
-  page.on('dialog', d => d.accept());
   await page.setInputFiles('#importInput', file);
+  await page.evaluate(() => document.getElementById('importModeAdd').click());
   await expect.poll(() => page.evaluate(() => allEntries.length)).toBe(entries.length);
   for (const id of ['openTableBtn', 'openRunningBtn', 'openDiaryBtn', 'openPassportBtn']) {
     await page.evaluate(id => document.getElementById(id).click(), id);

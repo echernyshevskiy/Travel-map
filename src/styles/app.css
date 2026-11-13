@@ -1290,6 +1290,41 @@ details.sea-all > summary {
 .modal-header button:hover {
   color: var(--text);
 }
+.data-rescue {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-toast);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--danger);
+  color: var(--on-accent);
+  font-size: var(--fs-3);
+  line-height: 1.4;
+}
+.data-rescue span {
+  flex: 1;
+}
+.data-rescue button {
+  background: transparent;
+  border: 1px solid var(--on-accent);
+  color: var(--on-accent);
+  border-radius: 3px;
+  padding: 6px 10px;
+  font-size: var(--fs-3);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.import-mode-panel {
+  width: min(440px, 100%);
+}
+.import-mode-summary {
+  font-size: var(--fs-4);
+  line-height: 1.45;
+}
 .modal-sub {
   padding: 6px 20px 14px;
   font-size: var(--fs-2);

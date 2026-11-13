@@ -277,11 +277,15 @@ export function normalizeEntryShape(e) {
         if (JSON.stringify(nk) !== JSON.stringify(e.waypointCountryKeys)) set('waypointCountryKeys', nk);
       }
     }
-    if (
-      e.profile != null &&
-      !(Array.isArray(e.profile) && e.profile.every(p => Array.isArray(p) && p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1])))
-    )
-      set('profile', undefined);
+    // профиль высот — массив высот в метрах по ходу трека (так его пишет импорт
+    // GPX и читают график и экспорт). Раньше здесь ждали пары [расстояние,
+    // высота] и при каждой загрузке удаляли настоящий профиль; пары, если
+    // где-то остались, переводим в высоты
+    if (e.profile != null) {
+      const prof = Array.isArray(e.profile) ? e.profile.map(p => (Array.isArray(p) ? p[1] : p)) : null;
+      if (!prof || prof.length < 2 || !prof.every(Number.isFinite)) set('profile', undefined);
+      else if (prof.some((v, i) => v !== e.profile[i])) set('profile', prof);
+    }
     if (e.durationMin != null && !(e.durationMin > 0)) set('durationMin', null);
     if (e.elevationGain != null && typeof e.elevationGain === 'string') set('elevationGain', finiteNum(e.elevationGain));
   }

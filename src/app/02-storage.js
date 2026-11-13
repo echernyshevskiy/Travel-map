@@ -148,10 +148,79 @@ async function loadData() {
       syncTombstones = normalizeTombstones(parsed.tombstones);
     }
   } catch (e) {
+    // Сохранённое не читается (испорчено, обрезано). Раньше приложение молча
+    // начинало с пустой базы, и первое же сохранение затирало исходную строку —
+    // а по ней ещё можно было что-то восстановить. Теперь откладываем её
+    // отдельно и не даём перезаписать, пока копия не отложена
     allEntries = [];
     tripMeta = {};
     races = [];
+    logError('запуск: сохранённые данные не читаются', e);
+    rescueUnreadableData();
   }
+}
+
+// ---------- нечитаемые сохранённые данные ----------
+const UNREADABLE_KEY = 'travel-map-data-unreadable';
+let unreadableRaw = null; // исходная строка, если её не удалось отложить в хранилище
+let saveBlocked = false; // запись в основное место запрещена: исходник не отложен
+function rescueUnreadableData() {
+  let raw = null;
+  try {
+    raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+  } catch (e) {
+    /* хранилище недоступно — читать нечего */
+  }
+  if (!raw) return;
+  try {
+    if (localStorage.getItem(UNREADABLE_KEY) !== raw) localStorage.setItem(UNREADABLE_KEY, raw);
+  } catch (e) {
+    // места на копию нет — держим строку в памяти и не пишем поверх неё
+    unreadableRaw = raw;
+    saveBlocked = true;
+  }
+  showDataRescue();
+}
+function downloadUnreadableData() {
+  let raw = unreadableRaw;
+  try {
+    raw = raw || localStorage.getItem(UNREADABLE_KEY);
+  } catch (e) {
+    /* нет доступа — остаётся то, что в памяти */
+  }
+  if (!raw) return toast('Отложенной копии нет');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([raw], { type: 'application/json' }));
+  a.download = `travel-map-unreadable-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function showDataRescue() {
+  const show = () => {
+    if (document.getElementById('dataRescue')) return;
+    const bar = document.createElement('div');
+    bar.id = 'dataRescue';
+    bar.className = 'data-rescue';
+    bar.setAttribute('role', 'alert');
+    const text = document.createElement('span');
+    text.textContent = saveBlocked
+      ? 'Сохранённые данные не читаются, и места, чтобы отложить их копию, нет. Изменения сейчас не сохраняются — скачайте копию и загрузите резервную копию из файла.'
+      : 'Сохранённые данные не читаются — карта открыта пустой. Исходная копия отложена: скачайте её и пришлите на разбор, или загрузите резервную копию из файла.';
+    const dl = document.createElement('button');
+    dl.textContent = 'Скачать копию';
+    dl.addEventListener('click', downloadUnreadableData);
+    const close = document.createElement('button');
+    close.textContent = '✕';
+    close.title = 'Скрыть';
+    close.setAttribute('aria-label', 'Скрыть');
+    close.addEventListener('click', () => bar.remove());
+    bar.append(text, dl, close);
+    document.body.prepend(bar);
+  };
+  if (document.body) show();
+  else window.addEventListener('DOMContentLoaded', show);
 }
 // Данные живут в хранилище браузера: очистка данных сайта, переустановка
 // приложения или нехватка места на телефоне — и всё пропадёт. Экспорт есть,
@@ -303,6 +372,10 @@ async function saveData() {
   }
   // отметить, что изменилось с прошлого сохранения (время правки, удаления) —
   // по этим отметкам синхронизация решает, чья версия записи новее
+  if (saveBlocked) {
+    toast('Изменения не сохраняются: прежние данные не читаются и ещё не отложены — скачайте их копию (кнопка вверху)');
+    return false;
+  }
   const syncChanged = stampSyncChanges();
   const payload = JSON.stringify({ entries: allEntries, tripMeta, races, tombstones: syncTombstones });
   // Та же причина, что и при загрузке: сбой хранилища окружения не должен
@@ -325,12 +398,12 @@ async function saveData() {
     try {
       localStorage.setItem(LOCAL_STORAGE_KEY, payload);
     } catch (full) {
-      // хранилище переполнено: освобождаем место за счёт кэшей (геокодер,
-      // отложенные записи) — данные важнее — и пробуем ещё раз
+      // хранилище переполнено: освобождаем место за счёт кэша геокодера и
+      // пробуем ещё раз
       try {
         localStorage.removeItem(GEO_CACHE_KEY);
         geoCacheMem = null;
-        localStorage.removeItem(QUARANTINE_KEY);
+        // карантин (отложенные проблемные записи) — это данные, а не кэш: не трогаем
       } catch (x) {
         /* нечего чистить */
       }

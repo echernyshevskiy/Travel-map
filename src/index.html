@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.80
+  Версия: v2.81
   Дата сборки: 2026-10-12
   История версий смотрите в переписке с Claude.
 -->
@@ -624,7 +624,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
         <div class="legend-credits">флаги: <a class="u-inherit-color" href="https://github.com/twitter/twemoji" target="_blank" rel="noopener">Twemoji</a>, CC BY 4.0 · города: Natural Earth, <a class="u-inherit-color" href="https://github.com/hflabs/city" target="_blank" rel="noopener">hflabs/city</a>, CC BY-SA 4.0 · границы: Natural Earth, регионы: © <a class="u-inherit-color" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL)</div>
-        <div style="margin-top:2px;font-size:var(--fs-1);opacity:0.55;" id="legendVersion">v2.80</div>
+        <div style="margin-top:2px;font-size:var(--fs-1);opacity:0.55;" id="legendVersion">v2.81</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -837,6 +837,23 @@ window.addEventListener('unhandledrejection', function(e){
     </div>
     <div class="modal-sub" id="changelogSummary"></div>
     <div class="table-wrap"><div class="u-pad-modal" id="changelogBody"></div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="importModeModal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="importModeTitle">
+  <div class="modal-panel import-mode-panel">
+    <div class="modal-header">
+      <h2 id="importModeTitle">Загрузка из файла</h2>
+      <button id="closeImportModeModal" title="Отмена" aria-label="Отмена">✕</button>
+    </div>
+    <div class="u-pad-modal">
+      <div class="import-mode-summary" id="importModeSummary"></div>
+      <button class="save-btn" id="importModeAdd">Добавить к своим</button>
+      <div class="hint">Новые записи появятся рядом с вашими; те, что уже есть, не изменятся.</div>
+      <button class="cancel-edit" id="importModeReplace">Заменить все свои отметки</button>
+      <div class="hint">Необратимо. Перед заменой скачается копия текущих данных.</div>
+      <button class="cancel-edit" id="importModeCancel">Отмена — ничего не менять</button>
+    </div>
   </div>
 </div>
 

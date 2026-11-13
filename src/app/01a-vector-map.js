@@ -132,7 +132,8 @@ new MutationObserver(() => {
 // 3000 плиток и 50 МБ и не больше 4 запросов разом; мы их соблюдаем.
 const VECTOR_SAVED_CACHE = 'travel-map-vector-saved-v1';
 const OFFLINE_MAX_TILES = 3000;
-const OFFLINE_MAX_BYTES = 50 * 1024 * 1024;
+// let, а не const: тест уменьшает предел, чтобы проверить частичное скачивание
+let OFFLINE_MAX_BYTES = 50 * 1024 * 1024;
 const OFFLINE_PARALLEL = 4;
 const OFFLINE_META_KEY = 'travel-map-offline-map';
 let offlineJob = null; // идёт скачивание: { cancel: bool }
@@ -207,8 +208,12 @@ async function downloadVectorArea() {
     }
     extras.push(OFM_ORIGIN + '/planet');
     const urls = [...new Set(extras)].concat([...tilesOf(plan.ranges)].map(([z, x, y]) => tmpl.replace('{z}', z).replace('{x}', x).replace('{y}', y)));
+    // что уже лежит в хранилище: повторное скачивание обновляет эти плитки,
+    // но в общий объём их второй раз не добавляем
+    const had = new Set((await cache.keys()).map(r => r.url));
     let done = 0,
       bytes = 0,
+      newBytes = 0,
       failed = 0,
       i = 0;
     const worker = async () => {
@@ -222,10 +227,9 @@ async function downloadVectorArea() {
           }
           const blob = await res.blob();
           bytes += blob.size;
-          await cache.put(
-            vectorTileKey(url),
-            new Response(blob, { headers: { 'Content-Type': res.headers.get('Content-Type') || 'application/octet-stream' } })
-          );
+          const key = vectorTileKey(url);
+          if (!had.has(key)) newBytes += blob.size;
+          await cache.put(key, new Response(blob, { headers: { 'Content-Type': res.headers.get('Content-Type') || 'application/octet-stream' } }));
           done++;
         } catch (e) {
           failed++; // сеть моргнула — эту плитку пропускаем, остальные качаем
@@ -236,11 +240,19 @@ async function downloadVectorArea() {
     await Promise.all(Array.from({ length: OFFLINE_PARALLEL }, worker));
     const keys = await cache.keys();
     const prev = offlineMeta();
-    const area = `до ${plan.maxZoom}-го уровня приближения`;
-    prefSet(OFFLINE_META_KEY, JSON.stringify({ tiles: keys.length, bytes: (prev ? prev.bytes : 0) + bytes, area, at: Date.now() }));
+    // остановились на пределе объёма — подробные уровни (они идут последними) скачаны не все
+    const partial = !job.cancel && i < urls.length;
+    const area = partial ? `частично: не поместились самые подробные уровни` : `до ${plan.maxZoom}-го уровня приближения`;
+    prefSet(OFFLINE_META_KEY, JSON.stringify({ tiles: keys.length, bytes: (prev ? prev.bytes : 0) + newBytes, area, at: Date.now() }));
     offlineJob = null;
     renderOfflineMapSection();
-    toast(job.cancel ? `Остановлено: сохранено ${done} плиток` : `Район сохранён: ${done} плиток, ${mb(bytes)}${failed ? `, не скачалось ${failed}` : ''}`);
+    const lost = failed ? `, не скачалось ${failed}` : '';
+    if (job.cancel) toast(`Остановлено: сохранено ${done} плиток`);
+    else if (partial)
+      toast(
+        `Сохранено частично: ${done} из ${urls.length} — предел ${mb(OFFLINE_MAX_BYTES)} за одно скачивание. Приблизьте карту и скачайте остаток по частям${lost}`
+      );
+    else toast(`Район сохранён: ${done} плиток, ${mb(bytes)}${lost}`);
   } catch (e) {
     offlineJob = null;
     logError('скачивание района карты', e);
