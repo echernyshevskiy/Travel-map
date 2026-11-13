@@ -1,0 +1,43 @@
+# Релизы на GitHub. После каждого слияния в main: если версии из
+# src/index.html ещё нет среди релизов — ставится тег vX.YY на коммит слияния
+# PR этой версии и создаётся релиз с описанием из PR и приложением одним
+# файлом во вложении. Версия не менялась — ничего не происходит.
+# Вручную (Actions → «Релиз» → Run workflow, галочка «Прошлые версии») —
+# создать релизы и для всех прошлых версий, слитых через PR из ветки vX.YY.
+# Код — scripts/release.mjs; настройки репозитория менять не нужно.
+name: Релиз
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      backfill:
+        description: Прошлые версии тоже
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Создать недостающие релизы
+        run: node scripts/release.mjs ${{ inputs.backfill && '--backfill' || '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
