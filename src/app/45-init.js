@@ -415,7 +415,11 @@ const STATS_NAV = [
   } else {
     try {
       const savedBase = localStorage.getItem('travel-map-basemap');
-      if (savedBase && savedBase !== 'street') setBasemap(savedBase);
+      if (savedBase === 'vector' && vectorDownSince()) {
+        // «Подробная» недавно не отвечала — не ждём её снова при каждом запуске
+        setBasemap('street', { auto: true });
+        setTimeout(() => toast('Подробная карта недавно не отвечала — пока включена обычная. Вернуть можно кнопкой подложки'), 900);
+      } else if (savedBase && savedBase !== 'street') setBasemap(savedBase);
     } catch (err) {
       logError('запуск: подложка', err);
     }

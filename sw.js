@@ -101,8 +101,11 @@ async function vectorResponse(request) {
     if (response && response.ok) {
       touchedTiles.add(key);
       cache.put(key, response.clone()).then(scheduleTileTrim, () => {});
+      return response;
     }
-    return response;
+    // сервис ответил ошибкой (упал, закрылся) — сохранённое лучше, чем ничего:
+    // так скачанные районы работают и тогда, когда сеть есть, а сервиса нет
+    return (await fromCache()) || response;
   } catch (e) {
     const hit = await fromCache();
     if (hit) return hit;

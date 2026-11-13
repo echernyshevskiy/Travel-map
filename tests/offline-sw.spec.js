@@ -294,3 +294,51 @@ test('без сети: «Подробная» карта из кэша, и по�
   setVersion(VERSION);
   expect(errors).toEqual([]);
 });
+
+test('сервис отвечает ошибкой, а сеть есть — «Подробная» из сохранённого, а не обычная карта', async ({ context, page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
+  test.setTimeout(120_000);
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  let down = false;
+  // упавший сервис отвечает 503 (с CORS-заголовком — ответ доходит до сервис-воркера, а не обрывается)
+  const ofm = r => r.fulfill(down ? { status: 503, body: '', headers: { 'Access-Control-Allow-Origin': '*' } } : openFreeMapMock(r.request().url()));
+  await context.route(
+    url => !String(url).startsWith(base) && !String(url).startsWith('https://tiles.openfreemap.org/'),
+    r => r.abort()
+  );
+  await context.route('https://tiles.openfreemap.org/**', ofm);
+  await context.addInitScript(
+    ({ entries, races }) => {
+      if (!localStorage.getItem('travel-map-data')) {
+        localStorage.setItem('travel-map-data', JSON.stringify({ entries, races, tripMeta: {} }));
+        localStorage.setItem('travel-map-basemap', 'vector');
+        localStorage.setItem('travel-map-mapview', JSON.stringify({ lat: 55.75, lng: 37.62, z: 7 }));
+      }
+    },
+    { entries: sampleEntries(), races: sampleRaces() }
+  );
+  const vectorReady = () =>
+    page.waitForFunction(
+      () => {
+        if (typeof basemapMode === 'undefined' || basemapMode !== 'vector' || !vectorLayer || !map.hasLayer(vectorLayer)) return false;
+        const ml = vectorLayer.getMaplibreMap();
+        return !!ml && ml.isStyleLoaded() && ml.areTilesLoaded();
+      },
+      null,
+      { timeout: 30_000 }
+    );
+  await page.goto(base);
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await page.reload();
+  await vectorReady();
+  down = true;
+  await page.reload();
+  await vectorReady();
+  await page.waitForTimeout(800);
+  expect(await page.evaluate(() => basemapMode)).toBe('vector');
+  expect(await page.evaluate(() => localStorage.getItem('travel-map-vector-down'))).toBeNull();
+  expect(errors).toEqual([]);
+});

@@ -147,7 +147,10 @@ const BASEMAP_LABELS = {
   topo: ['🏔 Рельеф', 'Рельефная карта — нажмите, чтобы переключить'],
   plain: ['📄 Контуры', 'Карта без подложки — работает без интернета. Нажмите, чтобы переключить']
 };
-function setBasemap(mode) {
+// opts.auto — переключило само приложение (подложка не отвечает): выбор
+// человека в настройках не трогаем, при следующем запуске он вернётся
+function setBasemap(mode, opts) {
+  const auto = !!(opts && opts.auto);
   if (!BASEMAP_LABELS[mode]) mode = 'street';
   [streetLayer, topoLayer].forEach(l => {
     if (map.hasLayer(l)) map.removeLayer(l);
@@ -160,12 +163,19 @@ function setBasemap(mode) {
     showVectorBasemap().catch(err => {
       logError('подробная карта', err);
       if (basemapMode !== 'vector') return;
-      // без WebGL или без сети (а стиль ещё не сохранён) — обычная подложка или контуры
-      setBasemap(navigator.onLine === false ? 'plain' : 'street');
+      const noWebGL = /WebGL/.test(String(err && err.message));
+      const offline = navigator.onLine === false;
+      // Без WebGL — это навсегда для этого браузера: запоминаем обычную.
+      // Сервис не ответил — временно: включаем обычную (без сети — контуры),
+      // а выбор «Подробная» оставляем; приложение попробует снова позже
+      if (!noWebGL && !offline) markVectorDown();
+      setBasemap(offline ? 'plain' : 'street', { auto: !noWebGL });
       toast(
-        /WebGL/.test(String(err && err.message))
+        noWebGL
           ? 'Подробная карта не поддерживается этим браузером (нет WebGL) — включена обычная'
-          : 'Подробная карта сейчас недоступна — включена ' + (basemapMode === 'plain' ? 'карта контуров' : 'обычная')
+          : 'Подробная карта сейчас недоступна — включена ' +
+              (basemapMode === 'plain' ? 'карта контуров' : 'обычная') +
+              (offline ? '' : '. Приложение попробует снова через несколько часов')
       );
     });
   } else if (mode === 'plain') {
@@ -184,7 +194,7 @@ function setBasemap(mode) {
     btn.setAttribute('aria-label', BASEMAP_LABELS[mode][1]);
   }
   renderOfflineMapSection();
-  prefSet('travel-map-basemap', mode);
+  if (!auto) prefSet('travel-map-basemap', mode);
   try {
     if (mode !== 'plain') mapLabelLayer.clearLayers();
     scheduleMapLabels();
