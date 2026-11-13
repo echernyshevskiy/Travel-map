@@ -78,6 +78,8 @@ async function fetchVectorStyle(theme) {
 // переключит на запасную подложку).
 async function showVectorBasemap() {
   if (!hasWebGL()) throw new Error('нет WebGL');
+  vectorErrors = 0;
+  vectorFallbackDone = false;
   await loadMaplibre();
   const theme = currentThemeName();
   const style = await fetchVectorStyle(theme);
@@ -97,24 +99,60 @@ function hideVectorBasemap() {
   if (vectorLayer && map.hasLayer(vectorLayer)) map.removeLayer(vectorLayer);
 }
 
-// Плитки не грузятся подряд (сеть пропала, сервис недоступен) — так же, как с
-// обычной подложкой, переключаемся на контуры, а не оставляем пустой фон
+// ---------- если OpenFreeMap перестанет отвечать ----------
+// Сервис бесплатный и без договора: может упасть на время или закрыться.
+// Тогда приложение само включает обычную карту (без сети — контуры), но выбор
+// «Подробная» в настройках не трогает. Время сбоя запоминается: несколько
+// часов при запуске сразу открывается обычная — без загрузки библиотеки и
+// ожидания ответа, — потом приложение пробует снова. Выбрать «Подробную»
+// кнопкой подложки можно в любой момент; первая же загрузившаяся плитка
+// снимает отметку. Скачанные районы при этом не удаляются: без сети они
+// открываются из хранилища, как и раньше.
+const VECTOR_DOWN_KEY = 'travel-map-vector-down';
+const VECTOR_RETRY_MS = 6 * 3600 * 1000;
+function markVectorDown() {
+  prefSet(VECTOR_DOWN_KEY, String(Date.now()));
+}
+// время сбоя, если он был недавно; иначе null
+function vectorDownSince() {
+  const t = Number(prefGet(VECTOR_DOWN_KEY));
+  return t > 0 && Date.now() - t < VECTOR_RETRY_MS ? t : null;
+}
+function clearVectorDown() {
+  if (prefGet(VECTOR_DOWN_KEY) != null) {
+    prefRemove(VECTOR_DOWN_KEY);
+    renderOfflineMapSection();
+  }
+}
+
+// Плитки не грузятся подряд (сервис недоступен, сеть пропала) — включаем
+// обычную карту (без сети — контуры), а не оставляем пустой фон
 let vectorErrors = 0;
 let vectorErrorsWatched = false;
+let vectorFallbackDone = false;
 function watchVectorErrors() {
   if (vectorErrorsWatched || !vectorLayer) return;
   const ml = vectorLayer.getMaplibreMap();
   if (!ml) return;
   vectorErrorsWatched = true;
   ml.on('data', e => {
-    if (e.dataType === 'source' && e.tile) vectorErrors = 0;
+    if (e.dataType === 'source' && e.tile) {
+      vectorErrors = 0;
+      clearVectorDown();
+    }
   });
   ml.on('error', e => {
-    if (basemapMode !== 'vector' || tileFallbackDone) return;
+    if (basemapMode !== 'vector' || vectorFallbackDone) return;
     if (++vectorErrors >= 6) {
-      tileFallbackDone = true;
-      setBasemap('plain');
-      toast('Подробная карта недоступна — включены контуры стран. Переключить обратно можно кнопкой на карте');
+      vectorFallbackDone = true;
+      const offline = navigator.onLine === false;
+      if (!offline) markVectorDown();
+      setBasemap(offline ? 'plain' : 'street', { auto: true });
+      toast(
+        offline
+          ? 'Подробной карты этого места нет среди скачанных — включены контуры стран'
+          : 'Подробная карта перестала отвечать — включена обычная. Вернуть можно кнопкой подложки'
+      );
     }
     logError('подробная карта', (e && e.error) || e);
   });
@@ -165,11 +203,16 @@ function renderOfflineMapSection(progress) {
     dl.textContent = 'Остановить';
     dl.disabled = false;
   } else {
-    status.textContent = meta
-      ? `Скачано: ${meta.tiles.toLocaleString('ru-RU')} плиток, ${mb(meta.bytes)}${meta.area ? ' — ' + meta.area : ''}.`
-      : basemapMode === 'vector'
-        ? 'Ничего не скачано. Подведите карту к нужному району и нажмите кнопку.'
-        : 'Включите «Подробную» карту и подведите её к нужному району.';
+    const down = vectorDownSince();
+    const downNote = down
+      ? ` Подробная карта не отвечала в ${new Date(down).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })} — пока включена обычная; приложение попробует снова через несколько часов, а вручную — кнопкой подложки.`
+      : '';
+    status.textContent =
+      (meta
+        ? `Скачано: ${meta.tiles.toLocaleString('ru-RU')} плиток, ${mb(meta.bytes)}${meta.area ? ' — ' + meta.area : ''}.`
+        : basemapMode === 'vector'
+          ? 'Ничего не скачано. Подведите карту к нужному району и нажмите кнопку.'
+          : 'Включите «Подробную» карту и подведите её к нужному району.') + downNote;
     dl.textContent = meta ? 'Скачать видимый район (добавить)' : 'Скачать видимый район';
     dl.disabled = basemapMode !== 'vector' || navigator.onLine === false;
   }
