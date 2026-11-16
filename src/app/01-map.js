@@ -20,7 +20,7 @@ function readSavedMapView() {
     return null;
   }
 }
-const savedMapView = readSavedMapView();
+let savedMapView = readSavedMapView();
 // Весь мир на вертикальном экране занимает треть высоты, сверху и снизу —
 // пустые поля. Поэтому на телефоне по умолчанию: наименьший масштаб, при
 // котором карта по высоте заполняет экран; верхний край — у 82° с. ш.
@@ -80,6 +80,13 @@ function atStartView() {
 }
 let startView = null;
 applyStartView();
+// Роза ветров — кнопка «общий вид»: забыть сохранённое место и вернуть карту
+// к стартовому виду (на телефоне — во весь экран, на компьютере — весь мир)
+document.getElementById('resetViewBtn').addEventListener('click', () => {
+  savedMapView = null;
+  prefRemove(MAP_VIEW_KEY);
+  applyStartView();
+});
 let mapViewSaveTimer = null;
 function saveMapViewSoon() {
   clearTimeout(mapViewSaveTimer);
