@@ -544,10 +544,12 @@ function renderEditWaypointSuggest() {
   if (editWaypointMatches.length === 0) {
     box.innerHTML = `<div class="suggest-empty">Ничего не найдено</div>`;
     box.style.display = 'block';
+    offerOnlineSearch(box, 'waypoint');
     return;
   }
   box.innerHTML = editWaypointMatches.map((m, i) => `<div class="suggest-item" data-wp-pick="${i}">${escapeHtml(m.full)}</div>`).join('');
   box.style.display = 'block';
+  offerOnlineSearch(box, 'waypoint');
   box.querySelectorAll('[data-wp-pick]').forEach(el => {
     el.addEventListener('click', async () => {
       const m = editWaypointMatches[parseInt(el.dataset.wpPick, 10)];
@@ -591,7 +593,11 @@ document.getElementById('editWaypointSearch').addEventListener('input', e => {
     box.style.display = 'none';
     return;
   }
-  editWaypointTimer = setTimeout(async () => {
+  editWaypointTimer = setTimeout(() => searchEditWaypoint(q, false), 120);
+});
+async function searchEditWaypoint(q, online) {
+  const box = document.getElementById('editWaypointSuggest');
+  {
     try {
       // смещаем поиск к соседним точкам маршрута — как при создании,
       // чтобы не подхватить одноимённый город на другом континенте
@@ -603,10 +609,12 @@ document.getElementById('editWaypointSearch').addEventListener('input', e => {
       }
       const seq = ++suggestSeq.waypoint;
       const quick = localCitySearch(q, 8, bias).map(cityAsMatch);
-      if (quick.length) {
+      suggestOnline.waypoint = online ? null : () => searchEditWaypoint(q, true);
+      if (quick.length || !online) {
         editWaypointMatches = quick;
         renderEditWaypointSuggest();
       }
+      if (!online) return;
       const res = await queryNominatimSettlements(q, bias).catch(err => {
         if (quick.length) return [];
         throw err;
@@ -620,8 +628,8 @@ document.getElementById('editWaypointSearch').addEventListener('input', e => {
       box.style.display = 'block';
       reportServiceIssue('поиск городов');
     }
-  }, 350);
-});
+  }
+}
 
 // выпадающее меню «Итоги»
 (function setupSummaryMenu() {

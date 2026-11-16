@@ -42,6 +42,9 @@ test('замена точки перестраивает линию и кило�
   await page.evaluate(() => startEdit(allEntries.find(e => e.id === 'rt_city')));
   await page.locator('[data-wp-edit="1"]').click();
   await page.locator('#editWaypointSearch').fill('Новгород');
+  // при наборе — справочник; мелкие места и точные совпадения — по строке «Искать в сети»
+  await page.locator('#editWaypointSuggest [data-online-search]').click();
+  await expect(page.locator('#editWaypointSuggest [data-online-search]')).toHaveCount(0);
   await page.locator('#editWaypointSuggest .suggest-item').first().click();
   await expect.poll(line).toContainEqual([58.52, 31.27]);
   const e = await page.evaluate(() => allEntries.find(x => x.id === 'rt_city'));

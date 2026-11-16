@@ -160,6 +160,33 @@ async function loadData() {
   }
 }
 
+// ---------- данные изменены в другой вкладке ----------
+// Каждая вкладка держит свою копию записей и сохраняет её целиком: правка в
+// одной вкладке молча затёрла бы правку из другой. Браузер сообщает о записи
+// из другой вкладки событием storage — после него эта вкладка не сохраняет,
+// а предлагает обновиться (в ней покажутся правки той вкладки).
+let changedElsewhere = false;
+function showChangedElsewhere() {
+  if (document.getElementById('tabConflict')) return;
+  const bar = document.createElement('div');
+  bar.id = 'tabConflict';
+  bar.className = 'data-rescue';
+  bar.setAttribute('role', 'alert');
+  const text = document.createElement('span');
+  text.textContent = 'Данные изменены в другой вкладке. Обновите страницу, чтобы увидеть их; до этого правки здесь не сохраняются.';
+  const btn = document.createElement('button');
+  btn.textContent = 'Обновить';
+  btn.addEventListener('click', () => location.reload());
+  bar.append(text, btn);
+  document.body.prepend(bar);
+}
+if (!READ_ONLY)
+  window.addEventListener('storage', e => {
+    if (e.storageArea !== localStorage || e.key !== LOCAL_STORAGE_KEY || e.newValue === e.oldValue) return;
+    changedElsewhere = true;
+    showChangedElsewhere();
+  });
+
 // ---------- нечитаемые сохранённые данные ----------
 const UNREADABLE_KEY = 'travel-map-data-unreadable';
 let unreadableRaw = null; // исходная строка, если её не удалось отложить в хранилище
@@ -372,6 +399,11 @@ async function saveData() {
   }
   // отметить, что изменилось с прошлого сохранения (время правки, удаления) —
   // по этим отметкам синхронизация решает, чья версия записи новее
+  if (changedElsewhere) {
+    showChangedElsewhere();
+    toast('Не сохранено: данные изменены в другой вкладке. Обновите страницу — иначе те правки потеряются');
+    return false;
+  }
   if (saveBlocked) {
     toast('Изменения не сохраняются: прежние данные не читаются и ещё не отложены — скачайте их копию (кнопка вверху)');
     return false;

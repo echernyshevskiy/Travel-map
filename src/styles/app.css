@@ -1318,6 +1318,11 @@ details.sea-all > summary {
   cursor: pointer;
   flex-shrink: 0;
 }
+.suggest-online {
+  border-top: 1px solid var(--line);
+  color: var(--text-dim);
+  font-style: italic;
+}
 .import-mode-panel {
   width: min(440px, 100%);
 }
