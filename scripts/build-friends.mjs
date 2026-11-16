@@ -5,8 +5,11 @@
 // (переменные окружения DATA_REPO и DATA_TOKEN — так работает автосборка на
 // GitHub), либо из локального файла: node scripts/build-friends.mjs --data backup.json
 //
-// Приватность: в результат не попадают записи с флагом «Не показывать друзьям»
-// и заметки вообще; описания поездок — только у поездок, которые остались видимыми.
+// Приватность: в результат попадают только поля из списков разрешённых
+// (PUBLIC_ENTRY / PUBLIC_TRIP / PUBLIC_RACE ниже). Новое поле, которое появится
+// в приложении, по умолчанию НЕ публикуется — его надо явно добавить в список.
+// Не попадают записи с флагом «Не показывать друзьям» и заметки вообще;
+// описания поездок — только у поездок, которые остались видимыми.
 // Из ссылок остаются только обложки (первое фото-картинка записи и выбранные
 // обложки поездок), Instagram и ссылки на карты; альбомы и документы убираются.
 // Скрипт не содержит секретов и выводит только итоговые числа.
@@ -53,9 +56,67 @@ const embed = v =>
     .replace(/</g, '\\u003c')
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029');
-const strip = (obj, keys) => {
-  const o = Object.assign({}, obj);
-  keys.forEach(k => delete o[k]);
+
+// ---------- что видно друзьям ----------
+// Только эти поля. Всё остальное (в том числе поля, которых сегодня ещё нет)
+// остаётся личным. Добавляя поле в приложение, решите, публичное ли оно, и
+// впишите его сюда или в PRIVATE_* — сборка сообщит о поле, которого нет ни там, ни там.
+const PUBLIC_ENTRY = [
+  // что это и где
+  'id',
+  'type',
+  'name',
+  'countryKey',
+  'lat',
+  'lng',
+  'color',
+  'status',
+  // когда
+  'year',
+  'month',
+  'dateFrom',
+  'dateTo',
+  'season',
+  // поездка и её свойства
+  'trip',
+  'tripOrder',
+  'purpose',
+  'company',
+  'community',
+  'activity',
+  'terrain',
+  'favorite',
+  // маршрут
+  'coordsEncoded',
+  'segBreaks',
+  'waypointNames',
+  'waypointCoords',
+  'waypointCountryKeys',
+  'isEstimated',
+  'distanceKm',
+  'elevationGain',
+  'maxElevation',
+  'durationMin',
+  'trackDays',
+  'profile',
+  // ссылки: Instagram и карта (фото отбираются отдельно — только обложки)
+  'instagramUrl',
+  'mapLinkUrl',
+  'photos'
+];
+const PRIVATE_ENTRY = ['notes', 'hidden', 'docLinkUrl', 'updatedAt', 'fieldTimes', 'ftBase'];
+const PUBLIC_TRIP = ['narrative', 'coverPhoto'];
+const PRIVATE_TRIP = ['updatedAt', 'fieldTimes', 'ftBase'];
+const PUBLIC_RACE = ['id', 'name', 'date', 'city', 'country', 'distanceKm', 'time', 'place', 'participants', 'status'];
+const PRIVATE_RACE = ['notes', 'updatedAt', 'fieldTimes', 'ftBase'];
+const unknownFields = new Set();
+// копия объекта только с разрешёнными полями; незнакомые поля запоминаются для отчёта
+const pick = (obj, allowed, known, kind) => {
+  const o = {};
+  for (const k of Object.keys(obj)) {
+    if (allowed.includes(k)) o[k] = obj[k];
+    else if (!known.includes(k)) unknownFields.add(`${kind}.${k}`);
+  }
   return o;
 };
 
@@ -90,7 +151,7 @@ let removedLinks = 0;
 const entries = all
   .filter(e => !e.hidden)
   .map(e => {
-    const out = strip(e, ['notes', 'hidden', 'updatedAt', 'fieldTimes', 'ftBase', 'docLinkUrl']);
+    const out = pick(e, PUBLIC_ENTRY, PRIVATE_ENTRY, 'запись');
     removedLinks += e.docLinkUrl ? 1 : 0;
     const photos = Array.isArray(e.photos) ? e.photos : [];
     const cover = photos.find(isImageLink);
@@ -108,11 +169,11 @@ const tripMeta = {};
 const keptPhotos = new Set(entries.flatMap(e => e.photos));
 Object.entries(data.tripMeta || {}).forEach(([k, v]) => {
   if (!trips.has(k) || !v || typeof v !== 'object') return;
-  const m = strip(v, ['updatedAt', 'fieldTimes', 'ftBase']);
+  const m = pick(v, PUBLIC_TRIP, PRIVATE_TRIP, 'поездка');
   if (m.coverPhoto && !keptPhotos.has(m.coverPhoto)) delete m.coverPhoto;
   tripMeta[k] = m;
 });
-const races = (Array.isArray(data.races) ? data.races : []).map(r => strip(r, ['updatedAt', 'fieldTimes', 'ftBase']));
+const races = (Array.isArray(data.races) ? data.races : []).filter(r => r && typeof r === 'object').map(r => pick(r, PUBLIC_RACE, PRIVATE_RACE, 'старт'));
 const savedAt = typeof data.savedAt === 'string' ? data.savedAt : typeof data.exportedAt === 'string' ? data.exportedAt : null;
 
 let html = fs.readFileSync(SRC, 'utf8');
@@ -149,6 +210,11 @@ html = replaceOnce(
 
 // последняя проверка: ничего личного в файле не осталось
 if (entries.some(e => 'notes' in e || e.hidden || e.docLinkUrl)) fail('в данных для друзей остались заметки, скрытые записи или личные ссылки');
+const extra = (list, allowed) => list.flatMap(o => Object.keys(o).filter(k => !allowed.includes(k)));
+if (extra(entries, PUBLIC_ENTRY).length || extra(Object.values(tripMeta), PUBLIC_TRIP).length || extra(races, PUBLIC_RACE).length)
+  fail('в данных для друзей оказалось поле не из списка разрешённых');
+if (unknownFields.size)
+  console.log(`Не опубликованы незнакомые поля (впишите их в списки в scripts/build-friends.mjs): ${[...unknownFields].sort().join(', ')}`);
 if (entries.some(e => e.photos.some(p => !isImageLink(p)))) fail('в данных для друзей осталась ссылка на альбом');
 
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
