@@ -107,9 +107,7 @@ citySearchInput.addEventListener('input', () => {
     citySuggestBox.style.display = 'none';
     return;
   }
-  citySuggestBox.innerHTML = `<div class="suggest-empty">Поиск…</div>`;
-  citySuggestBox.style.display = 'block';
-  cityDebounceTimer = setTimeout(() => fetchCitySuggestions(q), 700);
+  cityDebounceTimer = setTimeout(() => fetchCitySuggestions(q), 120);
 });
 citySearchInput.addEventListener('keydown', e => {
   if (citySuggestBox.style.display === 'none') return;
@@ -125,6 +123,7 @@ citySearchInput.addEventListener('keydown', e => {
     e.preventDefault();
     const idx = cityHlIndex >= 0 ? cityHlIndex : 0;
     if (cityMatches[idx]) pickCity(cityMatches[idx]);
+    else if (suggestOnline.city) suggestOnline.city();
   } else if (e.key === 'Escape') {
     citySuggestBox.style.display = 'none';
   }
@@ -132,15 +131,18 @@ citySearchInput.addEventListener('keydown', e => {
 document.addEventListener('click', e => {
   if (!citySearchInput.contains(e.target) && !citySuggestBox.contains(e.target)) citySuggestBox.style.display = 'none';
 });
-async function fetchCitySuggestions(q) {
+// online — человек попросил искать в сети; при наборе — только справочник (см. offerOnlineSearch)
+async function fetchCitySuggestions(q, online) {
   try {
     const seq = ++suggestSeq.city;
     const quick = localCitySearch(q, 8).map(cityAsMatch);
-    if (quick.length) {
+    suggestOnline.city = online ? null : () => fetchCitySuggestions(q, true);
+    if (quick.length || !online) {
       cityMatches = quick;
       cityHlIndex = -1;
       renderCitySuggestions();
     }
+    if (!online) return;
     const res = await queryNominatimSettlements(q).catch(err => {
       if (quick.length) return [];
       throw err;
@@ -159,6 +161,7 @@ function renderCitySuggestions() {
   if (cityMatches.length === 0) {
     citySuggestBox.innerHTML = `<div class="suggest-empty">Ничего не найдено</div>`;
     citySuggestBox.style.display = 'block';
+    offerOnlineSearch(citySuggestBox, 'city');
     return;
   }
   citySuggestBox.innerHTML = '';
@@ -170,6 +173,7 @@ function renderCitySuggestions() {
     citySuggestBox.appendChild(el);
   });
   citySuggestBox.style.display = 'block';
+  offerOnlineSearch(citySuggestBox, 'city');
 }
 function pickCity(m) {
   pendingLatLng = { lat: m.lat, lng: m.lng };

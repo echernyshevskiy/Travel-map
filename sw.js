@@ -10,6 +10,8 @@
 // Имя хранилища своё у каждой версии: иначе при активации одна копия скрипта
 // стирала бы кеш другой, стоит их версиям разойтись. Подставляется при сборке.
 const APP_VARIANT = 'edit';
+// сколько ждать сеть при открытии страницы, прежде чем показать сохранённую копию
+const NAV_TIMEOUT_MS = 4000;
 const SHELL_CACHE_NAME = `travel-map-shell-${APP_VARIANT}-v4`;
 const TILE_CACHE_NAME = `travel-map-tiles-${APP_VARIANT}-v1`;
 // подробные границы стран и регионов (папка borders/) — общие для обеих версий
@@ -237,17 +239,35 @@ self.addEventListener('fetch', event => {
   // подхватывался — приходилось чистить данные сайта вручную. Теперь версий
   // две (index.html и read-only.html), обе обновляются, и устаревание было бы
   // особенно неприятным.
+  // Сеть ждём не дольше NAV_TIMEOUT_MS: на плохой связи (сеть «есть», но не
+  // отвечает) открытие иначе зависало на десятки секунд, хотя сохранённая
+  // копия лежит рядом. Запрос при этом продолжается и обновляет копию к
+  // следующему запуску. Ошибка сервера (5xx) — тоже повод взять сохранённое.
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
-        .then(response => {
+      (async () => {
+        const saved = () => caches.match(event.request).then(cached => cached || caches.match(self.registration.scope));
+        const network = fetch(event.request).then(response => {
           if (response && response.ok) {
             const copy = response.clone();
             caches.open(SHELL_CACHE_NAME).then(cache => cache.put(event.request, copy));
           }
           return response;
-        })
-        .catch(() => caches.match(event.request).then(cached => cached || caches.match(self.registration.scope)))
+        });
+        event.waitUntil(network.catch(() => {}));
+        let timer;
+        const slow = new Promise(resolve => (timer = setTimeout(() => resolve(null), NAV_TIMEOUT_MS)));
+        try {
+          const response = await Promise.race([network, slow]);
+          clearTimeout(timer);
+          if (response && (response.ok || response.status < 500)) return response;
+          // сеть не успела или сервер ответил ошибкой — сохранённая копия, а если её нет — ждём сеть
+          return (await saved()) || response || (await network);
+        } catch (e) {
+          clearTimeout(timer);
+          return (await saved()) || Response.error();
+        }
+      })()
     );
     return;
   }

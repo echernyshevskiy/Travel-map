@@ -153,19 +153,20 @@ function renderWorldSuggest(q, online) {
   if (cities.length) html += `<div class="ws-head">Города</div>` + cityHtml(cities);
   if (online && online.length) html += `<div class="ws-head">Ещё по карте</div>` + cityHtml(online);
   if (!countries.length && !cities.length && !(online && online.length)) {
-    html += `<div class="suggest-empty">${navigator.onLine === false ? 'В справочнике не найдено, а для поиска мелких мест нужна сеть' : 'Ищу на карте мира…'}</div>`;
+    html += `<div class="suggest-empty">${navigator.onLine === false ? 'В справочнике не найдено, а для поиска мелких мест нужна сеть' : online === null ? 'В справочнике не найдено' : 'Ничего не найдено'}</div>`;
   }
   box.innerHTML = html;
   box.style.display = 'block';
   worldHl = -1;
+  offerOnlineSearch(box, 'world');
 }
-async function updateWorldSuggest(q) {
+// online — человек попросил искать в сети (строка под подсказками или Enter);
+// при наборе — только встроенный справочник (см. offerOnlineSearch)
+async function updateWorldSuggest(q, online) {
   const seq = ++worldSuggestSeq;
+  suggestOnline.world = online || normSearch(q).length < 3 ? null : () => updateWorldSuggest(q, true);
   renderWorldSuggest(q, null);
-  if (normSearch(q).length < 3 || navigator.onLine === false) return;
-  // мелкие места — у геокодера; он отвечает не быстрее раза в секунду
-  await new Promise(r => setTimeout(r, 650));
-  if (seq !== worldSuggestSeq) return;
+  if (!online || navigator.onLine === false) return;
   try {
     const res = await queryNominatimSettlements(q, null, { networkOnly: true });
     if (seq !== worldSuggestSeq) return;
@@ -176,7 +177,7 @@ async function updateWorldSuggest(q) {
       .map(m => ({ name: m.name, lat: m.lat, lng: m.lng, countryKey: findAnyCountryKeyByRuName(m.country, m.countryCode), pop: 0, capital: false }));
     renderWorldSuggest(q, extra);
   } catch (e) {
-    if (seq === worldSuggestSeq) renderWorldSuggest(q, null);
+    if (seq === worldSuggestSeq) renderWorldSuggest(q, []);
   }
 }
 function showSearchPin(c) {
@@ -316,6 +317,11 @@ function pickWorldResult(i) {
       e.preventDefault();
       e.stopImmediatePropagation();
       pickWorldResult(+items[worldHl].dataset.ws);
+    } else if (e.key === 'Enter' && !items.length && suggestOnline.world) {
+      // в справочнике пусто — Enter ищет в сети
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      suggestOnline.world();
     }
   });
   input.addEventListener('blur', () => setTimeout(closeWorldSuggest, 150));

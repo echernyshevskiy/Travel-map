@@ -21,10 +21,23 @@ const TYPES = {
   '.webmanifest': 'application/manifest+json'
 };
 let server, base;
+// «плохая связь» для страницы: задержка ответа и ответ-ошибка сервера
+const pageNet = { delayMs: 0, status: 0 };
 test.beforeAll(async () => {
   server = http.createServer((req, res) => {
     let rel = decodeURIComponent(req.url.split(/[?#]/)[0]);
     if (rel.endsWith('/')) rel += 'index.html';
+    if (rel === '/index.html' && (pageNet.delayMs || pageNet.status)) {
+      const status = pageNet.status;
+      return setTimeout(() => {
+        if (status) {
+          res.writeHead(status);
+          return res.end();
+        }
+        res.writeHead(200, { 'Content-Type': TYPES['.html'] });
+        fs.createReadStream(path.join(ROOT, 'index.html')).pipe(res);
+      }, pageNet.delayMs);
+    }
     const file = path.join(ROOT, rel);
     if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
       res.writeHead(404);
@@ -340,5 +353,49 @@ test('сервис отвечает ошибкой, а сеть есть — «�
   await page.waitForTimeout(800);
   expect(await page.evaluate(() => basemapMode)).toBe('vector');
   expect(await page.evaluate(() => localStorage.getItem('travel-map-vector-down'))).toBeNull();
+  expect(errors).toEqual([]);
+});
+
+test('плохая связь: страница не ждёт сеть дольше нескольких секунд; ошибка сервера — сохранённая копия', async ({ context, page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
+  test.setTimeout(60_000);
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await context.route(
+    url => !String(url).startsWith(base),
+    r => r.abort()
+  );
+  await context.addInitScript(
+    ({ entries, races }) => {
+      if (!localStorage.getItem('travel-map-data')) {
+        localStorage.setItem('travel-map-data', JSON.stringify({ entries, races, tripMeta: {} }));
+        localStorage.setItem('travel-map-basemap', 'plain');
+      }
+    },
+    { entries: sampleEntries(), races: sampleRaces() }
+  );
+  const ready = () => page.waitForFunction(() => window.__travelMap && __travelMap.allEntries && __travelMap.allEntries.length > 0, null, { timeout: 12_000 });
+  try {
+    await page.goto(base);
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+    });
+    await page.reload();
+    await ready();
+    // сеть «есть», но страница отвечает через 20 секунд — открываемся из сохранённого
+    pageNet.delayMs = 20_000;
+    const t0 = Date.now();
+    await page.reload();
+    await ready();
+    expect(Date.now() - t0).toBeLessThan(10_000);
+    // сервер отвечает ошибкой — тоже сохранённая копия, а не страница ошибки
+    pageNet.delayMs = 1;
+    pageNet.status = 503;
+    await page.reload();
+    await ready();
+  } finally {
+    pageNet.delayMs = 0;
+    pageNet.status = 0;
+  }
   expect(errors).toEqual([]);
 });

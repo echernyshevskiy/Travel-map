@@ -796,21 +796,23 @@ function renderDiagnostics() {
       let timer = 0,
         seq = 0,
         found = [];
-      const run = () => {
+      // при наборе — встроенный справочник; в сеть — по строке «Искать в сети» (см. offerOnlineSearch)
+      const run = online => {
         const q = inp.value.trim();
         if (q.length < 2) {
           sug.style.display = 'none';
           return;
         }
         const my = ++seq;
-        sug.innerHTML = '<div class="suggest-empty">Ищу…</div>';
+        suggestOnline.diag = online ? null : () => run(true);
+        if (online) sug.innerHTML = '<div class="suggest-empty">Ищу…</div>';
         sug.style.display = 'block';
-        queryNominatimSettlements(q, here)
+        (online ? queryNominatimSettlements(q, here) : Promise.resolve(localCitySearch(q, 8, here).map(cityAsMatch)))
           .then(list => {
             if (my !== seq) return;
             found = list.slice(0, 8);
             // без сети поиск идёт по встроенному справочнику — там только города
-            const local = found.length ? found.every(m => m.offline) : navigator.onLine === false || nominatimDown();
+            const local = online ? (found.length ? found.every(m => m.offline) : navigator.onLine === false || nominatimDown()) : navigator.onLine === false;
             const note = local
               ? '<div class="suggest-empty">Без сети ищу только по встроенному справочнику городов. Сёла и посёлки найдутся, когда появится интернет.</div>'
               : '';
@@ -822,6 +824,7 @@ function renderDiagnostics() {
                   )
                   .join('') + note
               : note || '<div class="suggest-empty">Ничего не найдено — попробуйте другое написание</div>';
+            offerOnlineSearch(sug, 'diag');
           })
           .catch(() => {
             if (my === seq) sug.innerHTML = '<div class="suggest-empty">Поиск недоступен — нужна сеть</div>';
@@ -829,14 +832,15 @@ function renderDiagnostics() {
       };
       inp.addEventListener('input', () => {
         clearTimeout(timer);
-        timer = setTimeout(run, 450);
+        timer = setTimeout(() => run(false), 150);
       });
       sug.addEventListener('click', e => {
         const el = e.target.closest('[data-place-pick]');
         if (el) diagReplacePlace(o, found[+el.dataset.placePick]);
       });
       inp.focus();
-      run();
+      // «Найти место» — явная просьба: первый поиск идёт в сеть, дальнейший набор — по справочнику
+      run(true);
     });
   });
 

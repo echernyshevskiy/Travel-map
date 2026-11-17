@@ -124,9 +124,7 @@ routeCitySearchInput.addEventListener('input', () => {
     routeCitySuggestBox.style.display = 'none';
     return;
   }
-  routeCitySuggestBox.innerHTML = `<div class="suggest-empty">Поиск…</div>`;
-  routeCitySuggestBox.style.display = 'block';
-  routeCityDebounceTimer = setTimeout(() => fetchRouteCitySuggestions(q), 700);
+  routeCityDebounceTimer = setTimeout(() => fetchRouteCitySuggestions(q), 120);
 });
 routeCitySearchInput.addEventListener('keydown', e => {
   if (routeCitySuggestBox.style.display === 'none') return;
@@ -142,6 +140,7 @@ routeCitySearchInput.addEventListener('keydown', e => {
     e.preventDefault();
     const idx = routeCityHlIndex >= 0 ? routeCityHlIndex : 0;
     if (routeCityMatches[idx]) addRouteWaypoint(routeCityMatches[idx]);
+    else if (suggestOnline.routeCity) suggestOnline.routeCity();
   } else if (e.key === 'Escape') {
     routeCitySuggestBox.style.display = 'none';
   }
@@ -207,6 +206,27 @@ function mergeSettlementMatches(online, local) {
 // точного запроса. Каждому полю ввода даём свой счётчик поколений и применяем
 // только последний ответ.
 const suggestSeq = { city: 0, routeCity: 0, photo: 0, waypoint: 0 };
+
+// Подсказки во время набора — только из встроенного справочника городов:
+// правила Nominatim запрещают автодополнение (запрос на каждую паузу в наборе).
+// В сеть приложение идёт по явному действию — строка «Искать в сети» под
+// подсказками или Enter, когда в справочнике ничего не нашлось.
+const suggestOnline = {}; // поле → функция сетевого поиска для текущего текста (или null)
+function offerOnlineSearch(box, key) {
+  const fn = suggestOnline[key];
+  if (!fn || navigator.onLine === false) return;
+  const el = document.createElement('div');
+  el.className = 'suggest-item suggest-online';
+  el.dataset.onlineSearch = key;
+  el.textContent = '🌐 Искать в сети — сёла, посёлки, другие написания';
+  el.addEventListener('click', e => {
+    e.stopPropagation();
+    el.textContent = 'Ищу в сети…';
+    fn();
+  });
+  box.appendChild(el);
+  box.style.display = 'block';
+}
 
 async function queryNominatimSettlements(q, biasLatLng, opts) {
   // без сети — встроенный справочник городов; при сбое сервиса — тоже он
@@ -383,7 +403,7 @@ async function refreshWaypointCoords() {
 }
 document.getElementById('refreshWaypointsBtn').addEventListener('click', refreshWaypointCoords);
 
-async function fetchRouteCitySuggestions(q) {
+async function fetchRouteCitySuggestions(q, online) {
   try {
     // как только в маршруте есть хотя бы одна точка — ищем следующую рядом с ней,
     // а не «в вакууме», чтобы не подхватить одноимённый город на другом континенте
@@ -391,11 +411,13 @@ async function fetchRouteCitySuggestions(q) {
     const bias = last ? [last.lat, last.lng] : null;
     const seq = ++suggestSeq.routeCity;
     const quick = localCitySearch(q, 8, bias).map(cityAsMatch);
-    if (quick.length) {
+    suggestOnline.routeCity = online ? null : () => fetchRouteCitySuggestions(q, true);
+    if (quick.length || !online) {
       routeCityMatches = quick;
       routeCityHlIndex = -1;
       renderRouteCitySuggestions();
     }
+    if (!online) return;
     const res = await queryNominatimSettlements(q, bias).catch(err => {
       if (quick.length) return [];
       throw err;
@@ -414,6 +436,7 @@ function renderRouteCitySuggestions() {
   if (routeCityMatches.length === 0) {
     routeCitySuggestBox.innerHTML = `<div class="suggest-empty">Ничего не найдено</div>`;
     routeCitySuggestBox.style.display = 'block';
+    offerOnlineSearch(routeCitySuggestBox, 'routeCity');
     return;
   }
   routeCitySuggestBox.innerHTML = '';
@@ -425,6 +448,7 @@ function renderRouteCitySuggestions() {
     routeCitySuggestBox.appendChild(el);
   });
   routeCitySuggestBox.style.display = 'block';
+  offerOnlineSearch(routeCitySuggestBox, 'routeCity');
 }
 
 function addRouteWaypoint(m) {

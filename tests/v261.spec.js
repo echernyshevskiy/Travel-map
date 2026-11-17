@@ -123,6 +123,8 @@ test('правка маршрута: замена остановки у запи
   await page.evaluate(() => startEdit(allEntries.find(e => e.id === 'rt_by')));
   await page.locator('[data-wp-edit="1"]').click();
   await page.fill('#editWaypointSearch', 'Мир');
+  await page.locator('#editWaypointSuggest [data-online-search]').click();
+  await expect(page.locator('#editWaypointSuggest [data-online-search]')).toHaveCount(0);
   const first = page.locator('#editWaypointSuggest [data-wp-pick]').first();
   await expect(first).toContainText('Мир — ');
   await first.click();
