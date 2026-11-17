@@ -4422,7 +4422,14 @@ label.gtl-row small {
   border-radius: 50%;
   opacity: 0.6;
   z-index: var(--z-map-ui);
-  pointer-events: none;
+  /* это кнопка «общий вид карты» */
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+.compass-rose:hover,
+.compass-rose:focus-visible {
+  opacity: 0.95;
 }
 .compass-rose::before,
 .compass-rose::after {
@@ -6265,4 +6272,48 @@ body.stabs.stab-list #sidebar > #entryList {
   font-size: var(--fs-3);
   color: var(--text-dim);
   margin: 6px 0 8px;
+}
+
+/* ---------- телефон: читаемость и попадание пальцем (v2.84) ---------- */
+@media (max-width: 768px) {
+  :root {
+    /* самый мелкий текст (подписи записей, кнопка подложки, легенда) на телефоне — 12, а не 11 */
+    --fs-1: 12px;
+  }
+  /* кнопки записи в списке: были ~21×21 и вплотную — легко удалить вместо правки */
+  .entry-row {
+    flex-wrap: wrap;
+  }
+  .entry-actions {
+    gap: 2px;
+    align-items: center;
+  }
+  .entry-actions button,
+  .entry-actions a {
+    min-width: 40px;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--fs-5);
+    padding: 0;
+  }
+  /* «Удалить» — чуть в стороне от «Редактировать» */
+  .entry-actions button[data-act='del'] {
+    margin-left: 6px;
+  }
+  /* много значков (фото, Instagram, карта…) — отдельной строкой под названием */
+  .entry-actions:has(> :nth-child(4)) {
+    flex-basis: 100%;
+    justify-content: flex-end;
+  }
+  /* заголовки сворачиваемых разделов: строка высотой 16 px → 40 */
+  .section-title.collapsible {
+    min-height: 40px;
+    margin-top: -10px;
+    margin-bottom: 0;
+  }
+  .section-title.collapsible.collapsed {
+    margin-bottom: -10px;
+  }
 }
