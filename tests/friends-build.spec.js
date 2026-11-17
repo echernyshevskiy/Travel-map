@@ -31,9 +31,10 @@ test('скрипт собирает версию для друзей без ли
     dataFile,
     JSON.stringify({
       savedAt: '2026-10-01T10:00:00.000Z',
-      entries,
-      races: sampleRaces(),
-      tripMeta: { 'Кавказ 2023': { narrative: 'Горы' }, 'Скрытая поездка': { narrative: 'не для всех' } }
+      // выдуманные поля, которых приложение (пока) не знает, — в публикацию не идут
+      entries: entries.map(e => (e.id === 'ci_tb' ? { ...e, secretX: 'личное-поле-записи', dateFrom: '2023-05-02' } : e)),
+      races: sampleRaces().map((r, i) => (i ? r : { ...r, notes: 'заметка-о-старте', secretR: 'личное-поле-старта' })),
+      tripMeta: { 'Кавказ 2023': { narrative: 'Горы', secretT: 'личное-поле-поездки' }, 'Скрытая поездка': { narrative: 'не для всех' } }
     })
   );
   const out = path.join(tmp, 'friends.html');
@@ -53,6 +54,14 @@ test('скрипт собирает версию для друзей без ли
   expect(baked.map(e => e.id)).not.toContain('ci_kz');
   expect(baked.filter(e => 'notes' in e || e.hidden)).toEqual([]);
   expect(data.readOnly).toBe(true);
+  // только разрешённые поля: незнакомые и личные не публикуются, о незнакомых — строка в отчёте
+  for (const t of ['личное-поле-записи', 'личное-поле-старта', 'личное-поле-поездки', 'заметка-о-старте', 'secretX', 'secretR', 'secretT'])
+    expect(html).not.toContain(t);
+  expect(log).toContain('Не опубликованы незнакомые поля');
+  expect(log).toContain('запись.secretX');
+  expect(log).not.toContain('личное-поле');
+  expect(baked.find(e => e.id === 'ci_tb').dateFrom).toBe('2023-05-02');
+  expect(data.races.length).toBe(sampleRaces().length);
   expect(html).toContain('<title>Travel Map</title>');
   // шрифт флагов — общий файл основной версии, на уровень выше
   expect(html).toContain("var FLAG_FONT_URL = '../fonts/flags.woff2?v=");
