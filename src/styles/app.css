@@ -1348,6 +1348,11 @@ details.sea-all > summary {
   color: var(--text-dim);
   font-style: italic;
 }
+.visited-when {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 10px;
+}
 .import-mode-panel {
   width: min(440px, 100%);
 }

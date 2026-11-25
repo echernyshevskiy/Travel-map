@@ -112,15 +112,8 @@ document.getElementById('bulkApplyVisited').addEventListener('click', async () =
     toast('Среди выбранного нет записей в статусе «Хочу посетить»');
     return;
   }
-  recordBulkAction('отметку посещёнными', touched, ['status'], []);
-  touched.forEach(e => {
-    e.status = 'visited';
-  });
-  const count = touched.length;
-  const saved = await saveData();
-  rebuildAll();
-  renderTable();
-  if (saved) showUndoToast(`Отмечено посещёнными: ${count}`);
+  // как и для одной записи — с вопросом «когда» (год, месяц, день, поездка)
+  if (await markWishlistVisited(touched)) renderTable();
 });
 
 // Если среди выбранного есть видимые друзьям — скрываем все, иначе все показываем

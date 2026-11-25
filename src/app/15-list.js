@@ -422,14 +422,103 @@ async function deleteEntry(id) {
   if (saved) showUndoToast(`Удалено: ${removed.name}`);
 }
 
+// «Хочу посетить» → «Я был»: раньше менялся только статус, и у записи оставался
+// год из планов (или никакого) — поездка попадала не в тот год статистики.
+// Теперь спрашиваем, когда это было и в какой поездке (askVisitedWhen).
 async function upgradeToVisited(id) {
   const entry = allEntries.find(e => e.id === id);
   if (!entry || entry.status !== 'wishlist') return;
-  entry.status = 'visited';
+  map.closePopup();
+  await markWishlistVisited([entry]);
+}
+// общее для одной записи и для нескольких (таблица): окно «когда» → отметка → «Отменить»
+async function markWishlistVisited(list) {
+  const when = await askVisitedWhen(list);
+  if (!when) return false;
+  const fields = ['status', 'year', 'month', 'dateFrom', 'dateTo', 'season', 'trip', 'tripOrder'];
+  recordBulkAction('отметку посещённым', list, fields, []);
+  const oldTrips = new Set(list.map(e => e.trip).filter(Boolean));
+  list.forEach(e => {
+    e.status = 'visited';
+    e.year = when.year;
+    if (when.month) e.month = when.month;
+    else delete e.month;
+    applyDates(e, { dateFrom: when.date });
+    const season = when.month && seasonForMonth(when.month);
+    if (season) e.season = season;
+    if (when.trip !== undefined && e.trip !== when.trip) {
+      if (when.trip) {
+        e.trip = when.trip;
+        e.tripOrder = nextTripOrder(when.trip);
+      } else {
+        delete e.trip;
+        delete e.tripOrder;
+      }
+    }
+  });
+  oldTrips.forEach(cleanupTripMetaIfOrphaned);
   const saved = await saveData();
   rebuildAll();
-  if (saved) toast(`«${entry.name}» отмечено как посещённое`);
-  map.closePopup();
+  if (saved) showUndoToast(list.length === 1 ? `«${list[0].name}» — посещено` : `Отмечено посещёнными: ${list.length}`);
+  return true;
+}
+// Окно «Когда вы там были?»: год (по умолчанию — текущий), месяц, день, поездка.
+// Возвращает { year, month, date, trip } или null (отмена).
+function askVisitedWhen(list) {
+  const modal = document.getElementById('visitedModal');
+  const now = new Date();
+  const monthSel = document.getElementById('visitedMonth');
+  if (monthSel.options.length === 1)
+    MONTHS.forEach(m => {
+      const o = document.createElement('option');
+      o.value = m.key;
+      o.textContent = m.ru;
+      monthSel.appendChild(o);
+    });
+  document.getElementById('visitedTitle').textContent = list.length === 1 ? 'Я был здесь' : `Отметить посещёнными: ${list.length}`;
+  document.getElementById('visitedSummary').textContent =
+    list.length === 1
+      ? `«${list[0].name}» — когда вы там были?`
+      : `${list
+          .map(e => e.name)
+          .slice(0, 4)
+          .join(', ')}${list.length > 4 ? '…' : ''} — когда?`;
+  document.getElementById('visitedYear').value = now.getFullYear();
+  monthSel.value = String(now.getMonth() + 1);
+  document.getElementById('visitedDate').value = '';
+  // поездка: если у всех записей одна — подставляем её
+  const trips = [...new Set(list.map(e => e.trip || ''))];
+  document.getElementById('visitedTrip').value = trips.length === 1 ? trips[0] : '';
+  updateTripDatalist();
+  return new Promise(resolve => {
+    const ids = ['visitedApply', 'visitedCancel', 'closeVisitedModal'];
+    const finish = v => {
+      ids.forEach(id => (document.getElementById(id).onclick = null));
+      modal.onclick = null;
+      modal.style.display = 'none';
+      resolve(v);
+    };
+    document.getElementById('visitedApply').onclick = () => {
+      const date = document.getElementById('visitedDate').value;
+      const exact = parseIsoDate(date) ? date : null;
+      const year = exact ? +exact.slice(0, 4) : parseInt(document.getElementById('visitedYear').value, 10);
+      if (!(year >= 1950 && year <= 2100)) {
+        toast('Укажите год');
+        return;
+      }
+      const month = exact ? +exact.slice(5, 7) : parseInt(monthSel.value, 10) || null;
+      const trip = document.getElementById('visitedTrip').value.trim();
+      // поездку не трогаем, если поле оставили как было и записи в разных поездках
+      finish({ year, month, date: exact || undefined, trip: trips.length === 1 || trip ? trip : undefined });
+    };
+    document.getElementById('visitedCancel').onclick = () => finish(null);
+    document.getElementById('closeVisitedModal').onclick = () => finish(null);
+    modal.onclick = e => {
+      if (e.target === modal) finish(null);
+    };
+    modal.style.display = 'flex';
+    setTimeout(() => document.getElementById('visitedYear').focus(), 0);
+  });
 }
 // кнопки в карточке отметки на карте (разметка попапа — строкой, см. 10-popups.js)
 document.addEventListener('click', e => {

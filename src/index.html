@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.88
+  Версия: v2.89
   Дата сборки: 2026-10-12
   История версий смотрите в переписке с Claude.
 -->
@@ -651,7 +651,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
         <div class="legend-credits">флаги: <a class="u-inherit-color" href="https://github.com/twitter/twemoji" target="_blank" rel="noopener">Twemoji</a>, CC BY 4.0 · города: Natural Earth, <a class="u-inherit-color" href="https://github.com/hflabs/city" target="_blank" rel="noopener">hflabs/city</a>, CC BY-SA 4.0 · границы: Natural Earth, регионы: © <a class="u-inherit-color" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL)</div>
-        <div style="margin-top:2px;font-size:var(--fs-1);opacity:0.55;" id="legendVersion">v2.88</div>
+        <div style="margin-top:2px;font-size:var(--fs-1);opacity:0.55;" id="legendVersion">v2.89</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
@@ -864,6 +864,36 @@ window.addEventListener('unhandledrejection', function(e){
     </div>
     <div class="modal-sub" id="changelogSummary"></div>
     <div class="table-wrap"><div class="u-pad-modal" id="changelogBody"></div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="visitedModal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="visitedTitle">
+  <div class="modal-panel import-mode-panel">
+    <div class="modal-header">
+      <h2 id="visitedTitle">Я был здесь</h2>
+      <button id="closeVisitedModal" title="Отмена" aria-label="Отмена">✕</button>
+    </div>
+    <div class="u-pad-modal">
+      <div class="import-mode-summary" id="visitedSummary"></div>
+      <div class="visited-when">
+        <div>
+          <label for="visitedYear">Год</label>
+          <input type="number" id="visitedYear" min="1950" max="2100">
+        </div>
+        <div>
+          <label for="visitedMonth">Месяц</label>
+          <select id="visitedMonth">
+            <option value="">не помню</option>
+          </select>
+        </div>
+      </div>
+      <label for="visitedDate">День <span class="u-dim-italic">(необязательно — год и месяц возьмутся из него)</span></label>
+      <input type="date" id="visitedDate">
+      <label for="visitedTrip">Поездка <span class="u-dim-italic">(необязательно)</span></label>
+      <input type="text" id="visitedTrip" list="tripDatalist" placeholder="например, Армения, май 2026" autocomplete="off">
+      <button class="save-btn" id="visitedApply">✓ Отметить посещённым</button>
+      <button class="cancel-edit" id="visitedCancel">Отмена</button>
+    </div>
   </div>
 </div>
 
