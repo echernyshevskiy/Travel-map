@@ -2,7 +2,7 @@
 // на входе записи и пара справочников, на выходе — главный образ, две
 // дополнительные черты, шкалы «одно ↔ другое» и любопытные факты.
 // Считается только посещённое (планы не в счёт). unit/traveler.test.js.
-import { dateSpan } from './format.js';
+import { dateSpan, maxOf } from './format.js';
 
 const share = (a, b) => (a + b ? a / (a + b) : 0.5);
 
@@ -123,7 +123,7 @@ export function travelerProfile(entries, opts = {}) {
     countries: countries.size,
     continents: continents.size,
     trips: byTrip.size,
-    longestTrip: tripDays.length ? Math.max(...tripDays) : null,
+    longestTrip: tripDays.length ? maxOf(tripDays) : null,
     avgTripDays: Math.round(avgTrip * 10) / 10
   };
 

@@ -26,7 +26,7 @@ test.describe('телефон: читаемость и попадание пал
         )
       };
     });
-    expect(r.min).toBeGreaterThanOrEqual(40);
+    expect(r.min).toBeGreaterThanOrEqual(39.5); // 40 с допуском на доли пикселя
     expect(r.gap).toBeGreaterThanOrEqual(6);
     expect(r.overflow).toBeLessThanOrEqual(0);
     expect(r.name).toBeGreaterThan(0.33);

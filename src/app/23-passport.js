@@ -15,8 +15,8 @@ function renderCalendar() {
     table.innerHTML = `<tr><td style="border:none;color:var(--text-dim);padding:20px 4px;">Пока нет посещённых отметок с указанным годом.</td></tr>`;
     return;
   }
-  const minYear = Math.min(...visited.map(e => e.year));
-  const maxYear = Math.max(...visited.map(e => e.year));
+  const minYear = minOf(visited.map(e => e.year));
+  const maxYear = maxOf(visited.map(e => e.year));
   const traveled = new Set(visited.filter(e => e.month).map(e => `${e.year}-${e.month}`));
 
   document.getElementById('calendarCount').textContent =

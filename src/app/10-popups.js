@@ -39,8 +39,8 @@ function activityLabel(key) {
 
 function buildSparkline(profile) {
   if (!profile || profile.length < 2) return '';
-  const min = Math.min(...profile),
-    max = Math.max(...profile);
+  const min = minOf(profile),
+    max = maxOf(profile);
   const range = max - min || 1;
   const w = 150,
     h = 34;

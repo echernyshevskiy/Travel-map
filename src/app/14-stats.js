@@ -126,7 +126,7 @@ function renderYearChart(visited) {
     container.innerHTML = `<div class="hint">Пока нет данных</div>`;
     return;
   }
-  const max = Math.max(...years.map(y => counts[y]));
+  const max = maxOf(years.map(y => counts[y]));
   container.innerHTML = years
     .map(y => {
       const h = Math.max(2, Math.round((counts[y] / max) * 52));
@@ -219,7 +219,7 @@ function renderNewCountriesChart() {
   // ряду создавал бы ложное впечатление, что открытия шли без паузы
   const full = [];
   for (let y = years[0]; y <= years[years.length - 1]; y++) full.push(y);
-  const max = Math.max(...full.map(y => counts[y] || 0));
+  const max = maxOf(full.map(y => counts[y] || 0));
   let running = 0;
   container.innerHTML = full
     .map(y => {
@@ -248,7 +248,7 @@ function renderSeasonChart(visited) {
   visited.forEach(e => {
     if (e.month >= 1 && e.month <= 12) counts[e.month]++;
   });
-  const max = Math.max(...counts.slice(1));
+  const max = maxOf(counts.slice(1));
   if (max === 0) {
     container.innerHTML = `<div class="hint" style="grid-column:1/-1;">Ни у одной записи не указан месяц — сезонность посчитать не из чего</div>`;
     return;

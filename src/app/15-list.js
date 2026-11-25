@@ -285,11 +285,11 @@ function countryBounds(key) {
   const polys = geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates;
   const spans = polys.map(p => {
     const xs = p[0].map(c => c[0]);
-    return Math.max(...xs) - Math.min(...xs);
+    return maxOf(xs) - minOf(xs);
   });
   const all = polys.flatMap(p => p[0]);
   const xs = all.map(c => c[0]);
-  const use = Math.max(...xs) - Math.min(...xs) > 300 ? polys[spans.indexOf(Math.max(...spans))][0] : all;
+  const use = maxOf(xs) - minOf(xs) > 300 ? polys[spans.indexOf(maxOf(spans))][0] : all;
   return L.latLngBounds(use.map(c => [c[1], c[0]]));
 }
 

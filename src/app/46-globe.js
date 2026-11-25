@@ -654,7 +654,7 @@ function globeDrawSeaLabels(ctx, proj, center, s, C, boxes) {
       cy = m[1];
     }
     const poly = rotRect(cx, cy, lay.w + 4, lay.h + 2, deg);
-    const b = [Math.min(...poly.map(v => v[0])), Math.min(...poly.map(v => v[1])), Math.max(...poly.map(v => v[0])), Math.max(...poly.map(v => v[1]))];
+    const b = [minOf(poly.map(v => v[0])), minOf(poly.map(v => v[1])), maxOf(poly.map(v => v[0])), maxOf(poly.map(v => v[1]))];
     if (b[0] < 4 || b[1] < 4 || b[2] > globe.w - 4 || b[3] > globe.h - 4 || ui.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1])) continue;
     if (boxes.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1] && polysHit(poly, boxPoly(o)))) continue;
     b.poly = poly;

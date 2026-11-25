@@ -291,3 +291,18 @@ export function normalizeEntryShape(e) {
   }
   return ch;
 }
+
+// Наименьшее и наибольшее в массиве — циклом. Math.min(...массив) передаёт
+// каждый элемент отдельным аргументом и на длинных треках (сотни тысяч точек)
+// падает с «Maximum call stack size exceeded». Пустой массив — как у Math.min()
+// и Math.max(): Infinity и -Infinity.
+export function minOf(arr) {
+  let m = Infinity;
+  for (const v of arr) if (v < m) m = v;
+  return m;
+}
+export function maxOf(arr) {
+  let m = -Infinity;
+  for (const v of arr) if (v > m) m = v;
+  return m;
+}

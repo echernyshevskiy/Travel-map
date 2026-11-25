@@ -189,7 +189,7 @@ function drawStoryStats(ctx, x, y, w, h) {
   const items = [
     { value: countries, label: 'стран' },
     { value: cities, label: 'городов' },
-    { value: worldPct, label: 'мира' }
+    { value: worldPct, label: 'стран мира' }
   ];
   const colW = w / 3;
   ctx.font = "italic 700 20px 'Twemoji Country Flags','Playfair Display'";

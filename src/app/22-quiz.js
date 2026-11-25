@@ -106,11 +106,11 @@ function quizBounds(k) {
   const xs = all.map(c => c[0]);
   // Чукотка пересекает линию перемены дат — берём её основной контур
   const use =
-    Math.max(...xs) - Math.min(...xs) > 300
+    maxOf(xs) - minOf(xs) > 300
       ? polys
           .map(p => p[0])
           .sort((a, b) => b.length - a.length)
-          .find(r => Math.max(...r.map(c => c[0])) > 0)
+          .find(r => maxOf(r.map(c => c[0])) > 0)
       : all;
   return L.latLngBounds(use.map(c => [c[1], c[0]]));
 }
