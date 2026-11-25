@@ -477,7 +477,8 @@ function renderEditWaypoints() {
   const field = document.getElementById('editWaypointsField');
   const list = document.getElementById('editWaypointsList');
   const entry = allEntries.find(e => e.id === editingId);
-  if (!entry || entry.type !== 'route' || !entry.waypointNames || entry.waypointNames.length === 0) {
+  // у перелёта точки — аэропорты; заменять их городами нельзя
+  if (!entry || entry.type !== 'route' || isFlight(entry) || !entry.waypointNames || entry.waypointNames.length === 0) {
     field.style.display = 'none';
     return;
   }

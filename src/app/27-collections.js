@@ -244,7 +244,7 @@ function collectionVisitIndex() {
   // треки нужны только для мест (чудеса света, ЮНЕСКО) — прореживаем
   const tracks = new Map();
   visited
-    .filter(e => e.type === 'route')
+    .filter(e => e.type === 'route' && !isFlight(e)) // с самолёта достопримечательность не «посещена»
     .forEach(e => {
       const c = getEntryCoords(e) || [];
       const step = Math.max(1, Math.floor(c.length / 400));

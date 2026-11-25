@@ -228,6 +228,16 @@ export function normalizeEntryShape(e) {
   ['trip', 'countryKey', 'notes', 'company', 'purpose', 'season', 'activity', 'community', 'instagramUrl', 'mapLinkUrl', 'docLinkUrl', 'terrain'].forEach(k => {
     if (e[k] != null && typeof e[k] !== 'string') set(k, typeof e[k] === 'number' ? String(e[k]) : undefined);
   });
+  // перелёт: коды аэропортов IATA (три латинские буквы) и номер рейса
+  if (e.airports != null) {
+    const codes = Array.isArray(e.airports) ? e.airports.map(c => String(c).toUpperCase()).filter(c => /^[A-Z]{3}$/.test(c)) : [];
+    if (codes.length < 2) set('airports', undefined);
+    else if (codes.some((c, i) => c !== e.airports[i]) || codes.length !== e.airports.length) set('airports', codes);
+  }
+  if (e.flightNo != null) {
+    const no = typeof e.flightNo === 'string' ? e.flightNo.trim().replace(/\s+/g, ' ').slice(0, 16) : '';
+    set('flightNo', no || undefined);
+  }
   if (e.photos != null && !Array.isArray(e.photos)) set('photos', typeof e.photos === 'string' && e.photos ? [e.photos] : []);
   if (Array.isArray(e.photos) && e.photos.some(p => typeof p !== 'string'))
     set(
@@ -306,3 +316,7 @@ export function maxOf(arr) {
   for (const v of arr) if (v > m) m = v;
   return m;
 }
+
+// Перелёт — это маршрут с занятием «перелёт»: его километры не складываются с
+// пройденными и проеханными, а треки не «исследуют» клетки и регионы по пути.
+export const isFlight = e => !!e && e.type === 'route' && e.activity === 'flight';

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.87
+  Версия: v2.88
   Дата сборки: 2026-10-12
   История версий смотрите в переписке с Claude.
 -->
@@ -217,6 +217,7 @@ window.addEventListener('unhandledrejection', function(e){
           <option value="hiking">Хайкинг</option>
           <option value="cycling">Вело</option>
           <option value="roadtrip">Автотрип</option>
+          <option value="flight">Перелёт</option>
         </select>
 
         <div id="terrainField" style="display:none;">
@@ -230,6 +231,25 @@ window.addEventListener('unhandledrejection', function(e){
         <div id="hikingDaysField" style="display:none;">
           <label>Число дней в пути <span class="u-dim-italic">(если в файле нет меток времени по дням — определите сами)</span></label>
           <input type="number" id="fieldTrackDays" min="1" max="365" step="1">
+        </div>
+
+        <!-- перелёт: откуда и куда (аэропорты), номер рейса; линия — дуга большого круга -->
+        <div id="flightFields" style="display:none;">
+          <label for="flightFromSearch">Откуда</label>
+          <div class="search-wrap">
+            <input type="text" id="flightFromSearch" placeholder="Код (SVO) или город…" autocomplete="off">
+            <div class="suggest-box" id="flightFromSuggest" style="display:none;"></div>
+          </div>
+          <div class="flight-picked" id="flightFromPicked"></div>
+          <label for="flightToSearch">Куда</label>
+          <div class="search-wrap">
+            <input type="text" id="flightToSearch" placeholder="Код (LED) или город…" autocomplete="off">
+            <div class="suggest-box" id="flightToSuggest" style="display:none;"></div>
+          </div>
+          <div class="flight-picked" id="flightToPicked"></div>
+          <label for="fieldFlightNo">Рейс <span class="u-dim-italic">(необязательно, друзьям не показывается)</span></label>
+          <input type="text" id="fieldFlightNo" maxlength="16" placeholder="SU 30" autocomplete="off">
+          <div class="hint" id="flightHint">С пересадкой — отдельной записью на каждый перелёт. Название по умолчанию — «Город — Город».</div>
         </div>
 
         <div id="editWaypointsField" style="display:none;">
@@ -551,6 +571,13 @@ window.addEventListener('unhandledrejection', function(e){
         <div class="stat-row"><span>Проехано маршрутов</span><b id="statRoadtripF">0</b></div>
         <div class="stat-row"><span>Суммарный набор высоты</span><b id="statElevationF">0 м</b></div>
         <div class="stat-row"><span>Самый длинный маршрут</span><b id="statLongestF">—</b></div>
+        <div id="flightStatsRows" hidden>
+          <div class="stat-row"><span>Перелётов</span><b id="statFlightsF">0</b></div>
+          <div class="stat-row" title="По дуге большого круга между аэропортами"><span>Километров в воздухе</span><b id="statFlightKmF">0</b></div>
+          <div class="stat-row"><span>Аэропортов</span><b id="statAirportsF">0</b></div>
+          <div class="stat-row"><span>Самый длинный перелёт</span><b id="statLongestFlightF">—</b></div>
+          <div class="stat-row"><span>Чаще всего летали</span><b id="statTopFlightF">—</b></div>
+        </div>
         <div class="stat-row"><span>Дом</span><b id="statHomeF"></b></div>
         <div class="stat-row"><span>Самая дальняя точка</span><b id="statFarthestF">—</b></div>
       </div>
@@ -624,7 +651,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
         <div class="legend-credits">флаги: <a class="u-inherit-color" href="https://github.com/twitter/twemoji" target="_blank" rel="noopener">Twemoji</a>, CC BY 4.0 · города: Natural Earth, <a class="u-inherit-color" href="https://github.com/hflabs/city" target="_blank" rel="noopener">hflabs/city</a>, CC BY-SA 4.0 · границы: Natural Earth, регионы: © <a class="u-inherit-color" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL)</div>
-        <div style="margin-top:2px;font-size:var(--fs-1);opacity:0.55;" id="legendVersion">v2.87</div>
+        <div style="margin-top:2px;font-size:var(--fs-1);opacity:0.55;" id="legendVersion">v2.88</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>

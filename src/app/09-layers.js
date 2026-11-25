@@ -117,6 +117,13 @@ function sanitizeRace(r) {
   return out;
 }
 
+// линия маршрута: перелёт — тонкий пунктир (это путь по воздуху, а не по земле),
+// маршрут «по прямой» (сервис дорог не ответил) — штрихи, обычный трек — сплошная
+function routeLineStyle(entry) {
+  if (isFlight(entry)) return { color: entry.color, weight: 2, opacity: 0.8, dashArray: '2,7', lineCap: 'round' };
+  return { color: entry.color, weight: 3, opacity: 0.85, dashArray: entry.isEstimated ? '8,5' : null, lineCap: 'round' };
+}
+
 function migrateEntry(entry) {
   sanitizeEntryFields(entry);
   if (!entry.purpose) entry.purpose = 'tourism';
@@ -249,14 +256,7 @@ function syncLayers() {
 
     if (!layer) {
       if (entry.type === 'route') {
-        layer = L.polyline(entryDrawCoords(entry), {
-          color: entry.color,
-          weight: 3,
-          opacity: 0.85,
-          dashArray: entry.isEstimated ? '8,5' : null,
-          pane: 'routePane',
-          renderer: routeRenderer
-        });
+        layer = L.polyline(entryDrawCoords(entry), { ...routeLineStyle(entry), pane: 'routePane', renderer: routeRenderer });
         layer.__geomKey = entryGeomKey(entry);
       } else if (entry.type === 'city') {
         // title — имя точки для экранного диктора и подсказка при наведении
@@ -285,7 +285,7 @@ function syncLayers() {
           layer.setLatLngs(entryDrawCoords(entry));
           layer.__geomKey = entryGeomKey(entry);
         }
-        layer.setStyle({ color: entry.color, weight: 3, opacity: 0.85, dashArray: entry.isEstimated ? '8,5' : null });
+        layer.setStyle(routeLineStyle(entry));
       } else if (entry.type === 'city') {
         layer.setLatLng([entry.lat, entry.lng]);
         layer.options.title = layer.options.alt = entry.name || '';

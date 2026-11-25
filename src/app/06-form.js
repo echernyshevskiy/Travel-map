@@ -5,6 +5,7 @@ function updateHikingDaysVisibility() {
   document.getElementById('hikingDaysField').style.display = activity === 'hiking' ? 'block' : 'none';
   const tf = document.getElementById('terrainField');
   if (tf) tf.style.display = activity === 'running' ? 'block' : 'none';
+  updateFlightFieldsVisibility();
 }
 
 // Порог подобран по реальному разрыву между шоссе и трейлом: у шоссейных

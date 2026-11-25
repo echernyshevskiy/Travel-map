@@ -369,10 +369,13 @@ function startEdit(entry) {
   setFieldColor(entry.color || DEFAULT_COLOR[entry.type]);
   if (entry.type === 'route') {
     document.getElementById('fieldActivity').value = entry.activity || 'hiking';
+    // перелёт нельзя превратить в поход: у него нет трека, только дуга между аэропортами
+    document.getElementById('fieldActivity').disabled = isFlight(entry);
+    document.getElementById('fieldFlightNo').value = entry.flightNo || '';
     document.getElementById('fieldTrackDays').value = entry.trackDays || 1;
     document.getElementById('fieldTerrain').value = entry.terrain || guessTerrain(entry.distanceKm, entry.elevationGain);
     updateHikingDaysVisibility();
-    document.getElementById('refreshWaypointsField').style.display = entry.waypointNames && entry.waypointNames.length ? 'block' : 'none';
+    document.getElementById('refreshWaypointsField').style.display = entry.waypointNames && entry.waypointNames.length && !isFlight(entry) ? 'block' : 'none';
     editWaypointIndex = -1;
     document.getElementById('editWaypointSearch').value = '';
     document.getElementById('editWaypointSuggest').style.display = 'none';

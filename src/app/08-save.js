@@ -319,7 +319,12 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
       if (oldTrip !== trip) cleanupTripMetaIfOrphaned(oldTrip);
       if (entry.type !== 'route') entry.status = status;
       if (entry.type === 'route') {
-        entry.activity = document.getElementById('fieldActivity').value;
+        // перелёт остаётся перелётом (линия — дуга между аэропортами), меняется только номер рейса
+        if (isFlight(entry)) {
+          const no = document.getElementById('fieldFlightNo').value.trim().replace(/\s+/g, ' ').slice(0, 16);
+          if (no) entry.flightNo = no;
+          else delete entry.flightNo;
+        } else entry.activity = document.getElementById('fieldActivity').value;
         entry.trackDays = parseInt(document.getElementById('fieldTrackDays').value) || entry.trackDays || 1;
         entry.terrain = entry.activity === 'running' ? document.getElementById('fieldTerrain').value : undefined;
       }
@@ -349,6 +354,24 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 
   if (currentType === 'route') {
     const activity = document.getElementById('fieldActivity').value;
+
+    if (activity === 'flight') {
+      const r = buildFlightEntry({ name, year, month, photos, instagramUrl, mapLinkUrl, docLinkUrl, notes, purpose, company, community, season, color, trip });
+      if (r.error) {
+        toast(r.error);
+        return;
+      }
+      r.entry.tripOrder = nextTripOrder(trip);
+      applyDates(r.entry, formDates);
+      allEntries.push(r.entry);
+      resetFlightForm();
+      markNewEntriesHidden(entriesBefore, hideFromFriends);
+      resetEntryFormFields();
+      const saved = await saveData();
+      rebuildAll();
+      if (saved) toast(`Перелёт добавлен: ${r.entry.airports.join(' → ')}, ${Math.round(r.entry.distanceKm).toLocaleString('ru-RU')} км`);
+      return;
+    }
 
     if (routeSource === 'cities') {
       if (routeWaypoints.length < 2) {
@@ -556,6 +579,8 @@ function exitEditMode(fullReset) {
   setFormMoreOpen(false);
   resetEntryFormFields();
   document.getElementById('fieldActivity').value = 'hiking';
+  document.getElementById('fieldActivity').disabled = false;
+  resetFlightForm();
   document.getElementById('fieldTerrain').value = 'road';
   document.getElementById('fieldTrackDays').value = 1;
   updateHikingDaysVisibility();

@@ -69,7 +69,7 @@ function computeRuRegions(visibleVisited) {
     if (v.name.trim().toLowerCase() !== HOME_CITY_NAME.toLowerCase()) visits.set(r.name, (visits.get(r.name) || 0) + 1);
   });
   visibleVisited
-    .filter(e => e.type === 'route')
+    .filter(e => e.type === 'route' && !isFlight(e)) // над регионами пролетали, а не проезжали
     .forEach(e => {
       regionsAlongRoute(e).forEach(n => {
         if (!visited.has(n)) passed.add(n);

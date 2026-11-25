@@ -144,7 +144,8 @@ function drawSquares() {
 let heatSignature = null,
   heatMaxSquare = 0;
 function updateHeat(visibleVisited) {
-  heatRoutes = visibleVisited.filter(e => e.type === 'route' && !e.isEstimated);
+  // перелёт не «исследует» клетки под собой
+  heatRoutes = visibleVisited.filter(e => e.type === 'route' && !e.isEstimated && !isFlight(e));
   // клики по фильтрам, не меняющие набор треков, не пересчитывают квадраты
   const sig = heatRoutes.map(e => e.id + ':' + (e.coordsEncoded || '').length).join('|');
   if (sig !== heatSignature) {

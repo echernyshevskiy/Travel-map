@@ -82,7 +82,7 @@ function updateStats() {
   const visited = allEntries.filter(e => e.status !== 'wishlist');
   const countries = new Set(visited.filter(e => e.type === 'country' && e.countryKey).map(e => e.countryKey)).size;
   const cities = distinctCityKeys(getAllCityVisits(visited)).size;
-  const routes = visited.filter(e => e.type === 'route');
+  const routes = visited.filter(e => e.type === 'route' && !isFlight(e));
   const km = routes.reduce((s, r) => s + (r.distanceKm || 0), 0);
   document.getElementById('statCountries').textContent = countries;
   document.getElementById('statCities').textContent = cities;

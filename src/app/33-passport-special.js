@@ -95,7 +95,7 @@ function computeBadges() {
   }
 
   // километры маршрутов
-  const km = visited.filter(e => e.type === 'route').reduce((s, r) => s + (r.distanceKm || 0), 0);
+  const km = visited.filter(e => e.type === 'route' && !isFlight(e)).reduce((s, r) => s + (r.distanceKm || 0), 0);
   if (km >= 10000) badges.push({ mark: '◈', title: 'Дорога как дом', note: `${Math.round(km).toLocaleString('ru-RU')} км маршрутов` });
   else if (km >= 1000) badges.push({ mark: '◈', title: 'На своих двоих', note: `${Math.round(km).toLocaleString('ru-RU')} км маршрутов` });
 
@@ -122,7 +122,7 @@ function computeBadges() {
   // частая активность маршрутов
   const acts = {};
   visited
-    .filter(e => e.type === 'route' && e.activity)
+    .filter(e => e.type === 'route' && e.activity && !isFlight(e))
     .forEach(e => {
       acts[e.activity] = (acts[e.activity] || 0) + 1;
     });

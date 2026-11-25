@@ -1318,6 +1318,31 @@ details.sea-all > summary {
   cursor: pointer;
   flex-shrink: 0;
 }
+.flight-picked:empty {
+  display: none;
+}
+.flight-picked {
+  margin: 4px 0 2px;
+}
+.flight-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: var(--fs-3);
+  background: var(--panel);
+}
+.flight-tag button {
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  min-width: 28px;
+  min-height: 28px;
+  font-size: var(--fs-3);
+}
 .suggest-online {
   border-top: 1px solid var(--line);
   color: var(--text-dim);
