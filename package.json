@@ -4,6 +4,8 @@
   "homepage": "https://echernyshevskiy.github.io/Travel-map/",
   "description": "Карта путешествий: исходники в src/, сборка Vite в один index.html, проверка ESLint, модульные тесты Vitest и автотесты Playwright",
   "scripts": {
+    "prepare": "node scripts/setup-hooks.mjs",
+    "secrets": "gitleaks git --redact --no-banner --config .gitleaks.toml --log-opts=--all .",
     "dev": "vite",
     "build": "vite build",
     "build:friends": "node scripts/build-friends.mjs",

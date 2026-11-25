@@ -1,0 +1,14 @@
+#!/bin/sh
+# Перед коммитом: нет ли в добавленных изменениях ключей, токенов, паролей.
+# Включается само при `npm install` (scripts/setup-hooks.mjs). Нужен gitleaks:
+#   Windows: winget install Gitleaks.Gitleaks   (или scoop install gitleaks)
+#   macOS:   brew install gitleaks
+#   Linux:   https://github.com/gitleaks/gitleaks/releases
+# Если находка ложная — допишите исключение в .gitleaks.toml. Пропустить проверку
+# разово можно `git commit --no-verify`, но CI всё равно проверит коммит.
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "Проверка секретов: gitleaks не установлен — коммит остановлен." >&2
+  echo "Установите его (см. .githooks/pre-commit) или разово: git commit --no-verify" >&2
+  exit 1
+fi
+exec gitleaks git --pre-commit --staged --redact --no-banner --config .gitleaks.toml .
