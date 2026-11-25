@@ -68,6 +68,8 @@ test('кнопки в карточке: «отметить как посещён
   const { errors } = await openAsVisitor(page, { entries: entries() });
   await popupOf(page, 'ci_wl');
   await page.locator('.leaflet-popup [data-popup-act="upgrade"]').click();
+  // v2.89: сначала окно «когда вы там были?»
+  await page.click('#visitedApply');
   await expect.poll(() => page.evaluate(() => window.__travelMap.allEntries.find(e => e.id === 'ci_wl').status)).toBe('visited');
   await expect(page.locator('.leaflet-popup')).toHaveCount(0); // карточка закрывается (с короткой анимацией)
 
