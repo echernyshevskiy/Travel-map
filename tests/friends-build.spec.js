@@ -144,3 +144,45 @@ test('все записи скрыты — публикуется пустая �
   expect(await page.evaluate(() => allEntries.length)).toBe(0);
   expect(errors).toEqual([]);
 });
+
+test('отложенная публикация: последние дни и текущая поездка не видны, старое — видно; 0 — выключено', async ({}, info) => {
+  test.skip(info.project.name !== 'desktop', 'достаточно одной раскладки');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'friends-'));
+  const dataFile = path.join(tmp, 'data.json');
+  const out = path.join(tmp, 'friends', 'index.html');
+  const iso = d => new Date(Date.now() - d * 86400000).toISOString().slice(0, 10);
+  const base = sampleEntries()[0];
+  const entries = [
+    { ...base, id: 'yday', name: 'Вчерашний город', trip: undefined, dateFrom: iso(1) },
+    { ...base, id: 'month', name: 'Месяц назад', trip: undefined, dateFrom: iso(30) },
+    { ...base, id: 'cur1', name: 'Начало текущей поездки', trip: 'Текущая', dateFrom: iso(20) },
+    { ...base, id: 'cur2', name: 'Конец текущей поездки', trip: 'Текущая', dateFrom: iso(2) }
+  ];
+  const races = [
+    { id: 'rNew', name: 'Старт на днях', date: iso(2), status: 'done' },
+    { id: 'rOld', name: 'Старт давно', date: iso(60), status: 'done' },
+    { id: 'rNext', name: 'Старт впереди', date: iso(-30), status: 'upcoming' }
+  ];
+  fs.writeFileSync(dataFile, JSON.stringify({ entries, races, tripMeta: { Текущая: { narrative: 'идёт сейчас' } } }));
+  const build = (...extra) =>
+    execFileSync(
+      'node',
+      [path.join(ROOT, 'scripts', 'build-friends.mjs'), '--src', path.join(ROOT, 'index.html'), '--out', out, '--data', dataFile, ...extra],
+      {
+        env: { ...process.env, FRIENDS_DELAY_DAYS: '' }
+      }
+    ).toString();
+  const log = build();
+  expect(log).toContain('Задержка публикации 7 дн.');
+  let baked = readBaked(fs.readFileSync(out, 'utf8'));
+  expect(baked.entries.map(e => e.id)).toEqual(['month']);
+  expect(baked.races.map(r => r.id)).toEqual(['rOld', 'rNext']);
+  expect(baked.tripMeta).toEqual({}); // описание идущей поездки тоже не публикуется
+  // выключено — всё как раньше
+  build('--delay-days', '0');
+  baked = readBaked(fs.readFileSync(out, 'utf8'));
+  expect(baked.entries.map(e => e.id).sort()).toEqual(['cur1', 'cur2', 'month', 'yday']);
+  expect(baked.races.length).toBe(3);
+  // неверное значение — сборка останавливается, прежняя версия не трогается
+  expect(() => build('--delay-days', 'неделя')).toThrow();
+});

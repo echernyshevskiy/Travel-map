@@ -1,12 +1,28 @@
-# Сборка сайта (вариант A): исходники лежат в src/, а GitHub Pages отдаёт
-# готовые index.html и friends/index.html из корня ветки. Этот процесс
-# собирает их и коммитит, если что-то изменилось. Запускается:
-#   • когда вы загружаете изменения в src/, package.json, vite.config.mjs или scripts/;
-#   • по расписанию — 4 раза в сутки (обновить данные в версии для друзей);
+# Сборка и публикация сайта на GitHub Pages — без коммитов в репозиторий.
+#
+# Раньше этот процесс коммитил готовую версию для друзей в ветку main, и каждая
+# её версия навсегда оставалась в истории публичного репозитория. Теперь сайт
+# собирается здесь и публикуется архивом (артефактом) прямо в GitHub Pages:
+# в репозитории версии для друзей больше нет, её прошлые состояния не копятся.
+#
+# Что публикуется: основная версия (index.html — собирается из src/ заново),
+# версия для друзей (friends/ — из закрытого репозитория данных) и всё, что им
+# нужно (шрифты, границы, обложки, библиотеки, значки). Исходники, тесты и
+# служебные файлы в архив не попадают.
+#
+# Запускается:
+#   • после каждого слияния в main;
+#   • по расписанию — 4 раза в сутки (обновить данные в версии для друзей и
+#     «добрать» записи, у которых прошла задержка публикации);
 #   • вручную — Actions → «Сборка сайта» → Run workflow.
-# Нужны настройки репозитория (Settings → Secrets and variables → Actions):
-#   • переменная DATA_REPO — например, echernyshevskiy/travel-map-data;
-#   • секрет DATA_TOKEN — токен с доступом Contents: Read-only к этому репозиторию.
+#
+# Настройки репозитория:
+#   • Settings → Pages → Build and deployment → Source: «GitHub Actions»;
+#   • Settings → Secrets and variables → Actions:
+#       переменная DATA_REPO — например, echernyshevskiy/travel-map-data;
+#       секрет DATA_TOKEN — токен с доступом Contents: Read-only к этому репозиторию;
+#       переменная FRIENDS_DELAY_DAYS (по желанию) — задержка публикации в днях,
+#         по умолчанию 7, 0 — без задержки.
 name: Сборка сайта
 
 on:
@@ -14,20 +30,12 @@ on:
     - cron: '23 */6 * * *'
   workflow_dispatch:
   push:
-    # только main: в ветках pull request сборка коммитила свою пересборку прямо
-    # в ветку, и проверку этого коммита приходилось подтверждать вручную
     branches: [main]
-    paths:
-      - src/**
-      - package.json
-      - package-lock.json
-      - vite.config.mjs
-      - scripts/**
-      - sw.js
 
 permissions:
-  contents: write
+  contents: read
   pages: write
+  id-token: write
 
 concurrency:
   group: site-build
@@ -51,23 +59,20 @@ jobs:
         env:
           DATA_REPO: ${{ vars.DATA_REPO }}
           DATA_TOKEN: ${{ secrets.DATA_TOKEN }}
-      - name: Опубликовать, если что-то изменилось
-        id: publish
-        run: |
-          if git diff --quiet -- index.html friends/index.html friends/sw.js; then
-            echo "Ничего не изменилось — публиковать нечего"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html friends/index.html friends/sw.js
-          git commit -m "Сборка сайта: index.html и версия для друзей"
-          git pull --rebase
-          git push
-          echo "changed=1" >> "$GITHUB_OUTPUT"
-      - name: Обновить сайт GitHub Pages
-        if: steps.publish.outputs.changed == '1'
-        # на случай, если коммит от имени бота не запустит публикацию сам
-        run: gh api --method POST "/repos/${GITHUB_REPOSITORY}/pages/builds" > /dev/null || echo "Публикация запустится сама"
-        env:
-          GH_TOKEN: ${{ github.token }}
+          FRIENDS_DELAY_DAYS: ${{ vars.FRIENDS_DELAY_DAYS }}
+      - name: Сложить сайт
+        run: node scripts/site-files.mjs _site
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
