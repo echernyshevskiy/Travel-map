@@ -113,7 +113,7 @@ function seaLabelLayout(c, L, W, small, Lfull) {
   if (!lays) seaLayoutCache.set(key, (lays = labelLayouts(c.text, f, size)));
   for (const lay of lays) {
     if (lay.w > L * 0.92 || lay.h > W * 0.9) continue;
-    const n = Math.max(...lay.lines.map(l => l.length));
+    const n = maxOf(lay.lines.map(l => l.length));
     const extra = Math.max(0, Math.min((spMax - sp0) * size, (Math.min(L * 0.85, (Lfull || L) * 0.4) - lay.w) / n));
     return { lines: lay.lines, size, weight, upper: f.upper, sp: sp0 * size + extra, w: Math.ceil(lay.w + extra * n), h: lay.h };
   }
@@ -323,7 +323,7 @@ function renderMapLabels() {
         const cx = (a1.x + a2.x) / 2 + ux * t - uy * q,
           cy = (a1.y + a2.y) / 2 + uy * t + ux * q;
         const poly = rotRect(cx, cy, lay.w + 4, lay.h + 2, deg);
-        const box = [Math.min(...poly.map(v => v[0])), Math.min(...poly.map(v => v[1])), Math.max(...poly.map(v => v[0])), Math.max(...poly.map(v => v[1]))];
+        const box = [minOf(poly.map(v => v[0])), minOf(poly.map(v => v[1])), maxOf(poly.map(v => v[0])), maxOf(poly.map(v => v[1]))];
         if (deg) box.poly = poly;
         if (!onScreen(box) || !clear(box)) continue;
         chosen = { box, html: seaLabelHtml(lay, deg, visitedSeas.has(c.text)), w: lay.w, h: lay.h, anchor: [lay.w / 2 - (cx - pt.x), lay.h / 2 - (cy - pt.y)] };

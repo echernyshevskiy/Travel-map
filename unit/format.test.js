@@ -158,7 +158,7 @@ describe('точные даты', () => {
   });
 });
 
-import { placeStemGuess } from '../src/lib/format.js';
+import { placeStemGuess, minOf, maxOf } from '../src/lib/format.js';
 describe('placeStemGuess', () => {
   it('из сельсовета и района — название посёлка', () => {
     expect(placeStemGuess('Мирский сельский Совет')).toBe('Мир');
@@ -171,5 +171,19 @@ describe('placeStemGuess', () => {
     expect(placeStemGuess('Kouga Local Municipality')).toBe('Kouga');
     expect(placeStemGuess('Ростов')).toBe('Ростов');
     expect(placeStemGuess('Городской округ Сочи')).toBe('Сочи');
+  });
+});
+
+describe('minOf / maxOf', () => {
+  it('как Math.min/Math.max, но без ограничения на длину', () => {
+    expect(minOf([3, -1, 2])).toBe(-1);
+    expect(maxOf([3, -1, 2])).toBe(3);
+    expect(minOf([])).toBe(Infinity);
+    expect(maxOf([])).toBe(-Infinity);
+    // трек на полмиллиона точек: Math.max(...arr) здесь падает
+    const big = Array.from({ length: 500_000 }, (_, i) => Math.sin(i) * 1000);
+    big[123_456] = 9999;
+    expect(maxOf(big)).toBe(9999);
+    expect(() => Math.max(...Array.from({ length: 2_000_000 }, () => 1))).toThrow();
   });
 });

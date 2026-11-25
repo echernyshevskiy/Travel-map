@@ -74,6 +74,8 @@ const LOCALE_METHODS = new Set(['toLocaleDateString', 'toLocaleTimeString', 'toI
 // Добавляя сюда функцию, убедитесь, что это так (и что так останется).
 export const SAFE_CALLS = new Set([
   // src/lib/format.js — числа и даты в текст
+  'minOf', // наименьшее / наибольшее число массива (замена Math.min(...)) — число
+  'maxOf',
   'formatPace',
   'formatRaceTime',
   'fmtDelta',

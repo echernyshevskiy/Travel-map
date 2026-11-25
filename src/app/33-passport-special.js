@@ -80,7 +80,7 @@ function computeBadges() {
   // стаж
   const years = visited.map(e => e.year).filter(Boolean);
   if (years.length) {
-    const span = Math.max(...years) - Math.min(...years);
+    const span = maxOf(years) - minOf(years);
     // «21 лет» резало глаз — склоняем правильно
     const yearWord = n => {
       const t = n % 10,
@@ -103,7 +103,7 @@ function computeBadges() {
   const countries = new Set(visited.filter(e => e.type === 'country' && e.countryKey).map(e => e.countryKey));
   if (countries.size >= 10) {
     const pct = Math.round((countries.size / COUNTRY_LIST.length) * 100);
-    badges.push({ mark: '◉', title: `Открыто ${pct}% мира`, note: `${countries.size} стран из ${COUNTRY_LIST.length}` });
+    badges.push({ mark: '◉', title: `Открыто ${pct}% стран мира`, note: `${countries.size} стран из ${COUNTRY_LIST.length}` });
   }
 
   // моря и океаны: от пяти морей — значок, все океаны с берега — отдельно
@@ -157,16 +157,16 @@ function buildRouteSparkSvg(entry, w = 300, h = 120) {
 
   const lats = pts.map(c => c[0]),
     lngs = pts.map(c => c[1]);
-  const midLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+  const midLat = (minOf(lats) + maxOf(lats)) / 2;
   // на широте φ градус долготы короче градуса широты — без поправки
   // северные маршруты выглядели бы растянутыми вширь
   const kx = Math.cos((midLat * Math.PI) / 180) || 1;
   const xs = lngs.map(v => v * kx),
     ys = lats.map(v => -v);
-  const minX = Math.min(...xs),
-    maxX = Math.max(...xs);
-  const minY = Math.min(...ys),
-    maxY = Math.max(...ys);
+  const minX = minOf(xs),
+    maxX = maxOf(xs);
+  const minY = minOf(ys),
+    maxY = maxOf(ys);
   const spanX = maxX - minX || 1e-6,
     spanY = maxY - minY || 1e-6;
   const pad = 10;
@@ -238,8 +238,8 @@ function buildRouteSparkSvg(entry, w = 300, h = 120) {
 function buildElevationSvg(entry, w = 300, h = 46) {
   const p = Array.isArray(entry.profile) ? entry.profile.filter(v => typeof v === 'number' && isFinite(v)) : null;
   if (!p || p.length < 3) return '';
-  const min = Math.min(...p),
-    max = Math.max(...p);
+  const min = minOf(p),
+    max = maxOf(p);
   const span = max - min || 1;
   const pad = 3;
   const x = i => ((i / (p.length - 1)) * (w - pad * 2) + pad).toFixed(1);

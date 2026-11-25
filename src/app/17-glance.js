@@ -58,7 +58,7 @@ function renderGlance() {
   const nums = [];
   if (countries.size) nums.push(`<span class="glance-num">${countries.size}<small>стран</small></span>`);
   if (cities.size) nums.push(`<span class="glance-num">${cities.size}<small>городов</small></span>`);
-  if (countries.size) nums.push(`<span class="glance-num">${pct}%<small>мира</small></span>`);
+  if (countries.size) nums.push(`<span class="glance-num" title="доля стран и территорий из справочника">${pct}%<small>стран мира</small></span>`);
 
   const note = glanceTimeLine();
   bar.innerHTML = `<div class="glance-nums">${nums.join('<span class="glance-sep">·</span>')}</div>` + (note ? `<div class="glance-note">${note}</div>` : '');
@@ -70,7 +70,7 @@ function renderGlance() {
     const parts = [];
     if (countries.size) parts.push(`<b>${countries.size}</b>стр.`);
     if (cities.size) parts.push(`<b>${cities.size}</b>гор.`);
-    if (countries.size) parts.push(`<b>${pct}%</b>мира`);
+    if (countries.size) parts.push(`<b>${pct}%</b>стран мира`);
     document.getElementById('mapGlanceCompact').innerHTML = parts.join(' · ') + ' <span class="mg-chev" aria-hidden="true">▸</span>';
   }
 }

@@ -64,7 +64,9 @@ import {
   dateSpan,
   localDateAt,
   isUsableEntry,
-  normalizeEntryShape
+  normalizeEntryShape,
+  minOf,
+  maxOf
 } from '../lib/format.js';
 import { getAllCityVisits, uniqueCityVisits, distinctCityKeys } from '../lib/visits.js';
 import { SYNC_META, itemJson, mergeKind, parseTokenExpiry } from '../lib/sync-merge.js';

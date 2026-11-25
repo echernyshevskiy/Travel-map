@@ -6,15 +6,15 @@ function buildBioSpreadHtml(allStamps) {
   const visited = allEntries.filter(e => e.status !== 'wishlist' && e.year);
   const cities = distinctCityKeys(getAllCityVisits(visited)).size; // уникальные города, а не число визитов
   const years = visited.map(e => e.year);
-  const firstYear = years.length ? Math.min(...years) : null;
-  const lastYear = years.length ? Math.max(...years) : null;
+  const firstYear = years.length ? minOf(years) : null;
+  const lastYear = years.length ? maxOf(years) : null;
   const pct = Math.round((allStamps.length / COUNTRY_LIST.length) * 100);
   const homeCity = HOME_LOCATION.name.split(',')[0].trim();
 
   const fields = [
     ['Стран посещено', String(allStamps.length)],
     ['Городов посещено', String(cities)],
-    ['Открыто карты мира', `${pct}%`],
+    ['Доля стран мира', `${pct}%`],
     ['Первая запись', firstYear ? String(firstYear) : '—'],
     ['Последняя поездка', lastYear ? String(lastYear) : '—'],
     ['Дом', homeCity]
@@ -76,7 +76,7 @@ function renderPassport() {
   const { all: allStamps, shown: stamps, pages } = passportPages();
 
   document.getElementById('passportCount').textContent =
-    `Собрано печатей: ${allStamps.length} из ${COUNTRY_LIST.length} (${Math.round((allStamps.length / COUNTRY_LIST.length) * 100)}% карты мира)` +
+    `Собрано печатей: ${allStamps.length} из ${COUNTRY_LIST.length} (${Math.round((allStamps.length / COUNTRY_LIST.length) * 100)}% стран мира)` +
     (passportSearchQuery ? ` · показано: ${stamps.length}` : '');
 
   const book = document.getElementById('passportBook');

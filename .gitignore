@@ -2,3 +2,7 @@ node_modules/
 test-results/
 playwright-report/
 dist/
+# версия для друзей собирается при публикации (scripts/build-friends.mjs) и в репозитории не хранится
+friends/index.html
+friends/sw.js
+_site/

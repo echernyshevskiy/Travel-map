@@ -27,7 +27,7 @@ document.getElementById('gpxInput').addEventListener('change', e => {
         }
         const distanceKm = gpxDistanceKm(parsed);
         const elevationGain = gpxElevationGain(parsed);
-        const maxElevation = parsed.elevations.length > 0 ? Math.max(...parsed.elevations) : null;
+        const maxElevation = parsed.elevations.length > 0 ? maxOf(parsed.elevations) : null;
         const durationMin = parsed.times.length > 1 ? (parsed.times[parsed.times.length - 1] - parsed.times[0]) / 60000 : null;
         const profile = parsed.elevations.length > 1 ? downsampleNumeric(parsed.elevations, 40) : null;
         const ds =

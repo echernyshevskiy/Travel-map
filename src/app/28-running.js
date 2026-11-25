@@ -226,15 +226,15 @@ function renderRunProgress(perfs) {
     T0 = 12,
     B0 = 26;
   const xs = pts.map(p => p.date.getTime());
-  let x0 = Math.min(...xs),
-    x1 = Math.max(...xs);
+  let x0 = minOf(xs),
+    x1 = maxOf(xs);
   if (x1 - x0 < 60 * 86400000) {
     x0 -= 30 * 86400000;
     x1 += 30 * 86400000;
   }
   const ys = pts.map(p => p.y);
-  let y0 = Math.min(...ys),
-    y1 = Math.max(...ys);
+  let y0 = minOf(ys),
+    y1 = maxOf(ys);
   const padY = (y1 - y0) * 0.15 || (share ? 5 : 0.2);
   y0 -= padY;
   y1 += padY;
@@ -345,7 +345,7 @@ function renderRunCalendar() {
     return;
   }
   const years = [...new Set([...cells.keys()].map(k => +k.split('-')[0]))].sort((a, b) => b - a);
-  const maxKm = Math.max(...[...cells.values()].map(c => c.km), 1);
+  const maxKm = Math.max(maxOf([...cells.values()].map(c => c.km)), 1);
   const MON = ['я', 'ф', 'м', 'а', 'м', 'и', 'и', 'а', 'с', 'о', 'н', 'д'];
   let html = `<div class="run-cal"><span></span>${MON.map(m => `<span class="rc-m">${m}</span>`).join('')}<span class="rc-m" style="text-align:right;">км</span>`;
   years.forEach(y => {

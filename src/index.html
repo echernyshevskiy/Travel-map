@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Карта путешествий
-  Версия: v2.86
+  Версия: v2.87
   Дата сборки: 2026-10-12
   История версий смотрите в переписке с Claude.
 -->
@@ -538,7 +538,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div class="stat-row"><span>Месяцев подряд (макс.)</span><b id="statMonthsStreakF">0</b></div>
         <div class="stat-row"><span>Самый долгий перерыв</span><b id="statGapF">—</b></div>
         <div class="stat-row"><span>Посещено стран</span><b id="statCountriesF">0</b></div>
-        <div class="stat-row"><span>Открыто карты мира</span><b id="statWorldPct">0%</b></div>
+        <div class="stat-row"><span title="доля стран и территорий из справочника, а не площади Земли">Доля стран мира</span><b id="statWorldPct">0%</b></div>
         <div class="stat-row"><span>Посещено городов</span><b id="statCitiesF">0</b></div>
         <div class="stat-row"><span>Регионов России</span><b id="statRuRegionsF">0</b></div>
         <div class="stat-row" title="Город засчитывается морю, если до берега не больше 20 км; залив — своему морю"><span>Морей</span><b id="statSeasF">0</b></div>
@@ -624,7 +624,7 @@ window.addEventListener('unhandledrejection', function(e){
         <div style="margin-top:4px;font-style:italic;display:none;" id="legendHeat">тепловая карта: ярче — чаще; клетки — исследованные квадраты</div>
         <div style="margin-top:4px;font-style:italic;">клик по любой стране — название и флаг</div>
         <div class="legend-credits">флаги: <a class="u-inherit-color" href="https://github.com/twitter/twemoji" target="_blank" rel="noopener">Twemoji</a>, CC BY 4.0 · города: Natural Earth, <a class="u-inherit-color" href="https://github.com/hflabs/city" target="_blank" rel="noopener">hflabs/city</a>, CC BY-SA 4.0 · границы: Natural Earth, регионы: © <a class="u-inherit-color" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL)</div>
-        <div style="margin-top:2px;font-size:var(--fs-1);opacity:0.55;" id="legendVersion">v2.86</div>
+        <div style="margin-top:2px;font-size:var(--fs-1);opacity:0.55;" id="legendVersion">v2.87</div>
       </div>
     </div>
     <div class="toast" id="toast"></div>
