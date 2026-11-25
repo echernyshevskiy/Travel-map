@@ -12,8 +12,12 @@
 // описания поездок — только у поездок, которые остались видимыми.
 // Из ссылок остаются только обложки (первое фото-картинка записи и выбранные
 // обложки поездок), Instagram и ссылки на карты; альбомы и документы убираются.
+// Отложенная публикация: записи и поездки последних N дней (по умолчанию 7)
+// пока не публикуются — друзья не видят, где вы сейчас (scripts/friends-delay.mjs).
+// N — `--delay-days N` или переменная окружения FRIENDS_DELAY_DAYS; 0 — выключено.
 // Скрипт не содержит секретов и выводит только итоговые числа.
 import { applyCsp } from './csp.mjs';
+import { delayedSets } from './friends-delay.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,6 +31,12 @@ const opt = name => {
 const SRC = path.resolve(opt('--src') || path.join(ROOT, 'index.html'));
 const OUT = path.resolve(opt('--out') || path.join(ROOT, 'friends', 'index.html'));
 const DATA_FILE = opt('--data');
+const DELAY_RAW = opt('--delay-days') ?? process.env.FRIENDS_DELAY_DAYS ?? '';
+const DELAY_DAYS = DELAY_RAW === '' ? 7 : Number(DELAY_RAW);
+if (!Number.isInteger(DELAY_DAYS) || DELAY_DAYS < 0 || DELAY_DAYS > 365) {
+  console.error('Ошибка: задержка публикации (--delay-days / FRIENDS_DELAY_DAYS) — целое число дней от 0 до 365');
+  process.exit(1);
+}
 const SYNC_FILE = 'travel-data.json';
 
 function fail(msg) {
@@ -147,9 +157,11 @@ const tripCovers = new Set(
     .map(m => m && m.coverPhoto)
     .filter(isImageLink)
 );
+// записи и поездки последних DELAY_DAYS дней — пока не публикуем
+const delayed = delayedSets({ entries: all, races: data.races, days: DELAY_DAYS });
 let removedLinks = 0;
 const entries = all
-  .filter(e => !e.hidden)
+  .filter(e => !e.hidden && !delayed.entryIds.has(e.id))
   .map(e => {
     const out = pick(e, PUBLIC_ENTRY, PRIVATE_ENTRY, 'запись');
     removedLinks += e.docLinkUrl ? 1 : 0;
@@ -164,6 +176,10 @@ const entries = all
 // владельца: публикуем пустую карту, иначе старая версия так и висела бы на сайте
 if (all.length === 0) fail('в данных нет ни одной записи — версию для друзей не перезаписываю');
 if (entries.length === 0) console.log('Все записи скрыты от друзей — публикуется пустая карта');
+if (delayed.cutoff)
+  console.log(
+    `Задержка публикации ${DELAY_DAYS} дн. (позже ${delayed.cutoff} — пока не видно): записей ${delayed.entryIds.size}, поездок ${delayed.trips.size}, стартов ${delayed.raceIds.size}`
+  );
 const trips = new Set(entries.map(e => e.trip).filter(Boolean));
 const tripMeta = {};
 const keptPhotos = new Set(entries.flatMap(e => e.photos));
@@ -173,7 +189,9 @@ Object.entries(data.tripMeta || {}).forEach(([k, v]) => {
   if (m.coverPhoto && !keptPhotos.has(m.coverPhoto)) delete m.coverPhoto;
   tripMeta[k] = m;
 });
-const races = (Array.isArray(data.races) ? data.races : []).filter(r => r && typeof r === 'object').map(r => pick(r, PUBLIC_RACE, PRIVATE_RACE, 'старт'));
+const races = (Array.isArray(data.races) ? data.races : [])
+  .filter(r => r && typeof r === 'object' && !delayed.raceIds.has(r.id))
+  .map(r => pick(r, PUBLIC_RACE, PRIVATE_RACE, 'старт'));
 const savedAt = typeof data.savedAt === 'string' ? data.savedAt : typeof data.exportedAt === 'string' ? data.exportedAt : null;
 
 let html = fs.readFileSync(SRC, 'utf8');
@@ -243,5 +261,5 @@ if (before === html) {
 }
 fs.writeFileSync(OUT, html);
 console.log(
-  `Версия для друзей обновлена: записей ${entries.length} (скрыто ${all.length - entries.length}), убрано ссылок ${removedLinks}, стартов ${races.length}, описаний поездок ${Object.keys(tripMeta).length}${savedAt ? ', данные от ' + savedAt.slice(0, 10) : ''}`
+  `Версия для друзей обновлена: записей ${entries.length} (скрыто ${all.length - entries.length}, из них отложено ${delayed.entryIds.size}), убрано ссылок ${removedLinks}, стартов ${races.length}, описаний поездок ${Object.keys(tripMeta).length}${savedAt ? ', данные от ' + savedAt.slice(0, 10) : ''}`
 );

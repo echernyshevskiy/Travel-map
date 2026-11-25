@@ -44,6 +44,15 @@ jobs:
         run: npm run test:unit
       - name: Собрать index.html из src/
         run: npm run build
+      # Сайт публикуется из свежей сборки, а релизы и сравнение версий берут
+      # index.html из репозитория: они должны совпадать (забыли пересобрать — PR красный)
+      - name: index.html в репозитории совпадает со сборкой
+        run: git diff --exit-code --stat -- index.html || { echo "index.html устарел — выполните npm run build и закоммитьте его"; exit 1; }
+      # сборка сама кладёт шрифты и библиотеку карты в fonts/ и vendor/ — новые файлы должны быть в репозитории
+      - name: fonts/ и vendor/ в репозитории совпадают со сборкой
+        run: |
+          left=$(git status --porcelain -- fonts vendor)
+          if [ -n "$left" ]; then echo "$left"; echo "Сборка изменила fonts/ или vendor/ — закоммитьте эти файлы"; exit 1; fi
       - name: Собрать версию для друзей на тестовых данных
         run: node scripts/build-friends.mjs --data tests/fixtures/friends-sample.json
       - run: npx playwright install --with-deps chromium

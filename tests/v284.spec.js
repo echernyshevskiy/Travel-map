@@ -54,7 +54,8 @@ test.describe('телефон: читаемость и попадание пал
         return { tiny, minTitle: titles.length ? Math.min(...titles) : 99 };
       });
       expect(r.tiny, `мелкий текст на вкладке ${tab}`).toEqual([]);
-      expect(r.minTitle, `заголовок раздела на вкладке ${tab}`).toBeGreaterThanOrEqual(40);
+      // 39,5: на серверах CI высота выходит 39,99997 из-за округления долей пикселя
+      expect(r.minTitle, `заголовок раздела на вкладке ${tab}`).toBeGreaterThanOrEqual(39.5);
     }
     await expectNoErrors(errors);
   });
