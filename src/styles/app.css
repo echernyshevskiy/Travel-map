@@ -1726,6 +1726,43 @@ details.sea-all > summary {
 .recap-hi .stat-row:last-child {
   border-bottom: none;
 }
+.recap-share {
+  padding: 4px 20px 18px;
+}
+.recap-share-title {
+  font-family: 'Courier Prime', monospace;
+  font-size: var(--fs-2);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 10px 0 8px;
+}
+.recap-share .chip-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+/* предпросмотр: картинка целиком, вертикальная — не выше окна */
+.recap-preview {
+  display: block;
+  margin: 0 auto 12px;
+  max-width: 100%;
+  max-height: 62vh;
+  aspect-ratio: 1080 / 1920;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm, none);
+}
+.recap-preview.is-square {
+  aspect-ratio: 1;
+}
+.recap-share-btns {
+  display: flex;
+  gap: 8px;
+}
+.recap-share-btns > button {
+  flex: 1;
+}
 .recap-empty {
   padding: 24px 20px;
 }

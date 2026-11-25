@@ -384,9 +384,15 @@ function fillRecapYears() {
 document.getElementById('openRecapBtn').addEventListener('click', () => {
   fillRecapYears();
   renderRecap();
+  renderRecapTemplates();
+  document.getElementById('recapShare').hidden = !canShareImage();
   document.getElementById('recapModal').style.display = 'flex';
+  updateRecapPreview();
 });
-document.getElementById('recapYear').addEventListener('change', renderRecap);
+document.getElementById('recapYear').addEventListener('change', () => {
+  renderRecap();
+  updateRecapPreview();
+});
 document.getElementById('closeRecapModal').addEventListener('click', () => {
   document.getElementById('recapModal').style.display = 'none';
 });
@@ -394,138 +400,7 @@ document.getElementById('recapModal').addEventListener('click', e => {
   if (e.target.id === 'recapModal') document.getElementById('recapModal').style.display = 'none';
 });
 
-// Выгрузка итогов картинкой — вертикальный формат под сторис, оформление
-// то же, что у снимка карты, чтобы обе картинки смотрелись как одна серия
-document.getElementById('recapDownload').addEventListener('click', () => {
-  const year = parseInt(document.getElementById('recapYear').value, 10);
-  if (!year) {
-    toast('Нет данных за выбранный год');
-    return;
-  }
-  const r = computeRecap(year);
-  if (r.entries === 0) {
-    toast('За этот год отметок нет');
-    return;
-  }
-
-  const W = 1080,
-    H = 1920;
-  const cv = document.createElement('canvas');
-  cv.width = W;
-  cv.height = H;
-  const ctx = cv.getContext('2d');
-
-  ctx.fillStyle = '#E7DFC7';
-  ctx.fillRect(0, 0, W, H);
-  ctx.strokeStyle = 'rgba(160,140,95,0.30)';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(38, 38, W - 76, H - 76);
-
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#2B3B2E';
-  ctx.font = "italic 700 62px 'Twemoji Country Flags','Playfair Display'";
-  ctx.fillText('Год в путешествиях', W / 2, 210);
-  ctx.font = "italic 700 150px 'Twemoji Country Flags','Playfair Display'";
-  ctx.fillStyle = '#A6592E';
-  ctx.fillText(String(year), W / 2, 380);
-
-  const cards = [
-    [r.countries.length, 'стран'],
-    [r.newCountries.length, 'впервые'],
-    [r.cities.size, 'городов'],
-    [r.trips.size, 'поездок'],
-    [r.months.size, 'месяцев в пути'],
-    [r.km >= 1 ? Math.round(r.km).toLocaleString('ru-RU') : '—', 'километров']
-  ];
-  let y = 520;
-  for (let i = 0; i < cards.length; i += 2) {
-    for (let j = 0; j < 2 && i + j < cards.length; j++) {
-      const cx = j === 0 ? W * 0.29 : W * 0.71;
-      ctx.fillStyle = '#2B3B2E';
-      ctx.font = "italic 700 92px 'Twemoji Country Flags','Playfair Display'";
-      ctx.fillText(String(cards[i + j][0]), cx, y);
-      ctx.fillStyle = '#6E6547';
-      ctx.font = "26px 'Twemoji Country Flags','EB Garamond'";
-      ctx.fillText(cards[i + j][1], cx, y + 44);
-    }
-    y += 190;
-  }
-
-  const hi = [];
-  if (r.longest) hi.push(['самый длинный маршрут', `${r.longest.name} · ${(r.longest.distanceKm || 0).toFixed(1)} км`]);
-  if (r.gain > 0) hi.push(['набор высоты', `${Math.round(r.gain).toLocaleString('ru-RU')} м`]);
-  if (r.flights) hi.push(['перелёты', `${r.flights} · ${Math.round(r.flightKm).toLocaleString('ru-RU')} км в воздухе`]);
-  if (r.topCity) hi.push(['чаще всего', `${r.topCity[0]} · ${r.topCity[1]}`]);
-  if (r.bestRun) hi.push(['лучший темп бега', formatPace(r.bestRun.durationMin / r.bestRun.distanceKm)]);
-  // моря года: впервые увиденные — первыми; «море» в названиях опускаем, чтобы влезло больше
-  if (r.seasYear.length) {
-    const short = n => n.replace(/^море /, '').replace(/ море$/, '');
-    const list = [...r.newSeas, ...r.seasYear.filter(n => !r.newSeas.includes(n))].map(short);
-    hi.push([`моря и океаны · ${r.seasYear.length}` + (r.newSeas.length ? `, впервые ${r.newSeas.length}` : ''), list.join(', ')]);
-  }
-
-  y += 10;
-  ctx.strokeStyle = 'rgba(160,140,95,0.45)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(W * 0.18, y);
-  ctx.lineTo(W * 0.82, y);
-  ctx.stroke();
-  y += 62;
-  // до пяти строк: шаг ужимается, чтобы не наехать на подпись внизу
-  const rows = hi.slice(0, 5);
-  // строка морей может занять две строки — учитываем это в шаге
-  const extra = rows.length && rows[rows.length - 1][0].startsWith('моря') ? 46 : 0;
-  const step = Math.min(128, Math.floor((H - 150 - y - extra) / Math.max(1, rows.length)));
-  rows.forEach(([label, value]) => {
-    ctx.fillStyle = '#6E6547';
-    ctx.font = "24px 'Twemoji Country Flags','Courier Prime'";
-    ctx.fillText(label.toUpperCase(), W / 2, y);
-    ctx.fillStyle = '#2B3B2E';
-    ctx.font = "italic 700 38px 'Twemoji Country Flags','Playfair Display'";
-    // длинное значение — в две строки по словам, дальше ужимаем с «…»
-    const fit = t => {
-      let v = t,
-        m = ctx.measureText(v);
-      while (m.width > W - 180 && v.length > 8) {
-        v = v.slice(0, -4) + '…';
-        m = ctx.measureText(v);
-      }
-      return v;
-    };
-    let lines = [value];
-    if (ctx.measureText(value).width > W - 180) {
-      const words = value.split(' ');
-      let a = '';
-      while (words.length && ctx.measureText((a ? a + ' ' : '') + words[0]).width <= W - 180) a = (a ? a + ' ' : '') + words.shift();
-      lines = a ? [a, words.join(' ')] : [value];
-    }
-    lines.slice(0, 2).forEach((l, k) => ctx.fillText(fit(l), W / 2, y + 48 + k * 46));
-    y += step + (lines.length > 1 ? 46 : 0);
-  });
-
-  ctx.fillStyle = '#6E6547';
-  ctx.font = "italic 30px 'Twemoji Country Flags','Playfair Display'";
-  ctx.fillText('Карта путешествий', W / 2, H - 96);
-  ctx.font = "22px 'Twemoji Country Flags','Courier Prime'";
-  ctx.fillText(new Date().toLocaleDateString('ru-RU'), W / 2, H - 60);
-
-  cv.toBlob(blob => {
-    if (!blob) {
-      toast('Не удалось создать картинку');
-      return;
-    }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `travel-map-year-${year}.png`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast('Картинка сохранена');
-  }, 'image/png');
-});
+// Картинки итогов (шаблоны, предпросмотр, «Поделиться», «Скачать») — src/app/35a-recap-cards.js
 
 document.getElementById('ppPrev').addEventListener('click', () => {
   passportSpread--;
