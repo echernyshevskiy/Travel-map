@@ -434,7 +434,8 @@ const ACTIVITIES = [
   { key: 'running', ru: 'Бег' },
   { key: 'hiking', ru: 'Хайкинг' },
   { key: 'cycling', ru: 'Вело' },
-  { key: 'roadtrip', ru: 'Автотрип' }
+  { key: 'roadtrip', ru: 'Автотрип' },
+  { key: 'flight', ru: 'Перелёт' }
 ];
 const STATUSES = [
   { key: 'visited', ru: 'Посещено' },

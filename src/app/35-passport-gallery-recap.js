@@ -289,8 +289,10 @@ function computeRecap(year) {
   const newCountries = countries.filter(k => !seenBefore.has(k));
   const cityVisits = getAllCityVisits(inYear);
   const cities = distinctCityKeys(cityVisits);
-  const routes = inYear.filter(e => e.type === 'route');
+  const routes = inYear.filter(e => e.type === 'route' && !isFlight(e));
   const km = routes.reduce((s, r) => s + (r.distanceKm || 0), 0);
+  const flights = inYear.filter(isFlight);
+  const flightKm = flights.reduce((s, r) => s + (r.distanceKm || 0), 0);
   const gain = routes.reduce((s, r) => s + (r.elevationGain || 0), 0);
   const months = new Set(inYear.filter(e => e.month).map(e => e.month));
   const longest = routes.slice().sort((a, b) => (b.distanceKm || 0) - (a.distanceKm || 0))[0];
@@ -314,7 +316,24 @@ function computeRecap(year) {
   const seasBefore = computeSeaStats(before).units;
   const newSeas = seasYear.filter(n => !seasBefore.has(n));
 
-  return { year, countries, newCountries, cities, km, gain, months, longest, trips, topCity, bestRun, seasYear, newSeas, entries: inYear.length };
+  return {
+    year,
+    countries,
+    newCountries,
+    cities,
+    km,
+    gain,
+    months,
+    longest,
+    trips,
+    topCity,
+    bestRun,
+    seasYear,
+    newSeas,
+    entries: inYear.length,
+    flights: flights.length,
+    flightKm
+  };
 }
 
 function renderRecap() {
@@ -341,6 +360,7 @@ function renderRecap() {
   const hi = [];
   if (r.longest) hi.push(['Самый длинный маршрут', `${escapeHtml(r.longest.name)} · ${(r.longest.distanceKm || 0).toFixed(1)} км`]);
   if (r.gain > 0) hi.push(['Набор высоты', `${Math.round(r.gain).toLocaleString('ru-RU')} м`]);
+  if (r.flights) hi.push(['Перелёты', `${r.flights} · ${Math.round(r.flightKm).toLocaleString('ru-RU')} км в воздухе`]);
   if (r.topCity) hi.push(['Чаще всего', `${escapeHtml(r.topCity[0])} · ${r.topCity[1]} ${r.topCity[1] === 1 ? 'визит' : 'визита'}`]);
   if (r.bestRun) hi.push(['Лучший темп бега', `${formatPace(r.bestRun.durationMin / r.bestRun.distanceKm)}`]);
   if (r.seasYear.length) hi.push(['Моря и океаны', r.seasYear.map(n => escapeHtml(n) + (r.newSeas.includes(n) ? ' <i>(впервые)</i>' : '')).join(', ')]);
@@ -434,6 +454,7 @@ document.getElementById('recapDownload').addEventListener('click', () => {
   const hi = [];
   if (r.longest) hi.push(['самый длинный маршрут', `${r.longest.name} · ${(r.longest.distanceKm || 0).toFixed(1)} км`]);
   if (r.gain > 0) hi.push(['набор высоты', `${Math.round(r.gain).toLocaleString('ru-RU')} м`]);
+  if (r.flights) hi.push(['перелёты', `${r.flights} · ${Math.round(r.flightKm).toLocaleString('ru-RU')} км в воздухе`]);
   if (r.topCity) hi.push(['чаще всего', `${r.topCity[0]} · ${r.topCity[1]}`]);
   if (r.bestRun) hi.push(['лучший темп бега', formatPace(r.bestRun.durationMin / r.bestRun.distanceKm)]);
   // моря года: впервые увиденные — первыми; «море» в названиях опускаем, чтобы влезло больше

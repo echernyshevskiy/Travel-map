@@ -340,3 +340,33 @@ export function simplifyLine(pts, tol) {
   }
   return pts.filter((_, i) => keep[i]);
 }
+
+// Дуга большого круга между двумя точками [широта, долгота] — так летят
+// самолёты, и так перелёт выглядит на карте. n отрезков; долготы идут
+// непрерывно (после 180 — 181, 182…), чтобы перелёт через линию перемены дат
+// рисовался короткой дугой через Тихий океан, а не через весь мир.
+export function greatCircle(a, b, n = 64) {
+  const rad = Math.PI / 180;
+  const [la1, lo1, la2, lo2] = [a[0] * rad, a[1] * rad, b[0] * rad, b[1] * rad];
+  const d = 2 * Math.asin(Math.sqrt(Math.sin((la2 - la1) / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin((lo2 - lo1) / 2) ** 2));
+  if (!(d > 1e-9)) return [a.slice(0, 2), b.slice(0, 2)];
+  const out = [];
+  let prev = null;
+  for (let i = 0; i <= n; i++) {
+    const f = i / n;
+    const A = Math.sin((1 - f) * d) / Math.sin(d),
+      B = Math.sin(f * d) / Math.sin(d);
+    const x = A * Math.cos(la1) * Math.cos(lo1) + B * Math.cos(la2) * Math.cos(lo2);
+    const y = A * Math.cos(la1) * Math.sin(lo1) + B * Math.cos(la2) * Math.sin(lo2);
+    const z = A * Math.sin(la1) + B * Math.sin(la2);
+    let lat = Math.atan2(z, Math.sqrt(x * x + y * y)) / rad;
+    let lng = Math.atan2(y, x) / rad;
+    if (i === 0) lng = a[1];
+    // без скачков на ±360: продолжаем от предыдущей долготы
+    if (prev != null) while (lng - prev > 180) lng -= 360;
+    if (prev != null) while (lng - prev < -180) lng += 360;
+    prev = lng;
+    out.push([+lat.toFixed(5), +lng.toFixed(5)]);
+  }
+  return out;
+}

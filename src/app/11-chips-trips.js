@@ -126,8 +126,11 @@ function computeTripSummary(tripName) {
   const years = [...new Set(visited.map(e => e.year))].sort((a, b) => a - b);
   const countries = new Set(visited.filter(e => e.type === 'country').map(e => e.countryKey)).size;
   const cities = distinctCityKeys(getAllCityVisits(visited)).size;
-  const routes = visited.filter(e => e.type === 'route');
+  const routes = visited.filter(e => e.type === 'route' && !isFlight(e));
   const totalKm = routes.reduce((s, r) => s + r.distanceKm, 0);
+  // перелёты — отдельной строкой: их километры не складываются с пройденными
+  const flights = visited.filter(isFlight);
+  const flightKm = flights.reduce((s, r) => s + (r.distanceKm || 0), 0);
   const totalElevation = routes.reduce((s, r) => s + (r.elevationGain || 0), 0);
   const totalDurationMin = routes.reduce((s, r) => s + (r.durationMin || 0), 0);
   const photosCount = visited.reduce((s, e) => s + (e.photos || []).length, 0);
@@ -158,7 +161,20 @@ function computeTripSummary(tripName) {
     }
   });
 
-  return { entries, years, countries, cities, routesCount: routes.length, totalKm, totalElevation, totalDurationMin, photosCount, byActivity };
+  return {
+    entries,
+    years,
+    countries,
+    cities,
+    routesCount: routes.length,
+    totalKm,
+    totalElevation,
+    totalDurationMin,
+    photosCount,
+    byActivity,
+    flightsCount: flights.length,
+    flightKm
+  };
 }
 
 function renderTripCard(tripName) {
@@ -174,6 +190,11 @@ function renderTripCard(tripName) {
   if (s.cities > 0) stats.push([`городов`, s.cities]);
   if (s.routesCount > 0) stats.push([`маршрутов`, s.routesCount]);
   if (s.totalKm > 0) stats.push([`км пройдено`, s.totalKm.toFixed(1)]);
+  if (s.flightsCount > 0)
+    stats.push([
+      `км в воздухе`,
+      `${Math.round(s.flightKm).toLocaleString('ru-RU')} (${s.flightsCount} ${s.flightsCount === 1 ? 'перелёт' : s.flightsCount < 5 ? 'перелёта' : 'перелётов'})`
+    ]);
   if (s.totalElevation > 0) stats.push([`набор высоты`, `${Math.round(s.totalElevation)} м`]);
   if (s.totalDurationMin > 0) stats.push([`в движении`, formatDuration(s.totalDurationMin)]);
   if (s.photosCount > 0) stats.push([`фото/видео`, s.photosCount]);

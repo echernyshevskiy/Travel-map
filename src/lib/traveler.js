@@ -2,7 +2,7 @@
 // на входе записи и пара справочников, на выходе — главный образ, две
 // дополнительные черты, шкалы «одно ↔ другое» и любопытные факты.
 // Считается только посещённое (планы не в счёт). unit/traveler.test.js.
-import { dateSpan, maxOf } from './format.js';
+import { dateSpan, maxOf, isFlight } from './format.js';
 
 const share = (a, b) => (a + b ? a / (a + b) : 0.5);
 
@@ -13,7 +13,8 @@ export function travelerProfile(entries, opts = {}) {
   const all = (entries || []).filter(e => e && e.status !== 'wishlist');
   if (all.length < 3) return null;
 
-  const routes = all.filter(e => e.type === 'route');
+  // перелёты — не походы и не забеги: в портрет по маршрутам не входят
+  const routes = all.filter(e => e.type === 'route' && !isFlight(e));
   const cities = all.filter(e => e.type === 'city');
   // страна записи: у маршрута — по большинству точек
   const keyOf = e => {

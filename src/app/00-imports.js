@@ -42,7 +42,8 @@ import {
   mainRing,
   decodedCoordsCache,
   snapToTrack,
-  simplifyLine
+  simplifyLine,
+  greatCircle
 } from '../lib/geo.js';
 import {
   escapeHtml,
@@ -66,7 +67,8 @@ import {
   isUsableEntry,
   normalizeEntryShape,
   minOf,
-  maxOf
+  maxOf,
+  isFlight
 } from '../lib/format.js';
 import { getAllCityVisits, uniqueCityVisits, distinctCityKeys } from '../lib/visits.js';
 import { SYNC_META, itemJson, mergeKind, parseTokenExpiry } from '../lib/sync-merge.js';

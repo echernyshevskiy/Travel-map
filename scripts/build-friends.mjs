@@ -109,12 +109,14 @@ const PUBLIC_ENTRY = [
   'durationMin',
   'trackDays',
   'profile',
+  // перелёт: коды аэропортов (номер рейса — личное)
+  'airports',
   // ссылки: Instagram и карта (фото отбираются отдельно — только обложки)
   'instagramUrl',
   'mapLinkUrl',
   'photos'
 ];
-const PRIVATE_ENTRY = ['notes', 'hidden', 'docLinkUrl', 'updatedAt', 'fieldTimes', 'ftBase'];
+const PRIVATE_ENTRY = ['notes', 'hidden', 'docLinkUrl', 'updatedAt', 'fieldTimes', 'ftBase', 'flightNo'];
 const PUBLIC_TRIP = ['narrative', 'coverPhoto'];
 const PRIVATE_TRIP = ['updatedAt', 'fieldTimes', 'ftBase'];
 const PUBLIC_RACE = ['id', 'name', 'date', 'city', 'country', 'distanceKm', 'time', 'place', 'participants', 'status'];

@@ -39,7 +39,8 @@ function updateFilteredStats(precomputedVisible) {
   const countryKeys = new Set(visited.filter(e => e.type === 'country').map(e => e.countryKey));
   const cityVisits = getAllCityVisits(visited);
   const cityKeys = distinctCityKeys(cityVisits);
-  const routes = visited.filter(e => e.type === 'route');
+  // перелёты считаются отдельно (renderFlightStats): их километры — не пройденные
+  const routes = visited.filter(e => e.type === 'route' && !isFlight(e));
   const running = routes.filter(e => e.activity === 'running').length;
   const hiking = routes.filter(e => e.activity === 'hiking').length;
   const cycling = routes.filter(e => e.activity === 'cycling').length;
@@ -76,6 +77,7 @@ function updateFilteredStats(precomputedVisible) {
   document.getElementById('statRoadtripF').textContent = roadtrip;
   document.getElementById('statElevationF').textContent = `${Math.round(totalElevation).toLocaleString('ru-RU')} м`;
   document.getElementById('statLongestF').textContent = longest ? `${longest.name} · ${longest.distanceKm.toFixed(1)} км` : '—';
+  renderFlightStats(visited);
   document.getElementById('statHomeF').textContent = HOME_LOCATION.name;
   document.getElementById('statFarthestF').textContent = farthest
     ? `${farthest.countryKey ? countryFlag(farthest.countryKey) + ' ' : ''}${farthest.name} · ${Math.round(farthestDist).toLocaleString('ru-RU')} км`

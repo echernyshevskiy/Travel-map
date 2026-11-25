@@ -91,7 +91,10 @@ function buildPopup(entry) {
     entry.type === 'route' ? activityLabel(entry.activity) : null
   ].filter(Boolean);
   if (extras.length) html += `<br><span class="u-dim">${extras.join(' · ')}</span>`;
-  if (entry.type === 'route') {
+  if (isFlight(entry)) {
+    const codes = (entry.airports || []).map(escapeHtml).join(' → ');
+    html += `<br>✈ ${codes ? codes + ' · ' : ''}${Math.round(entry.distanceKm).toLocaleString('ru-RU')} км${entry.flightNo ? ` · рейс ${escapeHtml(entry.flightNo)}` : ''}`;
+  } else if (entry.type === 'route') {
     html += `<br>${entry.distanceKm.toFixed(1)} км${entry.isEstimated ? ' <span style="color:var(--text-dim);font-style:italic;">(по прямой)</span>' : ''}`;
     const statsLine = routeStatsLine(entry);
     if (statsLine) html += `<br><span class="u-dim">${statsLine}</span>`;
